@@ -1,6 +1,6 @@
 # 📊 Coverage Matrix - KOLIA-1517 Kết nối Người thân
 
-> **Version:** 2.15  
+> **Version:** 2.16  
 > **Date:** 2026-02-02  
 > **Coverage Target:** ≥85%
 
@@ -61,12 +61,12 @@
 
 | Priority | Total BRs | Covered | Coverage |
 |:--------:|:---------:|:-------:|:--------:|
-| 🔴 P0 | 27 | 27 | **100%** |
+| 🔴 P0 | 31 | 31 | **100%** |
 | 🟡 P1 | 15 | 15 | **100%** |
 | 🟢 P2 | 4 | 4 | **100%** |
-| **Total** | **46** | **46** | **100%** |
+| **Total** | **50** | **50** | **100%** |
 
-> **v2.15 Addition:** See section 1.6 for new Default View State (UX-DVS-*) rules
+> **v2.16 Addition:** See section 1.7 for new Update Pending Invite Permissions (BR-031 to BR-034) rules
 
 ## 1.3 Dashboard Rules Coverage (v2.11)
 
@@ -115,6 +115,16 @@
 | UX-DVS-005 | Modal validation before show | 1 | 1 | 2 | ✅ |
 | **Disconnect Side Effects** | **Clear localStorage + Navigate** | **2** | **1** | **3** | **✅** |
 | **Total** | | **9** | **6** | **15** | ✅ |
+
+## 1.7 Update Pending Invite Permissions Coverage (v2.16) - NEW
+
+| Rule-ID | Rule | Unit Tests | API Tests | Total | Status |
+|:-------:|------|:----------:|:---------:|:-----:|:------:|
+| BR-031 | Chỉ sender của invite được sửa permissions | 2 | 2 | 4 | ✅ |
+| BR-032 | Chỉ áp dụng cho invite status = 0 (pending) | 2 | 2 | 4 | ✅ |
+| BR-033 | Permissions lưu vào `initial_permissions` | 2 | 1 | 3 | ✅ |
+| BR-034 | Không gửi notification đến receiver | 1 | 1 | 2 | ✅ |
+| **Total** | | **7** | **6** | **13** | ✅ |
 
 ---
 
@@ -185,9 +195,10 @@
 | `/api/v1/patients/{id}/blood-pressure-chart` | GET | 3 | 4 | 2 | 9 | ✅ |
 | `/api/v1/patients/{id}/periodic-reports` | GET | 3 | 3 | 2 | 8 | ✅ |
 | **`/api/v1/patients/{id}/periodic-reports/{reportId}/mark-read`** | **POST** | **2** | **5** | **2** | **9** | **✅** |
-| **Total** | | **42** | **47** | **26** | **115** | ✅ |
+| **`/api/v1/connections/invites/{id}/permissions`** | **PUT** | **2** | **4** | **2** | **8** | **✅** |
+| **Total** | | **44** | **51** | **28** | **123** | ✅ |
 
-**API Endpoint Coverage: 14/14 = 100%**
+**API Endpoint Coverage: 15/15 = 100%**
 
 ---
 
@@ -211,9 +222,10 @@
 | GetBloodPressureChart | DashboardService | 8 | 2 | 10 | ✅ |
 | GetPatientReports | DashboardService | 5 | 2 | 7 | ✅ |
 | **MarkReportAsRead** | **DashboardService** | **2** | **7** | **9** | **✅** |
-| **Total** | | **106** | **45** | **151** | ✅ |
+| **UpdatePendingInvitePermissions** | **InviteService** | **8** | **5** | **13** | **✅** |
+| **Total** | | **114** | **50** | **164** | ✅ |
 
-**gRPC Method Coverage: 17/17 = 100%**
+**gRPC Method Coverage: 18/18 = 100%**
 
 ---
 
@@ -269,9 +281,10 @@
 | INVALID_PERMISSION_TYPE | 400 | 1 | 1 | 2 | ✅ |
 | ZNS_SEND_FAILED | 503 | 2 | 0 | 2 | ✅ |
 | SMS_SEND_FAILED | 503 | 2 | 0 | 2 | ✅ |
-| **Total** | | **14** | **12** | **26** | ✅ |
+| **INVITE_NOT_PENDING** | **409** | **2** | **2** | **4** | **✅** |
+| **Total** | | **16** | **14** | **30** | ✅ |
 
-**Error Code Coverage: 9/9 = 100%**
+**Error Code Coverage: 10/10 = 100%**
 
 ---
 
@@ -291,7 +304,8 @@
 | ViewingPatientRepository | 4 | 2 | 6 | ≥85% |
 | ConnectionGrpcHandler | 12 | 5 | 17 | ≥85% |
 | Mappers | 8 | 0 | 8 | ≥85% |
-| **Total** | **89** | **40** | **129** | ≥85% |
+| **InvitePermissionUpdater (v2.16)** | **8** | **5** | **13** | **≥85%** |
+| **Total** | **97** | **45** | **142** | ≥85% |
 
 ## 7.2 api-gateway-service
 
@@ -366,6 +380,7 @@
 | gRPC Method Coverage | 100% | 100% | ✅ |
 | Error Code Coverage | 100% | 100% | ✅ |
 | **UX-DVS Coverage (v2.15)** | **100%** | **100%** | **✅** |
+| **BR-031 to BR-034 Coverage (v2.16)** | **100%** | **100%** | **✅** |
 | P0 Test Pass Rate | 100% | TBD | ⏳ |
 | P1 Test Pass Rate | ≥95% | TBD | ⏳ |
 

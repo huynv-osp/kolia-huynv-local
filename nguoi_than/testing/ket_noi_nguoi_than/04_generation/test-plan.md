@@ -4,14 +4,14 @@
 
 | Attribute | Value |
 |-----------|-------|
-| **Version** | 2.15 |
+| **Version** | 2.16 |
 | **Date** | 2026-02-02 |
 | **Author** | Test Generator (Automated via /alio-testing) |
 | **Status** | Draft |
 | **Feature** | KOLIA-1517 - Kết nối Người thân (Connection Flow) |
 | **SRS Version** | v3.0 |
-| **FA Version** | v2.15 |
-| **Changes** | Added Default View State (UX-DVS-*), v2.15 sync |
+| **FA Version** | v2.16 |
+| **Changes** | Added Update Pending Invite Permissions API (BR-031 to BR-034) |
 
 ---
 
@@ -38,11 +38,12 @@
 3. **Validate Notification Cascades**: ZNS → SMS fallback, Push notifications (BR-002, BR-003, BR-004)
 4. **Validate State Transitions**: Invite lifecycle (pending/accepted/rejected), Connection lifecycle
 5. **Validate Business Rules**: Đảm bảo **46 business rules** được implement đúng (incl. BR-DB-*, BR-RPT-*, SEC-DB-*, UX-DVS-*)
-6. **Validate API Contracts**: **17 REST endpoints**, **16 gRPC methods**
-7. **Validate Error Handling**: All 9 error codes handled correctly
+6. **Validate API Contracts**: **18 REST endpoints**, **17 gRPC methods**
+7. **Validate Error Handling**: All 10 error codes handled correctly
 8. **Validate Dashboard APIs (v2.11)**: Blood Pressure Chart, Periodic Reports với Authorization Flow
 9. **Validate Mark Report Read API (v2.14)**: Đánh dấu báo cáo đã đọc với SEC-DB-001 check
-10. **Validate Default View State (v2.15)**: Đảm bảo UX-DVS-001 → UX-DVS-005 hoạt động đúng (NEW)
+10. **Validate Default View State (v2.15)**: Đảm bảo UX-DVS-001 → UX-DVS-005 hoạt động đúng
+11. **Validate Update Pending Invite Permissions (v2.16)**: Đảm bảo BR-031 → BR-034 hoạt động đúng (NEW) (NEW)
 
 ## 1.2 Coverage Targets
 
@@ -50,13 +51,14 @@
 |--------|:------:|-------------|
 | Statement Coverage | ≥85% | JaCoCo (Java), pytest-cov (Python) |
 | Branch Coverage | ≥75% | JaCoCo, pytest-cov |
-| API Endpoint Coverage | 100% | All **17** REST endpoints tested |
-| gRPC Method Coverage | 100% | All **16** gRPC methods tested |
-| Business Rule Coverage | 100% | All **46** rules validated (v2.15: +4 UX-DVS) |
-| Error Code Coverage | 100% | All 9 error codes tested |
+| API Endpoint Coverage | 100% | All **18** REST endpoints tested |
+| gRPC Method Coverage | 100% | All **17** gRPC methods tested |
+| Business Rule Coverage | 100% | All **50** rules validated (v2.16: +4 BR-031 to BR-034) |
+| Error Code Coverage | 100% | All 10 error codes tested |
 | Gherkin Scenario Coverage | 100% | All SRS scenarios covered |
 | Dashboard API Coverage | 100% | BP Chart + Reports tested |
-| Default View State Coverage | 100% | **All 5 UX-DVS rules tested (NEW v2.15)** |
+| Default View State Coverage | 100% | All 5 UX-DVS rules tested |
+| **Update Pending Invite Permissions Coverage** | **100%** | **All 4 BR-031 to BR-034 rules tested (NEW v2.16)** |
 
 ---
 
@@ -92,6 +94,7 @@
 | GET | `/api/v1/patients/{id}/blood-pressure-chart` | **Dashboard API (v2.11)** - BP Chart data |
 | GET | `/api/v1/patients/{id}/periodic-reports` | **Dashboard API (v2.11)** - Report list + is_read |
 | **POST** | **`/api/v1/patients/{id}/periodic-reports/{reportId}/mark-read`** | **Mark Report Read (v2.14)** |
+| **PUT** | **`/api/v1/connections/invites/{id}/permissions`** | **Update Pending Invite Permissions (v2.16)** |
 
 ### Database Tables
 
@@ -110,13 +113,14 @@
 
 ### Business Rules
 
-- **46 Business Rules** total:
+- **50 Business Rules** total:
   - Connection Rules: BR-001 → BR-029 (25 rules)
+  - **Update Pending Invite Permissions: BR-031 → BR-034 (4 rules) - NEW v2.16**
   - Dashboard Rules: BR-DB-001 → BR-DB-011 (11 rules)
   - Report Rules: BR-RPT-001 → BR-RPT-003 (3 rules)
   - Security Rules: SEC-DB-001 → SEC-DB-003 (3 rules)
-  - **Default View State: UX-DVS-001 → UX-DVS-005 (5 rules) - NEW v2.15**
-- 19+ Gherkin scenarios from SRS v3.0
+  - Default View State: UX-DVS-001 → UX-DVS-005 (5 rules)
+- 20+ Gherkin scenarios from SRS v3.0
 
 ## 2.2 Out of Scope
 
@@ -390,6 +394,23 @@ permissions:
 > 3. Stop following → Return to Default View Prompt
 > 4. Close Bottom Sheet without selecting → Remain on Default View
 > 5. Disconnect via API → Clear state + Navigate to Default View
+
+## 6.8 Update Pending Invite Permissions Rules (v2.16 - P0) - NEW
+
+| Rule-ID | Rule | Test Category | Priority |
+|---------|------|---------------|:--------:|
+| BR-031 | Chỉ sender của invite mới được sửa permissions | InviteService Unit Test | 🔴 P0 |
+| BR-032 | Chỉ áp dụng cho invite status = 0 (pending) | InviteService Unit Test | 🔴 P0 |
+| BR-033 | Permissions được lưu vào `initial_permissions` | Repository Integration Test | 🔴 P0 |
+| BR-034 | Không gửi notification đến receiver | Kafka Verify Test | 🟡 P1 |
+
+> **Update Pending Invite Permissions Test Scenarios:**
+> 1. Sender updates permissions successfully → 200 + updated permissions
+> 2. Non-sender attempts update → 403 NOT_AUTHORIZED
+> 3. Update non-pending invite → 409 INVITE_NOT_PENDING
+> 4. Update non-existent invite → 404 INVITE_NOT_FOUND
+> 5. Invalid permission code → 400 INVALID_PERMISSION_TYPE
+> 6. Verify no notification sent to receiver
 
 ---
 

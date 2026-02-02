@@ -1,9 +1,9 @@
 # Implementation Tasks: KOLIA-1517 - Kết nối Người thân
 
 > **Feature:** Connection Flow (Patient ↔ Caregiver)  
-> **Version:** v2.15 - Added Default View State + Mark Report Read  
-> **Total Tasks:** 43  
-> **Estimated Effort:** 87 hours
+> **Version:** v2.16 - Added Update Pending Invite Permissions API  
+> **Total Tasks:** 45  
+> **Estimated Effort:** 92 hours
 
 ---
 
@@ -205,6 +205,8 @@ service ConnectionService {
   // Profile Selection (v2.7)
   rpc GetViewingPatient(GetViewingPatientRequest) returns (ViewingPatientResponse);
   rpc SetViewingPatient(SetViewingPatientRequest) returns (ViewingPatientResponse);
+  // Update Pending Invite Permissions (v2.16)
+  rpc UpdatePendingInvitePermissions(UpdatePendingInvitePermissionsRequest) returns (UpdatePendingInvitePermissionsResponse);
 }
 ```
 
@@ -246,6 +248,7 @@ Business logic cho invite lifecycle:
 - `listInvites()`: List sent/received with filters
 - `rejectInvite()`: Update status to rejected
 - `cancelInvite()`: Cancel pending invite (sender only)
+- **`updatePendingInvitePermissions()`: Update permissions for pending invite (v2.16)**
 
 **Files:**
 - `user-service/src/main/java/com/company/userservice/service/InviteService.java`
@@ -253,6 +256,10 @@ Business logic cho invite lifecycle:
 **Business Rules:**
 - BR-006: No self-invite
 - BR-007: No duplicate pending invite
+- **BR-031: Only sender can update pending invite permissions (v2.16)**
+- **BR-032: Only pending invites (status=0) can be updated (v2.16)**
+- **BR-033: Permissions saved to initial_permissions (v2.16)**
+- **BR-034: No notification to receiver on update (v2.16)**
 
 ---
 
@@ -392,6 +399,7 @@ REST endpoints:
 - GET `/api/v1/connection/permission-types`
 - GET `/api/v1/connections/viewing` (NEW v2.7)
 - PUT `/api/v1/connections/viewing` (NEW v2.7)
+- **PUT `/api/v1/connections/invites/{id}/permissions` (NEW v2.16)**
 
 **Files:**
 - `api-gateway-service/src/main/java/com/company/apiservice/handler/ConnectionHandler.java`
@@ -585,8 +593,8 @@ mvn verify -Pintegration-test
 | api-gateway-service | 7 | 16h |
 | schedule-service | 2 | 7h |
 | **mobile-app** | **4** | **7h** |
-| testing | 9 | 19h |
-| **TOTAL** | **43** | **93h** |
+| testing | 10 | 21h |
+| **TOTAL** | **45** | **95h** |
 
 ---
 
@@ -755,3 +763,109 @@ Unit tests for mark report as read:
 
 **Files:**
 - `user-service/src/test/java/com/userservice/service/ReportReadServiceTest.java`
+
+---
+
+## NEW TASKS (v2.16)
+
+### SVC-006: UpdatePendingInvitePermissions Service
+| Field | Value |
+|-------|-------|
+| **Service** | user-service |
+| **Priority** | P0 |
+| **Estimated** | 2h |
+| **Dependencies** | REPO-001, ENTITY-001 |
+
+**Description:**
+Implement updatePendingInvitePermissions logic:
+- Validate sender is the invite owner (BR-031)
+- Validate invite status is pending (BR-032)
+- Update initial_permissions JSONB field (BR-033)
+- No Kafka event published (BR-034)
+
+**Files:**
+- `user-service/src/main/java/com/company/userservice/service/InviteService.java`
+- `user-service/src/main/java/com/company/userservice/service/impl/InviteServiceImpl.java`
+
+**Database:**
+- Update `connection_invites.initial_permissions` JSONB
+
+**Business Rules:**
+- BR-031: Only sender can update
+- BR-032: Only pending invites (status=0)
+- BR-033: Write to initial_permissions
+- BR-034: No notification
+
+---
+
+### GW-HANDLER-004: UpdatePendingInvitePermissions Handler
+| Field | Value |
+|-------|-------|
+| **Service** | api-gateway-service |
+| **Priority** | P0 |
+| **Estimated** | 2h |
+| **Dependencies** | SVC-006, CLIENT-001 |
+
+**Description:**
+REST endpoint: `PUT /api/v1/connections/invites/{inviteId}/permissions`
+
+**Files:**
+- `api-gateway-service/src/main/java/com/company/apiservice/handler/InviteHandler.java`
+- `api-gateway-service/src/main/java/com/company/apiservice/dto/request/UpdatePendingInvitePermissionsRequest.java`
+- `api-gateway-service/src/main/java/com/company/apiservice/dto/response/UpdatePendingInvitePermissionsResponse.java`
+
+**API Contract:**
+```yaml
+PUT /api/v1/connections/invites/{inviteId}/permissions
+Request:
+  {
+    "permissions": {
+      "health_overview": true,
+      "emergency_alert": true,
+      "task_config": false,
+      "compliance_tracking": true,
+      "proxy_execution": false,
+      "encouragement": true
+    }
+  }
+Response: 200
+  {
+    "invite_id": "uuid",
+    "permissions": {...},
+    "updated_at": "ISO8601"
+  }
+Errors:
+  - 400: INVALID_PERMISSION_TYPE
+  - 403: NOT_AUTHORIZED (not sender)
+  - 404: INVITE_NOT_FOUND
+  - 409: INVITE_NOT_PENDING
+```
+
+---
+
+### TEST-007: UpdatePendingInvitePermissions Tests
+| Field | Value |
+|-------|-------|
+| **Service** | user-service |
+| **Priority** | P0 |
+| **Estimated** | 2h |
+| **Dependencies** | SVC-006 |
+
+**Description:**
+Unit tests for updatePendingInvitePermissions:
+- TC-INV-030: Sender updates permissions successfully
+- TC-INV-031: Non-sender → 403 NOT_AUTHORIZED
+- TC-INV-032: Non-pending invite → 409 INVITE_NOT_PENDING
+- TC-INV-033: Invite not found → 404
+- TC-INV-034: Invalid permission code → 400
+- TC-INV-035: Permissions saved to initial_permissions
+- TC-INV-036: No Kafka event published
+- TC-INV-037: Partial update works
+
+**Files:**
+- `user-service/src/test/java/com/company/userservice/service/InviteServiceTest.java`
+
+**Run Command:**
+```bash
+cd user-service && mvn test -Dtest=InviteServiceTest#testUpdatePendingInvitePermissions*
+```

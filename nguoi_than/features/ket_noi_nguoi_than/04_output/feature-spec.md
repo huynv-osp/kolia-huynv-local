@@ -1,9 +1,9 @@
 # Feature Specification: KOLIA-1517 - Kết nối Người thân
 
-> **Version:** 2.15  
+> **Version:** 2.16  
 > **Date:** 2026-02-02  
 > **Status:** Ready for Implementation  
-> **Schema:** v2.15 + Default View State (UX-DVS-*) + Patient BP Thresholds
+> **Schema:** v2.16 + Update Pending Invite Permissions API
 
 ---
 
@@ -23,15 +23,15 @@
 
 ## 2. Metrics (v2.15)
 
-| Metric | v1.0 | v2.15 (Current) |
+| Metric | v1.0 | v2.16 (Current) |
 |--------|:----:|:----------------:|
 | **Feasibility** | 84/100 | **88/100** ✅ |
 | **Impact** | 🟡 MEDIUM | 🟢 **LOW** |
 | **Services** | 3 | 3 |
 | **New Tables** | 4 | **6 NEW + 1 ALTER** |
-| **Endpoints** | 8 REST, 9 gRPC | **17 REST, 16 gRPC** |
-| **Tasks** | 29 | **43** |
-| **Effort** | 67h | **87h** |
+| **Endpoints** | 8 REST, 9 gRPC | **18 REST, 17 gRPC** |
+| **Tasks** | 29 | **45** |
+| **Effort** | 67h | **92h** |
 
 ---
 
@@ -66,6 +66,7 @@
 | POST | `/api/v1/connections/invite` | Create invite |
 | GET | `/api/v1/connections/invites` | List invites |
 | DELETE | `/api/v1/connections/invites/{inviteId}` | Cancel pending |
+| **PUT** | **`/api/v1/connections/invites/{inviteId}/permissions`** | **Update pending invite permissions (v2.16)** |
 | POST | `/api/v1/connections/invites/{inviteId}/accept` | Accept |
 | POST | `/api/v1/connections/invites/{inviteId}/reject` | Reject |
 
@@ -136,6 +137,7 @@
 | **BR-DB-*** | 11 Dashboard rules |
 | **BR-RPT-*** | 2 Report rules |
 | **SEC-DB-*** | 3 Security rules |
+| **BR-031 to BR-034** | **Update Pending Invite Permissions rules (NEW v2.16)** |
 | **UX-DVS-*** | **5 Default View State rules (NEW v2.15)** |
 
 ### Default View State Rules (UX-DVS-*) - NEW v2.15
@@ -166,6 +168,6 @@
 ## References
 
 - [SRS v3.0](file:///Users/nguyenvanhuy/Desktop/OSP/Kolia/dev/kolia/docs/nguoi_than/srs_input_documents/srs_nguoi_than_v3.md)
-- [SA Analysis v2.15](file:///Users/nguyenvanhuy/Desktop/OSP/Kolia/dev/kolia/docs/nguoi_than/sa-analysis/ket_noi_nguoi_than/v2.15_default_view_state.md)
+- [SA Analysis v2.16](file:///Users/nguyenvanhuy/Desktop/OSP/Kolia/dev/kolia/docs/nguoi_than/sa-analysis/ket_noi_nguoi_than/v2.16_update_pending_invite_permissions.md)
 - [Implementation Plan](file:///Users/nguyenvanhuy/Desktop/OSP/Kolia/dev/kolia/docs/nguoi_than/features/ket_noi_nguoi_than/04_output/implementation-plan.md)
 - [Tasks](file:///Users/nguyenvanhuy/Desktop/OSP/Kolia/dev/kolia/docs/nguoi_than/features/ket_noi_nguoi_than/02_planning/implementation-tasks.md)

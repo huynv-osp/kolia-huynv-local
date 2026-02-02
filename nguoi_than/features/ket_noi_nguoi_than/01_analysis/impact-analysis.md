@@ -1,8 +1,8 @@
 # Impact Analysis: KOLIA-1517 - Kết nối Người thân
 
 > **Phase:** 3 - Impact Analysis  
-> **Date:** 2026-01-30  
-> **Revision:** v2.11 - Added Dashboard APIs, caregiver_report_views table, SEC-DB-* rules
+> **Date:** 2026-02-02  
+> **Revision:** v2.16 - Added Update Pending Invite Permissions API
 
 ---
 
@@ -22,8 +22,8 @@
 
 | Service | Impact | Changes | Effort |
 |---------|:------:|---------|:------:|
-| **user-service** | 🔴 HIGH | 12 gRPC methods, 5 entities, 4 repos, 4 services | 44h |
-| **api-gateway-service** | 🟡 MEDIUM | 11 REST endpoints, 1 gRPC client, DTOs | 18h |
+| **user-service** | 🔴 HIGH | 14 gRPC methods, 5 entities, 4 repos, 4 services | 48h |
+| **api-gateway-service** | 🟡 MEDIUM | 12 REST endpoints, 1 gRPC client, DTOs | 20h |
 | **schedule-service** | 🟡 MEDIUM | 2 Celery tasks, ZNS/SMS integration | 8h |
 
 ---
@@ -62,7 +62,7 @@
 
 ## 4. API Impact
 
-### New REST Endpoints (14)
+### New REST Endpoints (15)
 
 | Method | Path | Access |
 |--------|------|--------|
@@ -80,8 +80,8 @@
 | PUT | `/api/v1/connections/viewing` | Authenticated |
 | **GET** | **`/api/v1/patients/{id}/blood-pressure-chart`** | **Connection+Perm** |
 | **GET** | **`/api/v1/patients/{id}/periodic-reports`** | **Connection+Perm** |
-
-### New gRPC Methods (15)
+| **PUT** | **`/api/v1/connections/invites/{id}/permissions`** | **Authenticated (v2.16)** |
+### New gRPC Methods (16)
 
 ```protobuf
 service ConnectionService {
@@ -95,7 +95,9 @@ service ConnectionService {
   // Profile Selection (v2.7)
   GetViewingPatient, SetViewingPatient,
   // Dashboard APIs (v2.11)
-  GetBloodPressureChart, GetPatientReports
+  GetBloodPressureChart, GetPatientReports,
+  // Update Pending Invite Permissions (v2.16)
+  UpdatePendingInvitePermissions
 }
 ```
 

@@ -1,11 +1,11 @@
 # Implementation Plan: KOLIA-1517 - Kết nối Người thân
 
-> **SRS Version:** v3.0 + Default View State (Option E)  
+> **SRS Version:** v3.0 + Update Pending Invite Permissions  
 > **Date:** 2026-02-02  
 > **Feasibility Score:** **88/100** ✅ FEASIBLE (improved from 84)  
 > **Impact Level:** 🟢 **LOW** (reduced from MEDIUM)  
 > **Estimated Duration:** 4 weeks (3 phases)  
-> **Schema:** v2.15 Optimized + Default View State + Mark Report Read
+> **Schema:** v2.16 Optimized + Update Pending Invite Permissions
 
 ---
 
@@ -18,8 +18,8 @@ Tính năng **Kết nối Người thân** cho phép Patient và Caregiver thi�
 |--------|-------|
 | Services Affected | 3 (user-service, api-gateway, schedule-service) |
 | New Database Tables | **6 NEW + 1 ALTER** |
-| New REST Endpoints | **17** (v2.15: +Default View State docs) |
-| New gRPC Methods | **16** |
+| New REST Endpoints | **18** (v2.16: +Update Pending Invite Permissions) |
+| New gRPC Methods | **17** |
 | New Celery Tasks | 3 |
 
 ---
@@ -231,6 +231,7 @@ CREATE INDEX idx_crv_report_id ON caregiver_report_views(report_id);
 | GET | `/api/v1/connections/invites` | List sent/received invites |
 | GET | `/api/v1/connections/invites/:inviteId` | Get invite details |
 | DELETE | `/api/v1/connections/invites/:inviteId` | Cancel pending invite |
+| **PUT** | **`/api/v1/connections/invites/:inviteId/permissions`** | **Update pending invite permissions (v2.16)** |
 | POST | `/api/v1/connections/invites/:inviteId/accept` | Accept invite with permissions |
 | POST | `/api/v1/connections/invites/:inviteId/reject` | Reject invite |
 | GET | `/api/v1/connections` | List active connections |
@@ -258,6 +259,7 @@ service ConnectionService {
   rpc AcceptInvite(AcceptInviteRequest) returns (ConnectionResponse);
   rpc RejectInvite(RejectInviteRequest) returns (InviteResponse);
   rpc CancelInvite(CancelInviteRequest) returns (InviteResponse);
+  rpc UpdatePendingInvitePermissions(UpdatePendingInvitePermissionsRequest) returns (UpdatePendingInvitePermissionsResponse);  // NEW v2.16
   
   // Connections
   rpc ListConnections(ListConnectionsRequest) returns (ListConnectionsResponse);

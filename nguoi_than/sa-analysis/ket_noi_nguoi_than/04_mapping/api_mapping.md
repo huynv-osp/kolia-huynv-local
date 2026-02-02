@@ -1,8 +1,8 @@
 # API Mapping: KOLIA-1517 - Kết nối Người thân
 
 > **Phase:** 4 - Architecture Mapping & Analysis  
-> **Date:** 2026-01-30  
-> **Revision:** v2.13 - Patient BP Thresholds added to Blood Pressure Chart API
+> **Date:** 2026-02-02  
+> **Revision:** v2.16 - Added Update Pending Invite Permissions API
 
 ---
 
@@ -16,6 +16,7 @@
 | GET | `/api/v1/connections/invites` | List sent/received invites |
 | GET | `/api/v1/connections/invites/:inviteId` | Get invite details |
 | DELETE | `/api/v1/connections/invites/:inviteId` | Cancel pending invite |
+| PUT | `/api/v1/connections/invites/:inviteId/permissions` | **NEW (v2.16)** Update pending invite permissions |
 | POST | `/api/v1/connections/invites/:inviteId/accept` | Accept invite |
 | POST | `/api/v1/connections/invites/:inviteId/reject` | Reject invite |
 
@@ -168,6 +169,57 @@
 - Chỉ áp dụng cho invite có status = `pending`
 - Không gửi notification đến receiver khi cancel
 - Invite record được soft delete hoặc update status = `cancelled`
+
+---
+
+### PUT /api/v1/connections/invites/:inviteId/permissions (NEW - v2.16)
+
+> **Purpose:** Sender cập nhật permissions của pending invite trước khi receiver chấp nhận
+> **SRS Reference:** N/A (Feature enhancement - not in original SRS)
+
+**Request:**
+```json
+{
+  "permissions": {
+    "health_overview": true,
+    "emergency_alert": true,
+    "task_config": false,
+    "compliance_tracking": true,
+    "proxy_execution": false,
+    "encouragement": true
+  }
+}
+```
+
+**Response (200):**
+```json
+{
+  "invite_id": "uuid",
+  "permissions": [
+    { "code": "health_overview", "is_enabled": true },
+    { "code": "emergency_alert", "is_enabled": true },
+    { "code": "task_config", "is_enabled": false },
+    { "code": "compliance_tracking", "is_enabled": true },
+    { "code": "proxy_execution", "is_enabled": false },
+    { "code": "encouragement", "is_enabled": true }
+  ],
+  "updated_at": "2026-02-02T10:00:00Z"
+}
+```
+
+**Business Rules:**
+- **BR-031:** Chỉ sender của invite mới được sửa permissions
+- **BR-032:** Chỉ áp dụng cho invite có status = `0` (pending)
+- **BR-033:** Permissions được lưu vào `connection_invites.initial_permissions`
+- **BR-034:** Không gửi notification đến receiver
+
+**Error Responses:**
+| Status | Code | Description |
+|:------:|------|-------------|
+| 400 | `INVALID_PERMISSION_TYPE` | Permission code không hợp lệ |
+| 403 | `NOT_AUTHORIZED` | User không phải sender của invite |
+| 404 | `INVITE_NOT_FOUND` | Invite không tồn tại |
+| 409 | `INVITE_NOT_PENDING` | Invite không ở trạng thái pending |
 
 ---
 
@@ -563,6 +615,7 @@ service ConnectionService {
   rpc ListInvites(ListInvitesRequest) returns (ListInvitesResponse);
   rpc AcceptInvite(AcceptInviteRequest) returns (ConnectionResponse);
   rpc RejectInvite(RejectInviteRequest) returns (InviteResponse);
+  rpc UpdatePendingInvitePermissions(UpdatePendingInvitePermissionsRequest) returns (UpdatePendingInvitePermissionsResponse);  // NEW - v2.16
   
   // Connections
   rpc ListConnections(ListConnectionsRequest) returns (ListConnectionsResponse);
@@ -579,6 +632,24 @@ service ConnectionService {
   // Profile Selection (NEW - v2.7)
   rpc GetViewingPatient(GetViewingPatientRequest) returns (ViewingPatientResponse);
   rpc SetViewingPatient(SetViewingPatientRequest) returns (ViewingPatientResponse);
+}
+
+// NEW - v2.16
+message UpdatePendingInvitePermissionsRequest {
+  string user_id = 1;          // Sender's user_id (from JWT)
+  string invite_id = 2;        // Target invite ID
+  map<string, bool> permissions = 3;  // permission_code -> is_enabled
+}
+
+message UpdatePendingInvitePermissionsResponse {
+  string invite_id = 1;
+  repeated PermissionState permissions = 2;
+  string updated_at = 3;
+}
+
+message PermissionState {
+  string code = 1;
+  bool is_enabled = 2;
 }
 
 // NEW - v2.7

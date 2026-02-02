@@ -1,9 +1,9 @@
 # 🧪 Backend Unit Tests - KOLIA-1517 Kết nối Người thân
 
-> **Version:** 1.4  
-> **Date:** 2026-01-30  
+> **Version:** 1.5  
+> **Date:** 2026-02-02  
 > **Coverage Target:** ≥85%  
-> **Total Test Cases:** ~190 (+8 DashboardService v2.13)
+> **Total Test Cases:** ~198 (+8 UpdatePendingInvitePermissions v2.16)
 
 ---
 
@@ -53,6 +53,19 @@
 | TC-INV-022 | testCancelInvite_InviteNotFound_ThrowException | Invite không tồn tại | - | 🟡 P1 |
 | TC-INV-023 | testCancelInvite_AlreadyAccepted_ThrowException | Đã accept → 400 | - | 🟡 P1 |
 | TC-INV-024 | testCancelInvite_PublishKafkaEvent_Success | Kafka event invite.cancelled published | - | 🟡 P1 |
+
+#### Test Suite: updatePendingInvitePermissions() (NEW v2.16)
+
+| Test ID | Test Name | Description | BR | Priority |
+|---------|-----------|-------------|:--:|:--------:|
+| TC-INV-030 | testUpdatePendingInvitePermissions_BySender_Success | Sender cập nhật permissions thành công | BR-031 | 🔴 P0 |
+| TC-INV-031 | testUpdatePendingInvitePermissions_NotSender_ThrowsForbidden | Không phải sender → 403 NOT_AUTHORIZED | BR-031 | 🔴 P0 |
+| TC-INV-032 | testUpdatePendingInvitePermissions_NotPending_ThrowsConflict | Invite không ở trạng thái pending → 409 | BR-032 | 🔴 P0 |
+| TC-INV-033 | testUpdatePendingInvitePermissions_InviteNotFound_ThrowsNotFound | Invite không tồn tại → 404 | - | 🟡 P1 |
+| TC-INV-034 | testUpdatePendingInvitePermissions_InvalidPermissionCode_ThrowsBadRequest | Permission code không hợp lệ → 400 | - | 🟡 P1 |
+| TC-INV-035 | testUpdatePendingInvitePermissions_PermissionsSavedToInitialPermissions | Permissions lưu vào initial_permissions | BR-033 | 🔴 P0 |
+| TC-INV-036 | testUpdatePendingInvitePermissions_NoKafkaEventPublished | Không gửi notification đến receiver | BR-034 | 🟡 P1 |
+| TC-INV-037 | testUpdatePendingInvitePermissions_PartialUpdate_Success | Cập nhật một số permissions | BR-033 | 🟡 P1 |
 
 ```java
 @ExtendWith(MockitoExtension.class)

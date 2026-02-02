@@ -1,7 +1,8 @@
 # Sequence Diagrams: KOLIA-1517 - Kết nối Người thân
 
 > **Feature:** Connection Flow (Patient ↔ Caregiver)  
-> **Date:** 2026-01-28
+> **Date:** 2026-02-02  
+> **Version:** v2.16 - Added Update Pending Invite Permissions
 
 ---
 
@@ -414,4 +415,52 @@ stateDiagram-v2
         - Historical data preserved
         - Can create new connection
     end note
+```
+
+---
+
+## 9. Update Pending Invite Permissions Flow (NEW v2.16)
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant Sender as Sender (Patient/Caregiver)
+    participant App as Mobile App
+    participant GW as api-gateway
+    participant US as user-service
+    participant DB as PostgreSQL
+
+    Note over Sender: While editing pending invite permissions
+    
+    Sender->>App: Modify permission toggles
+    App->>App: Store changes locally
+    
+    Sender->>App: Tap "Lưu thay đổi"
+    App->>GW: PUT /api/v1/connections/invites/{id}/permissions
+    Note over GW: InviteHandler.updatePendingInvitePermissions()
+    
+    GW->>US: gRPC UpdatePendingInvitePermissions()
+    Note over US: InviteService.updatePendingInvitePermissions()
+    
+    US->>DB: SELECT * FROM connection_invites WHERE id=?
+    DB-->>US: Invite record
+    
+    alt Not sender (BR-031)
+        US-->>GW: 403 NOT_AUTHORIZED
+        GW-->>App: 403 Forbidden
+        App-->>Sender: "Bạn không có quyền sửa lời mời này"
+    else Not pending (BR-032)
+        US-->>GW: 409 INVITE_NOT_PENDING
+        GW-->>App: 409 Conflict
+        App-->>Sender: "Lời mời này không còn pending"
+    else Valid
+        US->>DB: UPDATE connection_invites SET initial_permissions=? (BR-033)
+        DB-->>US: OK
+        
+        Note over US: No Kafka event (BR-034)
+        
+        US-->>GW: UpdatePendingInvitePermissionsResponse
+        GW-->>App: 200 OK
+        App-->>Sender: "Đã cập nhật quyền cho lời mời"
+    end
 ```

@@ -3,7 +3,7 @@
 > **Phase:** 1 - Requirement Intake & Classification  
 > **Date:** 2026-02-02  
 > **SRS Version:** v3.0  
-> **Revision:** v2.15 - Added Default View State (UX-DVS-*) rules
+> **Revision:** v2.16 - Added Update Pending Invite Permissions (BR-031 to BR-034)
 
 ---
 
@@ -74,7 +74,7 @@
 
 ---
 
-## 5. Key Business Rules (46 BRs)
+## 5. Key Business Rules (50 BRs)
 
 ### 5.1 Core Connection Rules (25 BRs)
 
@@ -150,6 +150,17 @@
 | UX-DVS-004 | "Ngừng theo dõi" link: visible when selectedPatient != null | P0 |
 | UX-DVS-005 | showStopFollowModal() validates selectedPatient | P1 |
 
+### 5.6 Update Pending Invite Permissions Rules (4 BR-031 to BR-034) - NEW v2.16
+
+> **SA Reference:** SA v2.16 - v2.16_update_pending_invite_permissions.md
+
+| Rule-ID | Description | Priority |
+|---------|-------------|:--------:|
+| BR-031 | Chỉ sender của invite mới được sửa permissions | P0 |
+| BR-032 | Chỉ áp dụng cho invite status = 0 (pending) | P0 |
+| BR-033 | Permissions được lưu vào `initial_permissions` | P0 |
+| BR-034 | Không gửi notification đến receiver | P1 |
+
 ---
 
 ## 6. Dependencies & Assumptions
@@ -202,4 +213,4 @@
 ## References
 
 - [SRS v3.0](file:///Users/nguyenvanhuy/Desktop/OSP/Kolia/dev/kolia/docs/nguoi_than/srs_input_documents/srs_nguoi_than_v3.md)
-- [SA Analysis v2.15](file:///Users/nguyenvanhuy/Desktop/OSP/Kolia/dev/kolia/docs/nguoi_than/sa-analysis/ket_noi_nguoi_than/v2.15_default_view_state.md)
+- [SA Analysis v2.16](file:///Users/nguyenvanhuy/Desktop/OSP/Kolia/dev/kolia/docs/nguoi_than/sa-analysis/ket_noi_nguoi_than/v2.16_update_pending_invite_permissions.md)

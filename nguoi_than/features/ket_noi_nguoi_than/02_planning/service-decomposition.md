@@ -1,9 +1,9 @@
 # Service Decomposition: KOLIA-1517 - Kết nối Người thân
 
 > **Phase:** 4 - Service Decomposition  
-> **Date:** 2026-01-30  
+> **Date:** 2026-02-02  
 > **Applies Rule:** FA-002 (Service-Specific Change Documentation)  
-> **Revision:** v2.14 - Added Mark Report as Read API
+> **Revision:** v2.16 - Added Update Pending Invite Permissions API
 
 ---
 
@@ -15,7 +15,7 @@
 
 | Layer | File Path | Type | Description |
 |-------|-----------|:----:|-------------|
-| **Proto** | `proto/connection_service.proto` | NEW | 13 gRPC methods definition |
+| **Proto** | `proto/connection_service.proto` | NEW | 14 gRPC methods definition (+UpdatePendingInvitePermissions) |
 | **Entity** | `entity/ConnectionInvite.java` | NEW | Invite record entity |
 | **Entity** | `entity/UserConnection.java` | NEW | Connection entity |
 | **Entity** | `entity/ConnectionPermission.java` | NEW | Permission flag entity |
@@ -83,6 +83,7 @@
 | `ListRelationshipTypes` | Empty | RelationshipTypesResponse |
 | `GetViewingPatient` | GetViewingPatientRequest | ViewingPatientResponse |
 | `SetViewingPatient` | SetViewingPatientRequest | ViewingPatientResponse |
+| **`UpdatePendingInvitePermissions`** | UpdatePendingInvitePermissionsRequest | UpdatePendingInvitePermissionsResponse | (v2.16)
 | **`GetBloodPressureChart`** | GetBloodPressureChartRequest | BloodPressureChartResponse |
 | **`GetPatientReports`** | GetPatientReportsRequest | PatientReportsResponse |
 | **`MarkReportAsRead`** | MarkReportAsReadRequest | MarkReportAsReadResponse | (v2.14)
@@ -95,7 +96,7 @@
 | schedule-service | Kafka | connection.status.changed | Status updates |
 | schedule-service | Kafka | connection.permission.changed | Permission changes |
 
-### Estimated Effort: 50 hours
+### Estimated Effort: 52 hours
 
 ### Authorization Flow (SEC-DB-001)
 
@@ -116,7 +117,7 @@ Any step FAIL → 403 Forbidden
 
 | Layer | File Path | Type | Description |
 |-------|-----------|:----:|-------------|
-| **Handler** | `handler/InviteHandler.java` | NEW | 4 REST endpoints |
+| **Handler** | `handler/InviteHandler.java` | NEW | 5 REST endpoints (+updatePendingInvitePermissions) |
 | **Handler** | `handler/ConnectionHandler.java` | NEW | 7 REST endpoints (incl. viewing) |
 | **Client** | `client/ConnectionServiceClient.java` | NEW | gRPC client |
 | **DTO** | `dto/request/CreateInviteRequest.java` | NEW | REST request |
@@ -141,6 +142,7 @@ Any step FAIL → 403 Forbidden
 | DELETE | `/api/v1/invites/{id}` | InviteHandler.cancel |
 | POST | `/api/v1/invites/{id}/accept` | InviteHandler.accept |
 | POST | `/api/v1/invites/{id}/reject` | InviteHandler.reject |
+| **PUT** | **`/api/v1/invites/{id}/permissions`** | **InviteHandler.updatePendingInvitePermissions** | (v2.16)
 | GET | `/api/v1/connections` | ConnectionHandler.list |
 | DELETE | `/api/v1/connections/{id}` | ConnectionHandler.disconnect |
 | GET | `/api/v1/connections/{id}/permissions` | ConnectionHandler.getPermissions |
@@ -173,7 +175,7 @@ Any step FAIL → 403 Forbidden
 - Entity definitions
 ```
 
-### Estimated Effort: 22 hours
+### Estimated Effort: 24 hours
 
 ---
 
@@ -232,7 +234,7 @@ RETRY_INTERVAL = 30  # seconds
 
 | Service | Impact | Files | Effort |
 |---------|:------:|:-----:|:------:|
-| user-service | 🔴 HIGH | ~35 | 50h |
-| api-gateway-service | 🟡 MEDIUM | ~18 | 22h |
+| user-service | 🔴 HIGH | ~36 | 52h |
+| api-gateway-service | 🟡 MEDIUM | ~19 | 24h |
 | schedule-service | 🟡 MEDIUM | ~5 | 8h |
-| **Total** | | **~58** | **80h** |
+| **Total** | | **~60** | **84h** |
