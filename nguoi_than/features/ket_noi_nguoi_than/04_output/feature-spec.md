@@ -1,9 +1,9 @@
 # Feature Specification: KOLIA-1517 - Kết nối Người thân
 
-> **Version:** 2.13  
-> **Date:** 2026-01-30  
+> **Version:** 2.15  
+> **Date:** 2026-02-02  
 > **Status:** Ready for Implementation  
-> **Schema:** v2.13 + Dashboard APIs + Patient BP Thresholds
+> **Schema:** v2.15 + Default View State (UX-DVS-*) + Patient BP Thresholds
 
 ---
 
@@ -21,17 +21,17 @@
 
 ---
 
-## 2. Metrics (v2.11)
+## 2. Metrics (v2.15)
 
-| Metric | v1.0 | v2.11 (Current) |
+| Metric | v1.0 | v2.15 (Current) |
 |--------|:----:|:----------------:|
 | **Feasibility** | 84/100 | **88/100** ✅ |
 | **Impact** | 🟡 MEDIUM | 🟢 **LOW** |
 | **Services** | 3 | 3 |
 | **New Tables** | 4 | **6 NEW + 1 ALTER** |
-| **Endpoints** | 8 REST, 9 gRPC | **14 REST, 15 gRPC** |
-| **Tasks** | 29 | 40 |
-| **Effort** | 67h | **80h** |
+| **Endpoints** | 8 REST, 9 gRPC | **17 REST, 16 gRPC** |
+| **Tasks** | 29 | **43** |
+| **Effort** | 67h | **87h** |
 
 ---
 
@@ -63,11 +63,11 @@
 ### Invite Management
 | Method | Path | Description |
 |:------:|------|-------------|
-| POST | `/api/v1/invites` | Create invite |
-| GET | `/api/v1/invites` | List invites |
-| DELETE | `/api/v1/invites/{id}` | Cancel pending |
-| POST | `/api/v1/invites/{id}/accept` | Accept |
-| POST | `/api/v1/invites/{id}/reject` | Reject |
+| POST | `/api/v1/connections/invite` | Create invite |
+| GET | `/api/v1/connections/invites` | List invites |
+| DELETE | `/api/v1/connections/invites/{inviteId}` | Cancel pending |
+| POST | `/api/v1/connections/invites/{inviteId}/accept` | Accept |
+| POST | `/api/v1/connections/invites/{inviteId}/reject` | Reject |
 
 ### Connection Management
 | Method | Path | Description |
@@ -122,7 +122,7 @@
 
 ---
 
-## 8. Key Business Rules (41 total)
+## 8. Key Business Rules (46 total)
 
 | BR-ID | Description |
 |-------|-------------|
@@ -136,6 +136,19 @@
 | **BR-DB-*** | 11 Dashboard rules |
 | **BR-RPT-*** | 2 Report rules |
 | **SEC-DB-*** | 3 Security rules |
+| **UX-DVS-*** | **5 Default View State rules (NEW v2.15)** |
+
+### Default View State Rules (UX-DVS-*) - NEW v2.15
+
+> **SRS Reference:** SRS v3.0 - Kịch bản B.4.3b, B.4.3c, B.4.3d
+
+| Rule-ID | Description |
+|---------|-------------|
+| UX-DVS-001 | Page load (no localStorage) → Show Default View Prompt |
+| UX-DVS-002 | CTA "Xem danh sách" → toggleBottomSheet() |
+| UX-DVS-003 | Close Bottom Sheet → updateStopFollowUI(selectedPatient) |
+| UX-DVS-004 | "Ngừng theo dõi" link: visible only when selectedPatient != null |
+| UX-DVS-005 | showStopFollowModal() validates selectedPatient before display |
 
 ---
 
@@ -152,6 +165,7 @@
 
 ## References
 
-- [SRS v2.4](file:///Users/nguyenvanhuy/Desktop/OSP/Kolia/dev/kolia/docs/nguoi_than/srs_input_documents/srs_nguoi_than.md)
+- [SRS v3.0](file:///Users/nguyenvanhuy/Desktop/OSP/Kolia/dev/kolia/docs/nguoi_than/srs_input_documents/srs_nguoi_than_v3.md)
+- [SA Analysis v2.15](file:///Users/nguyenvanhuy/Desktop/OSP/Kolia/dev/kolia/docs/nguoi_than/sa-analysis/ket_noi_nguoi_than/v2.15_default_view_state.md)
 - [Implementation Plan](file:///Users/nguyenvanhuy/Desktop/OSP/Kolia/dev/kolia/docs/nguoi_than/features/ket_noi_nguoi_than/04_output/implementation-plan.md)
 - [Tasks](file:///Users/nguyenvanhuy/Desktop/OSP/Kolia/dev/kolia/docs/nguoi_than/features/ket_noi_nguoi_than/02_planning/implementation-tasks.md)

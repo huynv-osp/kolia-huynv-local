@@ -1,9 +1,9 @@
 # Requirement Analysis: KOLIA-1517 - Kết nối Người thân
 
 > **Phase:** 1 - Requirement Intake & Classification  
-> **Date:** 2026-01-30  
-> **SRS Version:** v2.0  
-> **Revision:** v2.11 - Dashboard (BR-DB-*), Report (BR-RPT-*), Security (SEC-DB-*) rules
+> **Date:** 2026-02-02  
+> **SRS Version:** v3.0  
+> **Revision:** v2.15 - Added Default View State (UX-DVS-*) rules
 
 ---
 
@@ -74,7 +74,7 @@
 
 ---
 
-## 5. Key Business Rules (41 BRs)
+## 5. Key Business Rules (46 BRs)
 
 ### 5.1 Core Connection Rules (25 BRs)
 
@@ -138,6 +138,18 @@
 | SEC-DB-002 | Permission revoke → Real-time 403 response | P0 |
 | SEC-DB-003 | Deep link protection với connection validation | P0 |
 
+### 5.5 Default View State Rules (5 UX-DVS-*) - NEW v2.15
+
+> **SRS Reference:** SRS v3.0 - Kịch bản B.4.3b, B.4.3c, B.4.3d
+
+| Rule-ID | Description | Priority |
+|---------|-------------|:--------:|
+| UX-DVS-001 | Page load (no localStorage) → Default View Prompt | P0 |
+| UX-DVS-002 | CTA "Xem danh sách" → toggleBottomSheet() | P0 |
+| UX-DVS-003 | Close Bottom Sheet → updateStopFollowUI(selectedPatient) | P0 |
+| UX-DVS-004 | "Ngừng theo dõi" link: visible when selectedPatient != null | P0 |
+| UX-DVS-005 | showStopFollowModal() validates selectedPatient | P1 |
+
 ---
 
 ## 6. Dependencies & Assumptions
@@ -189,4 +201,5 @@
 
 ## References
 
-- [SRS v2.4](file:///Users/nguyenvanhuy/Desktop/OSP/Kolia/dev/kolia/docs/nguoi_than/srs_input_documents/srs_nguoi_than.md)
+- [SRS v3.0](file:///Users/nguyenvanhuy/Desktop/OSP/Kolia/dev/kolia/docs/nguoi_than/srs_input_documents/srs_nguoi_than_v3.md)
+- [SA Analysis v2.15](file:///Users/nguyenvanhuy/Desktop/OSP/Kolia/dev/kolia/docs/nguoi_than/sa-analysis/ket_noi_nguoi_than/v2.15_default_view_state.md)

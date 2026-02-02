@@ -1,8 +1,8 @@
 # 📊 Requirement Mapping - KOLIA-1517
 
 > **Phase:** 3 - Requirement Mapping  
-> **Date:** 2026-01-30  
-> **Source:** SRS v2.0 + SA Analysis v2.11 + FA v2.11
+> **Date:** 2026-02-02  
+> **Source:** SRS v3.0 + SA Analysis v2.15 + FA v2.15
 
 ---
 
@@ -93,6 +93,17 @@
 |----------|-------------|---------|---------|:--------:|
 | B4.1 | View Patient detail (BR-017) | TC-CON-007 | user-service | 🟡 P1 |
 
+#### B.4-DVS Default View State (NEW v2.15)
+
+| Scenario | Description | Test ID | Service | Priority |
+|----------|-------------|---------|---------|:--------:|
+| B4-DVS.1 | First load, no localStorage → Default View Prompt | TC-DVS-001 | mobile-app | 🔴 P0 |
+| B4-DVS.2 | CTA button triggers toggleBottomSheet() | TC-DVS-002 | mobile-app | 🔴 P0 |
+| B4-DVS.3 | Close Bottom Sheet → updateStopFollowUI() | TC-DVS-003 | mobile-app | 🔴 P0 |
+| B4-DVS.4 | "Ngừng theo dõi" link visibility condition | TC-DVS-004 | mobile-app | 🔴 P0 |
+| B4-DVS.5 | Modal validation before show | TC-DVS-005 | mobile-app | 🟡 P1 |
+| B4-DVS.6 | Disconnect clears localStorage + navigate | TC-DVS-006 | mobile-app | 🔴 P0 |
+
 #### B.5 Ngừng theo dõi Patient
 
 | Scenario | Description | Test ID | Service | Priority |
@@ -114,11 +125,11 @@
 
 | Endpoint | Method | Test Cases |
 |----------|:------:|------------|
-| `/api/v1/invites` | POST | TC-API-INV-001~010 |
-| `/api/v1/invites` | GET | TC-API-INV-011~015 |
-| `/api/v1/invites/{id}` | DELETE | TC-API-INV-036~042 |
-| `/api/v1/invites/{id}/accept` | POST | TC-API-INV-016~022 |
-| `/api/v1/invites/{id}/reject` | POST | TC-API-INV-023~028 |
+| `/api/v1/connections/invite` | POST | TC-API-INV-001~010 |
+| `/api/v1/connections/invite` | GET | TC-API-INV-011~015 |
+| `/api/v1/connections/invites/{id}` | DELETE | TC-API-INV-036~042 |
+| `/api/v1/connections/invites/{id}/accept` | POST | TC-API-INV-016~022 |
+| `/api/v1/connections/invites/{id}/reject` | POST | TC-API-INV-023~028 |
 | `/api/v1/connections` | GET | TC-API-CON-001~008 |
 | `/api/v1/connections/{id}` | DELETE | TC-API-CON-009~014 |
 | `/api/v1/connections/{id}/permissions` | GET | TC-API-PRM-001~005 |
@@ -209,9 +220,9 @@
 | Error Handling Tests | 12 |
 | **Grand Total** | **~437** |
 
-> **v2.11 Changes:** +47 tests for Dashboard APIs (BP Chart + Reports), +7 for caregiver_report_views, +3 for Security rules
+> **v2.15 Changes:** +15 tests for Default View State (UX-DVS-001~005, Disconnect Side Effects), +6 for mobile tests
 
 ---
 
-**Generated:** 2026-01-28T17:40:00+07:00  
+**Generated:** 2026-02-02T08:40:00+07:00  
 **Workflow:** `/alio-testing`

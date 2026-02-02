@@ -1,9 +1,9 @@
 # Implementation Tasks: KOLIA-1517 - Kết nối Người thân
 
 > **Feature:** Connection Flow (Patient ↔ Caregiver)  
-> **Version:** v2.7 - Added Profile Selection  
-> **Total Tasks:** 35  
-> **Estimated Effort:** 75 hours
+> **Version:** v2.15 - Added Default View State + Mark Report Read  
+> **Total Tasks:** 43  
+> **Estimated Effort:** 87 hours
 
 ---
 
@@ -581,8 +581,177 @@ mvn verify -Pintegration-test
 | Service | Tasks | Estimated Hours |
 |---------|-------|-----------------|
 | database | 1 | 2h |
-| user-service | 18 | 38h |
-| api-gateway-service | 6 | 14h |
+| user-service | 20 | 42h |
+| api-gateway-service | 7 | 16h |
 | schedule-service | 2 | 7h |
-| testing | 6 | 16h |
-| **TOTAL** | **33** | **77h** |
+| **mobile-app** | **4** | **7h** |
+| testing | 9 | 19h |
+| **TOTAL** | **43** | **93h** |
+
+---
+
+## NEW TASKS (v2.15)
+
+### MOBILE-001: Default View Prompt Component
+| Field | Value |
+|-------|-------|
+| **Service** | mobile-app |
+| **Priority** | P0 |
+| **Estimated** | 2h |
+| **Dependencies** | None |
+
+**Description:**
+Create `DefaultViewPrompt` component with:
+- Icon (👋, 48px)
+- Title: "Chọn người thân để bắt đầu"
+- Subtitle: "Nhấn nút bên dưới..."
+- CTA Button: "📋 Xem danh sách người thân" → toggleBottomSheet()
+
+**Files:**
+- `app-mobile-ai/src/features/connect_relatives/components/DefaultViewPrompt.tsx`
+
+**Acceptance Criteria:**
+- [ ] Component matches Figma design
+- [ ] CTA button triggers toggleBottomSheet()
+- [ ] Renders when selectedPatient === null && monitoring.length > 0
+
+---
+
+### MOBILE-002: Stop Follow Link Visibility
+| Field | Value |
+|-------|-------|
+| **Service** | mobile-app |
+| **Priority** | P0 |
+| **Estimated** | 1h |
+| **Dependencies** | MOBILE-001 |
+
+**Description:**
+Update "Ngừng theo dõi" link visibility per UX-DVS-004:
+- Show only when: `selectedPatient !== null && !emptyState`
+
+**Files:**
+- `app-mobile-ai/src/features/connect_relatives/components/StopFollowingLink.tsx`
+
+**Business Rules:**
+- UX-DVS-004: Link visibility condition
+- UX-DVS-005: Modal validation before show
+
+---
+
+### MOBILE-003: Disconnect Side Effects
+| Field | Value |
+|-------|-------|
+| **Service** | mobile-app |
+| **Priority** | P0 |
+| **Estimated** | 2h |
+| **Dependencies** | SVC-002 |
+
+**Description:**
+Update disconnect flow to:
+1. Clear `localStorage.selectedPatient`
+2. Clear `localStorage.selectedConnection`
+3. Navigate to SCR-01 with Default View Prompt
+4. Show success toast
+
+**Files:**
+- `app-mobile-ai/src/features/connect_relatives/hooks/useViewingPatient.ts`
+- `app-mobile-ai/src/features/connect_relatives/screens/ConnectRelativesScreen.tsx`
+
+---
+
+### MOBILE-004: State Flow Validation
+| Field | Value |
+|-------|-------|
+| **Service** | mobile-app |
+| **Priority** | P1 |
+| **Estimated** | 2h |
+| **Dependencies** | MOBILE-001, MOBILE-002, MOBILE-003 |
+
+**Description:**
+Validate localStorage.selectedPatient on page load:
+- If exists but connection no longer active → Clear + Show Default View
+- If connection disconnected by Patient → Toast + Clear + Navigate
+
+**Acceptance Criteria:**
+- [ ] Invalid connection ID handled gracefully
+- [ ] Toast notification for disconnection events
+
+---
+
+### SVC-005: Mark Report as Read Service
+| Field | Value |
+|-------|-------|
+| **Service** | user-service |
+| **Priority** | P1 |
+| **Estimated** | 2h |
+| **Dependencies** | REPO-003 |
+
+**Description:**
+Implement mark report as read logic:
+- Insert into `caregiver_report_views` (ON CONFLICT DO NOTHING)
+- Return success with read timestamp
+
+**Files:**
+- `user-service/src/main/java/com/userservice/service/ReportReadService.java`
+- `user-service/src/main/java/com/userservice/repository/CaregiverReportViewRepository.java`
+
+**Database:**
+- Write to `caregiver_report_views(caregiver_id, report_id, viewed_at)`
+
+---
+
+### GW-HANDLER-003: Mark Report Read Handler
+| Field | Value |
+|-------|-------|
+| **Service** | api-gateway-service |
+| **Priority** | P1 |
+| **Estimated** | 2h |
+| **Dependencies** | SVC-005, CLIENT-001 |
+
+**Description:**
+REST endpoint: `POST /api/v1/patients/{patientId}/periodic-reports/{reportId}/mark-read`
+
+**Files:**
+- `api-gateway-service/src/main/java/com/apiservice/handler/PatientReportHandler.java`
+
+**Authorization:**
+- SEC-DB-001: Check connection + permission #1
+
+---
+
+### TEST-005: Default View State Tests
+| Field | Value |
+|-------|-------|
+| **Service** | mobile-app |
+| **Priority** | P2 |
+| **Estimated** | 2h |
+| **Dependencies** | MOBILE-001~004 |
+
+**Description:**
+Unit tests for Default View State flow:
+1. First visit (no localStorage) → Default View Prompt shown
+2. Select Patient → Dashboard loads, localStorage saved
+3. Stop following → Return to Default View Prompt
+4. Close Bottom Sheet without selecting → Remain on Default View
+
+**Files:**
+- `app-mobile-ai/src/features/connect_relatives/__tests__/DefaultViewState.test.tsx`
+
+---
+
+### TEST-006: Mark Report Read Tests
+| Field | Value |
+|-------|-------|
+| **Service** | user-service |
+| **Priority** | P2 |
+| **Estimated** | 1h |
+| **Dependencies** | SVC-005 |
+
+**Description:**
+Unit tests for mark report as read:
+- Happy path: Mark report as read
+- Idempotency: Mark same report twice → No error
+- Authorization: 403 if no connection or permission OFF
+
+**Files:**
+- `user-service/src/test/java/com/userservice/service/ReportReadServiceTest.java`

@@ -1,7 +1,7 @@
 # 📊 Coverage Matrix - KOLIA-1517 Kết nối Người thân
 
-> **Version:** 2.14  
-> **Date:** 2026-01-30  
+> **Version:** 2.15  
+> **Date:** 2026-02-02  
 > **Coverage Target:** ≥85%
 
 ---
@@ -61,12 +61,12 @@
 
 | Priority | Total BRs | Covered | Coverage |
 |:--------:|:---------:|:-------:|:--------:|
-| 🔴 P0 | 23 | 23 | **100%** |
-| 🟡 P1 | 14 | 14 | **100%** |
-| 🟢 P2 | 5 | 5 | **100%** |
-| **Total** | **42** | **42** | **100%** |
+| 🔴 P0 | 27 | 27 | **100%** |
+| 🟡 P1 | 15 | 15 | **100%** |
+| 🟢 P2 | 4 | 4 | **100%** |
+| **Total** | **46** | **46** | **100%** |
 
-> **v2.11 Addition:** See sections 1.3, 1.4, 1.5 for new Dashboard, Report, and Security rules
+> **v2.15 Addition:** See section 1.6 for new Default View State (UX-DVS-*) rules
 
 ## 1.3 Dashboard Rules Coverage (v2.11)
 
@@ -103,6 +103,18 @@
 | SEC-DB-003 | Deep link protection | 2 | 2 | 4 | ✅ |
 | **DB-SCHEMA-001** | **Correct table names in queries** | **2** | **1** | **3** | **✅** |
 | **Total** | | **11** | **9** | **20** | ✅ |
+
+## 1.6 Default View State (UX-DVS) Coverage (v2.15) - NEW
+
+| Rule-ID | Rule | Mobile Unit | Integration | Total | Status |
+|:-------:|------|:-----------:|:-----------:|:-----:|:------:|
+| UX-DVS-001 | Page load → Default View Prompt | 2 | 1 | 3 | ✅ |
+| UX-DVS-002 | CTA → toggleBottomSheet() | 1 | 1 | 2 | ✅ |
+| UX-DVS-003 | Close Bottom Sheet → updateStopFollowUI() | 1 | 1 | 2 | ✅ |
+| UX-DVS-004 | Link visibility conditional | 2 | 1 | 3 | ✅ |
+| UX-DVS-005 | Modal validation before show | 1 | 1 | 2 | ✅ |
+| **Disconnect Side Effects** | **Clear localStorage + Navigate** | **2** | **1** | **3** | **✅** |
+| **Total** | | **9** | **6** | **15** | ✅ |
 
 ---
 
@@ -158,11 +170,11 @@
 
 | Endpoint | Method | Happy Path | Error Cases | Edge Cases | Total | Status |
 |----------|:------:|:----------:|:-----------:|:----------:|:-----:|:------:|
-| `/api/v1/invites` | POST | 6 | 8 | 2 | 16 | ✅ |
-| `/api/v1/invites` | GET | 3 | 1 | 3 | 7 | ✅ |
-| `/api/v1/invites/{id}` | DELETE | 2 | 4 | 1 | 7 | ✅ |
-| `/api/v1/invites/{id}/accept` | POST | 4 | 4 | 2 | 10 | ✅ |
-| `/api/v1/invites/{id}/reject` | POST | 1 | 2 | 2 | 5 | ✅ |
+| `/api/v1/connections/invite` | POST | 6 | 8 | 2 | 16 | ✅ |
+| `/api/v1/connections/invite` | GET | 3 | 1 | 3 | 7 | ✅ |
+| `/api/v1/connections/invites/{id}` | DELETE | 2 | 4 | 1 | 7 | ✅ |
+| `/api/v1/connections/invites/{id}/accept` | POST | 4 | 4 | 2 | 10 | ✅ |
+| `/api/v1/connections/invites/{id}/reject` | POST | 1 | 2 | 2 | 5 | ✅ |
 | `/api/v1/connections` | GET | 4 | 1 | 3 | 8 | ✅ |
 | `/api/v1/connections/{id}` | DELETE | 2 | 2 | 2 | 6 | ✅ |
 | `/api/v1/connections/{id}/permissions` | GET | 2 | 2 | 1 | 5 | ✅ |
@@ -310,14 +322,15 @@
 
 | Category | Count | Percentage |
 |----------|:-----:|:----------:|
-| Unit Tests - user-service | 96 | 34% |
-| Unit Tests - api-gateway | 54 | 19% |
-| Unit Tests - schedule-service | 28 | 10% |
-| Integration Tests - API | 60 | 21% |
-| Integration Tests - gRPC | 28 | 10% |
-| Integration Tests - Kafka | 10 | 4% |
+| Unit Tests - user-service | 96 | 31% |
+| Unit Tests - api-gateway | 54 | 18% |
+| Unit Tests - schedule-service | 28 | 9% |
+| **Unit Tests - mobile-app (v2.15)** | **15** | **5%** |
+| Integration Tests - API | 60 | 20% |
+| Integration Tests - gRPC | 28 | 9% |
+| Integration Tests - Kafka | 10 | 3% |
 | Database Tests | 18 | 6% |
-| **Total** | **294** | 100% |
+| **Total** | **309** | 100% |
 
 ## 8.2 By Priority
 
@@ -333,10 +346,11 @@
 
 | Service | Unit | Integration | Total | % |
 |---------|:----:|:-----------:|:-----:|:-:|
-| user-service | 96 | 43 | 139 | 47% |
-| api-gateway-service | 54 | 60 | 114 | 39% |
-| schedule-service | 28 | 10 | 38 | 13% |
-| **Total** | **178** | **113** | **291** | 100% |
+| user-service | 96 | 43 | 139 | 45% |
+| api-gateway-service | 54 | 60 | 114 | 37% |
+| schedule-service | 28 | 10 | 38 | 12% |
+| **mobile-app (v2.15)** | **15** | **6** | **21** | **7%** |
+| **Total** | **193** | **119** | **312** | 100% |
 
 ---
 
@@ -351,10 +365,11 @@
 | API Endpoint Coverage | 100% | 100% | ✅ |
 | gRPC Method Coverage | 100% | 100% | ✅ |
 | Error Code Coverage | 100% | 100% | ✅ |
+| **UX-DVS Coverage (v2.15)** | **100%** | **100%** | **✅** |
 | P0 Test Pass Rate | 100% | TBD | ⏳ |
 | P1 Test Pass Rate | ≥95% | TBD | ⏳ |
 
 ---
 
-**Generated:** 2026-01-28T18:00:00+07:00  
+**Generated:** 2026-02-02T08:42:00+07:00  
 **Workflow:** `/alio-testing`

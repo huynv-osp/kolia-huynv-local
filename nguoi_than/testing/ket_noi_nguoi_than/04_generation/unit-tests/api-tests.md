@@ -22,7 +22,7 @@
 
 # 1. Invite APIs
 
-## 1.1 POST /api/v1/invites - Create Invite
+## 1.1 POST /api/v1/connections/invite - Create Invite
 
 ### Happy Path Tests
 
@@ -94,7 +94,7 @@ class InviteApiIntegrationTest {
         
         // When/Then
         webClient.post()
-            .uri("/api/v1/invites")
+            .uri("/api/v1/connections/invite")
             .header("Authorization", "Bearer " + token)
             .contentType(MediaType.APPLICATION_JSON)
             .bodyValue(request)
@@ -125,7 +125,7 @@ class InviteApiIntegrationTest {
         
         // When/Then
         webClient.post()
-            .uri("/api/v1/invites")
+            .uri("/api/v1/connections/invite")
             .header("Authorization", "Bearer " + token)
             .contentType(MediaType.APPLICATION_JSON)
             .bodyValue(request)
@@ -153,7 +153,7 @@ class InviteApiIntegrationTest {
         
         // When/Then
         webClient.post()
-            .uri("/api/v1/invites")
+            .uri("/api/v1/connections/invite")
             .header("Authorization", "Bearer " + token)
             .contentType(MediaType.APPLICATION_JSON)
             .bodyValue(request)
@@ -168,7 +168,7 @@ class InviteApiIntegrationTest {
 
 ---
 
-## 1.2 GET /api/v1/invites - List Invites
+## 1.2 GET /api/v1/connections/invites - List Invites
 
 | Test ID | Scenario | Expected | BR | Priority |
 |---------|----------|----------|:--:|:--------:|
@@ -198,7 +198,7 @@ class InviteApiIntegrationTest {
         
         // When/Then
         webClient.get()
-            .uri("/api/v1/invites?type=received&status=pending")
+            .uri("/api/v1/connections/invites?type=received&status=pending")
             .header("Authorization", "Bearer " + token)
             .exchange()
             .expectStatus().isOk()
@@ -211,7 +211,7 @@ class InviteApiIntegrationTest {
 
 ---
 
-## 1.3 POST /api/v1/invites/{id}/accept - Accept Invite
+## 1.3 POST /api/v1/connections/invites/{id}/accept - Accept Invite
 
 | Test ID | Scenario | Expected | BR | Priority |
 |---------|----------|----------|:--:|:--------:|
@@ -255,7 +255,7 @@ class InviteApiIntegrationTest {
         
         // When/Then
         webClient.post()
-            .uri("/api/v1/invites/{id}/accept", inviteId)
+            .uri("/api/v1/connections/invites/{id}/accept", inviteId)
             .header("Authorization", "Bearer " + token)
             .contentType(MediaType.APPLICATION_JSON)
             .bodyValue(request)
@@ -270,7 +270,7 @@ class InviteApiIntegrationTest {
 
 ---
 
-## 1.4 POST /api/v1/invites/{id}/reject - Reject Invite
+## 1.4 POST /api/v1/connections/invites/{id}/reject - Reject Invite
 
 | Test ID | Scenario | Expected | BR | Priority |
 |---------|----------|----------|:--:|:--------:|
@@ -282,7 +282,7 @@ class InviteApiIntegrationTest {
 
 ---
 
-## 1.5 DELETE /api/v1/invites/{id} - Cancel Invite
+## 1.5 DELETE /api/v1/connections/invites/{id} - Cancel Invite
 
 | Test ID | Scenario | Expected | BR | Priority |
 |---------|----------|----------|:--:|:--------:|
@@ -311,7 +311,7 @@ class InviteApiIntegrationTest {
         
         // When/Then
         webClient.delete()
-            .uri("/api/v1/invites/{id}", inviteId)
+            .uri("/api/v1/connections/invites/{id}", inviteId)
             .header("Authorization", "Bearer " + token)
             .exchange()
             .expectStatus().isOk()
@@ -333,7 +333,7 @@ class InviteApiIntegrationTest {
         
         // When/Then
         webClient.delete()
-            .uri("/api/v1/invites/{id}", inviteId)
+            .uri("/api/v1/connections/invites/{id}", inviteId)
             .header("Authorization", "Bearer " + token)
             .exchange()
             .expectStatus().isForbidden()
@@ -1105,7 +1105,7 @@ class InviteApiIntegrationTest {
   "error_code": "SELF_INVITE",
   "message": "Bạn không thể mời chính mình",
   "timestamp": "2026-01-28T10:00:00Z",
-  "path": "/api/v1/invites"
+  "path": "/api/v1/connections/invite"
 }
 ```
 
@@ -1143,7 +1143,7 @@ void testE2E_PatientInvitesCaregiver_FullFlow() {
     // Step 1: Patient creates invite
     String patientToken = generatePatientToken();
     String inviteId = webClient.post()
-        .uri("/api/v1/invites")
+        .uri("/api/v1/connections/invite")
         .header("Authorization", "Bearer " + patientToken)
         .bodyValue(createInviteRequest())
         .exchange()
@@ -1156,7 +1156,7 @@ void testE2E_PatientInvitesCaregiver_FullFlow() {
     // Step 2: Caregiver lists invites
     String caregiverToken = generateCaregiverToken();
     webClient.get()
-        .uri("/api/v1/invites?type=received")
+        .uri("/api/v1/connections/invites?type=received")
         .header("Authorization", "Bearer " + caregiverToken)
         .exchange()
         .expectStatus().isOk()
@@ -1165,7 +1165,7 @@ void testE2E_PatientInvitesCaregiver_FullFlow() {
         
     // Step 3: Caregiver accepts
     String connectionId = webClient.post()
-        .uri("/api/v1/invites/{id}/accept", inviteId)
+        .uri("/api/v1/connections/invites/{id}/accept", inviteId)
         .header("Authorization", "Bearer " + caregiverToken)
         .exchange()
         .expectStatus().isOk()

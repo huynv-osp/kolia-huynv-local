@@ -669,7 +669,7 @@ message RelationshipTypesResponse {
 ### Re-invite Flow (BR-011)
 > Sau khi invite bị reject, sender có thể gửi lại invite.
 > - Invite cũ status = `rejected`
-> - Sender gọi POST /api/v1/invites với cùng receiver_phone
+> - Sender gọi POST /api/v1/connections/invite với cùng receiver_phone
 > - System tạo invite mới (invite_id mới)
 
 ### Permission Changed (BR-016)

@@ -4,14 +4,14 @@
 
 | Attribute | Value |
 |-----------|-------|
-| **Version** | 2.14 |
-| **Date** | 2026-01-30 |
+| **Version** | 2.15 |
+| **Date** | 2026-02-02 |
 | **Author** | Test Generator (Automated via /alio-testing) |
 | **Status** | Draft |
 | **Feature** | KOLIA-1517 - Kết nối Người thân (Connection Flow) |
-| **SRS Version** | v2.0 |
-| **FA Version** | v2.14 |
-| **Changes** | Added Mark Report as Read API (v2.14), BR-RPT-003 |
+| **SRS Version** | v3.0 |
+| **FA Version** | v2.15 |
+| **Changes** | Added Default View State (UX-DVS-*), v2.15 sync |
 
 ---
 
@@ -37,11 +37,12 @@
 2. **Validate Permission System**: 6 RBAC permissions hoạt động đúng (BR-009, BR-016, BR-017)
 3. **Validate Notification Cascades**: ZNS → SMS fallback, Push notifications (BR-002, BR-003, BR-004)
 4. **Validate State Transitions**: Invite lifecycle (pending/accepted/rejected), Connection lifecycle
-5. **Validate Business Rules**: Đảm bảo **41 business rules** được implement đúng (incl. BR-DB-*, BR-RPT-*, SEC-DB-*)
-6. **Validate API Contracts**: **14 REST endpoints**, **15 gRPC methods**
+5. **Validate Business Rules**: Đảm bảo **46 business rules** được implement đúng (incl. BR-DB-*, BR-RPT-*, SEC-DB-*, UX-DVS-*)
+6. **Validate API Contracts**: **17 REST endpoints**, **16 gRPC methods**
 7. **Validate Error Handling**: All 9 error codes handled correctly
 8. **Validate Dashboard APIs (v2.11)**: Blood Pressure Chart, Periodic Reports với Authorization Flow
 9. **Validate Mark Report Read API (v2.14)**: Đánh dấu báo cáo đã đọc với SEC-DB-001 check
+10. **Validate Default View State (v2.15)**: Đảm bảo UX-DVS-001 → UX-DVS-005 hoạt động đúng (NEW)
 
 ## 1.2 Coverage Targets
 
@@ -49,12 +50,13 @@
 |--------|:------:|-------------|
 | Statement Coverage | ≥85% | JaCoCo (Java), pytest-cov (Python) |
 | Branch Coverage | ≥75% | JaCoCo, pytest-cov |
-| API Endpoint Coverage | 100% | All **14** REST endpoints tested |
-| gRPC Method Coverage | 100% | All **17** gRPC methods tested (v2.14: +1) |
-| Business Rule Coverage | 100% | All **42** rules validated (v2.14: +1) |
+| API Endpoint Coverage | 100% | All **17** REST endpoints tested |
+| gRPC Method Coverage | 100% | All **16** gRPC methods tested |
+| Business Rule Coverage | 100% | All **46** rules validated (v2.15: +4 UX-DVS) |
 | Error Code Coverage | 100% | All 9 error codes tested |
 | Gherkin Scenario Coverage | 100% | All SRS scenarios covered |
 | Dashboard API Coverage | 100% | BP Chart + Reports tested |
+| Default View State Coverage | 100% | **All 5 UX-DVS rules tested (NEW v2.15)** |
 
 ---
 
@@ -74,11 +76,11 @@
 
 | Method | Path | Test Focus |
 |:------:|------|------------|
-| POST | `/api/v1/invites` | Create invite (both types), Validation |
-| GET | `/api/v1/invites` | List sent/received, Filtering |
-| DELETE | `/api/v1/invites/{id}` | Cancel pending invite |
-| POST | `/api/v1/invites/{id}/accept` | Accept with/without permissions |
-| POST | `/api/v1/invites/{id}/reject` | Reject, Re-invite allowed |
+| POST | `/api/v1/connections/invite` | Create invite (both types), Validation |
+| GET | `/api/v1/connections/invites` | List sent/received, Filtering |
+| DELETE | `/api/v1/connections/invites/{id}` | Cancel pending invite |
+| POST | `/api/v1/connections/invites/{id}/accept` | Accept with/without permissions |
+| POST | `/api/v1/connections/invites/{id}/reject` | Reject, Re-invite allowed |
 | GET | `/api/v1/connections` | List monitoring/monitored_by |
 | DELETE | `/api/v1/connections/{id}` | Disconnect, Notifications |
 | GET | `/api/v1/connections/{id}/permissions` | Get 6 permissions |
@@ -108,12 +110,13 @@
 
 ### Business Rules
 
-- **42 Business Rules** total:
+- **46 Business Rules** total:
   - Connection Rules: BR-001 → BR-029 (25 rules)
   - Dashboard Rules: BR-DB-001 → BR-DB-011 (11 rules)
-  - Report Rules: BR-RPT-001 → BR-RPT-003 (3 rules) **v2.14: +1**
+  - Report Rules: BR-RPT-001 → BR-RPT-003 (3 rules)
   - Security Rules: SEC-DB-001 → SEC-DB-003 (3 rules)
-- 19+ Gherkin scenarios from SRS v2.0
+  - **Default View State: UX-DVS-001 → UX-DVS-005 (5 rules) - NEW v2.15**
+- 19+ Gherkin scenarios from SRS v3.0
 
 ## 2.2 Out of Scope
 
@@ -270,7 +273,7 @@ permissions:
 
 | Category | Focus | Example |
 |----------|-------|---------|
-| **API Tests** | Full endpoint flow | POST /api/v1/invites → 201 Created |
+| **API Tests** | Full endpoint flow | POST /api/v1/connections/invite → 201 Created |
 | **gRPC Tests** | Inter-service calls | ConnectionService.AcceptInvite() |
 | **Database Tests** | Real DB queries | Partial indexes, Constraints |
 | **Kafka Tests** | Event publishing | connection.invite.created topic |
@@ -371,6 +374,23 @@ permissions:
 > 3. Check Permission enabled? → ❌ 403
 > 4. ✅ Return data scoped to patient
 
+## 6.7 Default View State Rules (v2.15 - P0) - NEW
+
+| Rule-ID | Rule | Test Category | Priority |
+|---------|------|---------------|:--------:|
+| UX-DVS-001 | Page load (no localStorage) → Default View Prompt | Mobile Unit Test | 🔴 P0 |
+| UX-DVS-002 | CTA "Xem danh sách" → toggleBottomSheet() | Mobile Unit Test | 🔴 P0 |
+| UX-DVS-003 | Close Bottom Sheet → updateStopFollowUI() | Mobile Unit Test | 🔴 P0 |
+| UX-DVS-004 | "Ngừng theo dõi" link visible only when selectedPatient != null | Mobile Unit Test | 🔴 P0 |
+| UX-DVS-005 | Modal validation before show | Mobile Unit Test | 🟡 P1 |
+
+> **Default View State Test Scenarios:**
+> 1. First visit (no localStorage) → Show Default View Prompt
+> 2. Select Patient → Dashboard loads, localStorage saved
+> 3. Stop following → Return to Default View Prompt
+> 4. Close Bottom Sheet without selecting → Remain on Default View
+> 5. Disconnect via API → Clear state + Navigate to Default View
+
 ---
 
 # 7. Test Schedule
@@ -402,9 +422,9 @@ permissions:
 
 | Criteria | Status |
 |----------|:------:|
-| SRS v2.4 approved and baselined | ✅ |
-| SA Analysis v2.4 complete | ✅ |
-| Feature Analysis v2.4 complete | ✅ |
+| SRS v3.0 approved and baselined | ✅ |
+| SA Analysis v2.15 complete | ✅ |
+| Feature Analysis v2.15 complete | ✅ |
 | API specification finalized | ✅ |
 | Database schema finalized | ✅ |
 | Test environment ready | ⏳ |

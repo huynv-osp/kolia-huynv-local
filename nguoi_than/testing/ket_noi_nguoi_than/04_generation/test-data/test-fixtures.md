@@ -739,7 +739,7 @@ notifications:
 ## 7.1 Create Invite
 
 ```json
-// Request: POST /api/v1/invites
+// Request: POST /api/v1/connections/invite
 {
   "receiver_phone": "0912345678",
   "receiver_name": "Nguyễn Văn ConTrai",

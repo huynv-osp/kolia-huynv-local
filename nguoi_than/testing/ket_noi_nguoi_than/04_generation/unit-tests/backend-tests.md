@@ -866,7 +866,7 @@ class InviteHandlerTest {
         
         // When/Then
         webClient.post()
-            .uri("/api/v1/invites")
+            .uri("/api/v1/connections/invite")
             .header("Authorization", "Bearer " + validToken())
             .contentType(MediaType.APPLICATION_JSON)
             .bodyValue(request)
@@ -886,7 +886,7 @@ class InviteHandlerTest {
         
         // When/Then
         webClient.post()
-            .uri("/api/v1/invites")
+            .uri("/api/v1/connections/invite")
             .header("Authorization", "Bearer " + validToken())
             .contentType(MediaType.APPLICATION_JSON)
             .bodyValue(selfInviteRequest())

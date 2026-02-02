@@ -1,11 +1,11 @@
 # Implementation Plan: KOLIA-1517 - Kết nối Người thân
 
-> **SRS Version:** v2.14 + Mark Report as Read API  
-> **Date:** 2026-01-30  
+> **SRS Version:** v3.0 + Default View State (Option E)  
+> **Date:** 2026-02-02  
 > **Feasibility Score:** **88/100** ✅ FEASIBLE (improved from 84)  
 > **Impact Level:** 🟢 **LOW** (reduced from MEDIUM)  
 > **Estimated Duration:** 4 weeks (3 phases)  
-> **Schema:** v2.14 Optimized + Dashboard APIs + Mark Report Read
+> **Schema:** v2.15 Optimized + Default View State + Mark Report Read
 
 ---
 
@@ -18,7 +18,7 @@ Tính năng **Kết nối Người thân** cho phép Patient và Caregiver thi�
 |--------|-------|
 | Services Affected | 3 (user-service, api-gateway, schedule-service) |
 | New Database Tables | **6 NEW + 1 ALTER** |
-| New REST Endpoints | **17** (v2.14: +1 Mark Report Read) |
+| New REST Endpoints | **17** (v2.15: +Default View State docs) |
 | New gRPC Methods | **16** |
 | New Celery Tasks | 3 |
 
@@ -389,6 +389,27 @@ mvn verify -Pintegration-test -DskipTests=false
 | BR-008 | Accept → Create connection | Transaction in AcceptInvite |
 | BR-017 | Permission OFF → Hide UI | Real-time permission check |
 | BR-018 | Red warning for emergency | Frontend validation |
+
+### Default View State Rules (NEW v2.15)
+
+> **SA Reference:** `v2.15_default_view_state.md`
+
+| Rule-ID | Description | Impact |
+|---------|-------------|--------|
+| UX-DVS-001 | First load (no localStorage) → Default View Prompt | Mobile: State init |
+| UX-DVS-002 | CTA button → toggleBottomSheet() | Mobile: UI action |
+| UX-DVS-003 | Close Bottom Sheet → updateStopFollowUI() | Mobile: Callback |
+| UX-DVS-004 | "Ngừng theo dõi" visible only when selectedPatient != null | Mobile: Conditional UI |
+| UX-DVS-005 | Modal validation before show | Mobile: Guard logic |
+
+### Disconnect Side Effects (v2.15)
+
+> When `DELETE /api/v1/connections/{id}` is called:
+
+1. Set `is_viewing = FALSE` for the disconnected row
+2. Clear client `localStorage.selectedPatient`
+3. Navigate to SCR-01 with Default View Prompt
+4. Notify the other party via Kafka event
 
 ---
 
