@@ -1,0 +1,1339 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>US 1.1 | Xem Tổng quan Sức khỏe Người thân</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #2BB89A;
+            --primary-dark: #239B82;
+            --primary-light: #E8F8F4;
+            --primary-gradient: linear-gradient(135deg, #2BB89A, #1A9F82);
+            --danger: #E53935;
+            --danger-light: #FFEBEE;
+            --warning: #FF9800;
+            --warning-light: #FFF8E1;
+            --text-primary: #2D3748;
+            --text-secondary: #718096;
+            --text-muted: #A0AEC0;
+            --bg-white: #FFFFFF;
+            --bg-gray: #F7FAFC;
+            --border: #E2E8F0;
+            --shadow: 0 4px 15px rgba(43, 184, 154, 0.12);
+            --shadow-lg: 0 8px 25px rgba(43, 184, 154, 0.18);
+            --radius: 16px;
+            --radius-lg: 24px;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(180deg, #E8F8F4 0%, #F7FAFC 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .phone-frame {
+            width: 375px;
+            min-height: 700px;
+            background: var(--bg-white);
+            border-radius: 32px;
+            box-shadow: var(--shadow-lg);
+            overflow: hidden;
+            position: relative;
+        }
+
+        .screen {
+            display: none;
+            flex-direction: column;
+            height: 100%;
+        }
+
+        .screen.active {
+            display: flex;
+        }
+
+        .header {
+            background: var(--primary-gradient);
+            color: white;
+            padding: 20px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .header-back {
+            font-size: 20px;
+            cursor: pointer;
+        }
+
+        .header-title {
+            font-size: 18px;
+            font-weight: 700;
+            flex: 1;
+        }
+
+        .content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
+        }
+
+        /* ===== Profile Selector (Static - matches index.html) ===== */
+        .profile-selector {
+            background: var(--primary-gradient);
+            color: white;
+            padding: 20px 24px;
+            border-radius: var(--radius-lg);
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            box-shadow: var(--shadow-lg);
+            position: relative;
+            overflow: hidden;
+            opacity: 0.7;
+            pointer-events: none;
+        }
+
+        .profile-selector::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -30px;
+            width: 120px;
+            height: 120px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+        }
+
+        .profile-selector::after {
+            content: '';
+            position: absolute;
+            bottom: -40%;
+            left: 20%;
+            width: 80px;
+            height: 80px;
+            background: rgba(255, 255, 255, 0.08);
+            border-radius: 50%;
+        }
+
+        .profile-avatar {
+            width: 60px;
+            height: 60px;
+            background: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            position: relative;
+            z-index: 1;
+        }
+
+        .profile-info {
+            flex: 1;
+        }
+
+        .profile-name {
+            font-size: 18px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .profile-status {
+            font-size: 14px;
+            opacity: 0.9;
+            margin-top: 4px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .static-badge {
+            background: rgba(255, 255, 255, 0.25);
+            color: white;
+            font-size: 9px;
+            padding: 3px 8px;
+            border-radius: 8px;
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            z-index: 2;
+            font-weight: 600;
+        }
+
+        /* ===== Invite Block (Static - matches index.html) ===== */
+        .invite-block-static {
+            background: linear-gradient(135deg, #FFF8E1 0%, #FFECB3 100%);
+            border-radius: var(--radius-lg);
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: var(--shadow);
+            opacity: 0.6;
+            pointer-events: none;
+            position: relative;
+        }
+
+        .invite-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-weight: 600;
+            color: var(--warning);
+            margin-bottom: 12px;
+        }
+
+        .invite-item-static {
+            background: white;
+            border-radius: var(--radius);
+            padding: 16px;
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+        }
+
+        .invite-avatar {
+            width: 48px;
+            height: 48px;
+            background: var(--primary-light);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+        }
+
+        /* ===== Health Dashboard (US 1.1 - ACTIVE) ===== */
+        .section-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 12px;
+        }
+
+        .section-title {
+            font-size: 15px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .section-meta {
+            font-size: 11px;
+            color: var(--text-muted);
+        }
+
+        .health-block {
+            background: white;
+            border-radius: var(--radius-lg);
+            padding: 16px;
+            margin-bottom: 12px;
+            box-shadow: var(--shadow);
+        }
+
+        .block-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+
+        .block-icon {
+            font-size: 18px;
+        }
+
+        .block-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        /* Toggle Filter */
+        .toggle-filter {
+            display: flex;
+            background: var(--bg-gray);
+            border-radius: 20px;
+            padding: 3px;
+            margin-bottom: 12px;
+        }
+
+        .toggle-btn {
+            flex: 1;
+            padding: 8px 16px;
+            border: none;
+            background: transparent;
+            border-radius: 18px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            color: var(--text-muted);
+            transition: all 0.2s;
+        }
+
+        .toggle-btn.active {
+            background: white;
+            color: var(--primary);
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Chart */
+        .chart-container {
+            background: var(--bg-gray);
+            border-radius: var(--radius);
+            padding: 12px;
+            margin-bottom: 10px;
+        }
+
+        .chart-svg {
+            width: 100%;
+            height: 120px;
+        }
+
+        .chart-line-systolic {
+            fill: none;
+            stroke: #2BB89A;
+            stroke-width: 2;
+        }
+
+        .chart-line-diastolic {
+            fill: none;
+            stroke: #3B82F6;
+            stroke-width: 2;
+        }
+
+        .chart-dot {
+            cursor: pointer;
+            transition: r 0.2s;
+        }
+
+        .chart-dot:hover {
+            r: 6;
+        }
+
+        .chart-axis-label {
+            font-size: 9px;
+            fill: var(--text-muted);
+        }
+
+        /* Chart Legend */
+        .chart-legend {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid var(--border);
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 11px;
+            color: var(--text-secondary);
+        }
+
+        .legend-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+        }
+
+        .legend-dot.systolic {
+            background: #2BB89A;
+        }
+
+        .legend-dot.diastolic {
+            background: #3B82F6;
+        }
+
+        /* Day Chips - Horizontal Single Row Scroll */
+        .day-chips {
+            display: flex;
+            gap: 6px;
+            flex-wrap: nowrap;
+            overflow-x: auto;
+            padding-bottom: 8px;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .day-chips::-webkit-scrollbar {
+            display: none;
+        }
+
+        .day-chip {
+            padding: 6px 12px;
+            background: var(--bg-gray);
+            border-radius: 14px;
+            font-size: 12px;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all 0.2s;
+            flex-shrink: 0;
+            white-space: nowrap;
+        }
+
+        .day-chip.active {
+            background: var(--primary);
+            color: white;
+        }
+
+        /* Placeholder Blocks */
+        .placeholder-block {
+            background: white;
+            border-radius: var(--radius-lg);
+            padding: 16px;
+            margin-bottom: 12px;
+            box-shadow: var(--shadow);
+            opacity: 0.5;
+            pointer-events: none;
+            position: relative;
+        }
+
+        .coming-soon-badge {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            background: var(--warning);
+            color: white;
+            font-size: 9px;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-weight: 600;
+        }
+
+        .stat-row {
+            display: flex;
+            gap: 10px;
+        }
+
+        .stat-card {
+            flex: 1;
+            background: var(--bg-gray);
+            border-radius: var(--radius);
+            padding: 12px;
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 22px;
+            font-weight: 700;
+            color: var(--primary);
+        }
+
+        .stat-label {
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-top: 2px;
+        }
+
+        .task-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px;
+            background: var(--bg-gray);
+            border-radius: 10px;
+            margin-bottom: 6px;
+        }
+
+        .task-icon {
+            font-size: 14px;
+        }
+
+        .task-text {
+            flex: 1;
+            font-size: 13px;
+        }
+
+        .task-time {
+            font-size: 11px;
+            color: var(--text-muted);
+        }
+
+        .task-item.done {
+            background: var(--primary-light);
+        }
+
+        .task-item.done .task-icon {
+            color: var(--primary);
+        }
+
+        .task-item.pending {
+            background: #FEF9C3;
+        }
+
+        .task-item.pending .task-icon {
+            color: #F59E0B;
+        }
+
+        .task-item.pending .task-time {
+            color: #F59E0B;
+        }
+
+        /* Action Button */
+        .action-btn {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background: white;
+            padding: 14px 16px;
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            cursor: pointer;
+            margin-bottom: 12px;
+        }
+
+        .action-btn:hover {
+            background: var(--bg-gray);
+        }
+
+        .action-icon {
+            font-size: 18px;
+        }
+
+        .action-text {
+            flex: 1;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .action-arrow {
+            color: var(--text-muted);
+        }
+
+        .btn {
+            width: 100%;
+            padding: 14px;
+            border: none;
+            border-radius: var(--radius);
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .btn-primary {
+            background: var(--primary-gradient);
+            color: white;
+            box-shadow: var(--shadow);
+        }
+
+        .btn-outline {
+            background: white;
+            color: var(--text-primary);
+            border: 2px solid var(--border);
+        }
+
+        .btn-danger-outline {
+            background: white;
+            color: var(--danger);
+            border: 2px solid var(--danger);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            pointer-events: none;
+        }
+
+        /* Report List */
+        .report-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background: white;
+            padding: 14px;
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            margin-bottom: 10px;
+            cursor: pointer;
+        }
+
+        .report-item:hover {
+            background: var(--bg-gray);
+        }
+
+        .report-icon {
+            font-size: 20px;
+        }
+
+        .report-info {
+            flex: 1;
+        }
+
+        .report-title {
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .report-date {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        .report-arrow {
+            color: var(--text-muted);
+        }
+
+        .filter-dropdown {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 14px;
+            background: var(--bg-gray);
+            border-radius: 20px;
+            cursor: pointer;
+            margin-bottom: 16px;
+        }
+
+        .filter-text {
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+
+        .filter-arrow {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        .pagination {
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+            margin-top: 16px;
+        }
+
+        .page-btn {
+            width: 32px;
+            height: 32px;
+            border: 1px solid var(--border);
+            background: white;
+            border-radius: 8px;
+            font-size: 13px;
+            cursor: pointer;
+        }
+
+        .page-btn.active {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: var(--text-muted);
+        }
+
+        .empty-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+        }
+
+        .empty-text {
+            font-size: 15px;
+            line-height: 1.5;
+        }
+
+        /* Toast */
+        .toast {
+            position: absolute;
+            bottom: 80px;
+            left: 20px;
+            right: 20px;
+            background: var(--text-primary);
+            color: white;
+            padding: 14px 18px;
+            border-radius: var(--radius);
+            font-size: 13px;
+            text-align: center;
+            display: none;
+            z-index: 300;
+        }
+
+        .toast.show {
+            display: block;
+            animation: slideUp 0.3s ease;
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="phone-frame">
+        <!-- ==================== SCR-MAIN: Dashboard with Health Overview ==================== -->
+        <div id="scr-main" class="screen active">
+            <div class="header">
+                <span class="header-title">Kết nối Người thân</span>
+            </div>
+            <div class="content">
+                <!-- Profile Selector - State E: Đã chọn Patient X (STATIC - not part of US 1.1) -->
+                <div class="profile-selector" style="position: relative;">
+                    <span class="static-badge">STATIC</span>
+                    <div class="profile-avatar">👵</div>
+                    <div class="profile-info">
+                        <div class="profile-name">Mẹ (Trần Thị D) ▼</div>
+                        <div class="profile-status">Hoạt động 5 phút trước</div>
+                    </div>
+                </div>
+
+                <!-- Invite Block (STATIC - not part of US 1.1) -->
+                <div class="invite-block-static">
+                    <span class="static-badge" style="background: rgba(0,0,0,0.2); color: #666;">STATIC</span>
+                    <div class="invite-header">📬 Lời mời mới (2)</div>
+                    <div class="invite-item-static">
+                        <div class="invite-avatar">👨</div>
+                        <div style="flex: 1;">
+                            <div style="font-weight: 500; font-size: 14px;">Con trai (Nguyễn...)</div>
+                            <div style="font-size: 12px; color: var(--text-muted);">Muốn theo dõi sức khỏe</div>
+                        </div>
+                        <div style="display: flex; gap: 6px;">
+                            <span
+                                style="width: 36px; height: 36px; background: var(--primary-light); border-radius: 50%; display: flex; align-items: center; justify-content: center;">✓</span>
+                            <span
+                                style="width: 36px; height: 36px; background: var(--danger-light); border-radius: 50%; display: flex; align-items: center; justify-content: center;">✗</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ===== HEALTH DASHBOARD (US 1.1 - ACTIVE) ===== -->
+                <div class="section-header">
+                    <span class="section-title">📊 Tổng quan sức khỏe Mẹ</span>
+                </div>
+
+                <!-- BP Chart Block (ACTIVE) -->
+                <div class="health-block">
+                    <div class="block-header">
+                        <span class="block-icon">📈</span>
+                        <span class="block-title">Xu hướng huyết áp</span>
+                    </div>
+
+                    <!-- Toggle Filter -->
+                    <div class="toggle-filter">
+                        <button class="toggle-btn active" onclick="toggleFilter(this, 'Tuần')">Tuần</button>
+                        <button class="toggle-btn" onclick="toggleFilter(this, 'Tháng')">Tháng</button>
+                    </div>
+
+                    <!-- Chart Legend (ABOVE chart per reference image) -->
+                    <div class="chart-legend"
+                        style="flex-direction: column; align-items: flex-start; gap: 6px; margin-bottom: 12px;">
+                        <div style="display: flex; align-items: center; gap: 20px;">
+                            <div class="legend-item">
+                                <span class="legend-dot systolic"></span>
+                                <span>Tâm thu</span>
+                            </div>
+                            <div class="legend-item">
+                                <span class="legend-dot diastolic"></span>
+                                <span>Tâm trương</span>
+                            </div>
+                        </div>
+                        <div style="font-size: 10px; color: var(--text-muted);">
+                            <span style="color: #2BB89A;">— Tâm thu mục tiêu: 105-140 mmHg</span>
+                        </div>
+                        <div style="font-size: 10px; color: var(--text-muted);">
+                            <span style="color: #3B82F6;">--- Tâm trương mục tiêu: 60-90 mmHg</span>
+                        </div>
+                    </div>
+
+                    <!-- Chart -->
+                    <div class="chart-container">
+                        <svg class="chart-svg" viewBox="0 0 300 100">
+                            <text x="5" y="12" class="chart-axis-label">160</text>
+                            <text x="5" y="38" class="chart-axis-label">140</text>
+                            <text x="5" y="64" class="chart-axis-label">120</text>
+                            <text x="5" y="90" class="chart-axis-label">80</text>
+
+                            <text x="40" y="98" class="chart-axis-label">T2</text>
+                            <text x="90" y="98" class="chart-axis-label">T3</text>
+                            <text x="140" y="98" class="chart-axis-label">T4</text>
+                            <text x="190" y="98" class="chart-axis-label">T5</text>
+                            <text x="240" y="98" class="chart-axis-label">T6</text>
+                            <text x="280" y="98" class="chart-axis-label">T7</text>
+
+                            <line x1="30" y1="15" x2="290" y2="15" stroke="#E2E8F0" stroke-width="0.5" />
+                            <line x1="30" y1="40" x2="290" y2="40" stroke="#E2E8F0" stroke-width="0.5" />
+                            <line x1="30" y1="65" x2="290" y2="65" stroke="#E2E8F0" stroke-width="0.5" />
+                            <line x1="30" y1="85" x2="290" y2="85" stroke="#E2E8F0" stroke-width="0.5" />
+
+                            <path class="chart-line-systolic" d="M45,38 L95,32 L145,35 L195,42 L245,34 L285,37" />
+                            <path class="chart-line-diastolic" d="M45,72 L95,75 L145,70 L195,77 L245,73 L285,75" />
+
+                            <!-- Systolic dots (Green) -->
+                            <circle class="chart-dot" cx="45" cy="38" r="4" fill="#2BB89A"
+                                onclick="showToast('T2, 20/01: 142/88 mmHg')" />
+                            <circle class="chart-dot" cx="95" cy="32" r="4" fill="#2BB89A"
+                                onclick="showToast('T3, 21/01: 148/85 mmHg')" />
+                            <circle class="chart-dot" cx="145" cy="35" r="4" fill="#2BB89A"
+                                onclick="showToast('T4, 22/01: 145/90 mmHg')" />
+                            <circle class="chart-dot" cx="195" cy="42" r="4" fill="#2BB89A"
+                                onclick="showToast('T5, 23/01: 138/82 mmHg')" />
+                            <circle class="chart-dot" cx="245" cy="34" r="4" fill="#2BB89A"
+                                onclick="showToast('T6, 24/01: 146/87 mmHg')" />
+                            <circle class="chart-dot" cx="285" cy="37" r="4" fill="#2BB89A"
+                                onclick="showToast('T7, 25/01: 143/85 mmHg')" />
+
+                            <!-- Diastolic dots (Blue) -->
+                            <circle class="chart-dot" cx="45" cy="72" r="3" fill="#3B82F6"
+                                onclick="showToast('T2, 20/01: 142/88 mmHg')" />
+                            <circle class="chart-dot" cx="95" cy="75" r="3" fill="#3B82F6"
+                                onclick="showToast('T3, 21/01: 148/85 mmHg')" />
+                            <circle class="chart-dot" cx="145" cy="70" r="3" fill="#3B82F6"
+                                onclick="showToast('T4, 22/01: 145/90 mmHg')" />
+                            <circle class="chart-dot" cx="195" cy="77" r="3" fill="#3B82F6"
+                                onclick="showToast('T5, 23/01: 138/82 mmHg')" />
+                            <circle class="chart-dot" cx="245" cy="73" r="3" fill="#3B82F6"
+                                onclick="showToast('T6, 24/01: 146/87 mmHg')" />
+                            <circle class="chart-dot" cx="285" cy="75" r="3" fill="#3B82F6"
+                                onclick="showToast('T7, 25/01: 143/85 mmHg')" />
+                        </svg>
+                    </div>
+
+                    <!-- Day Chips (horizontal scroll per reference) -->
+                    <div class="day-chips"
+                        style="margin-top: 12px; overflow-x: auto; white-space: nowrap; padding-bottom: 8px;">
+                        <span class="day-chip active" onclick="selectChip(this)">Tất cả</span>
+                        <span class="day-chip" onclick="selectChip(this)">Ngày 1/1</span>
+                        <span class="day-chip" onclick="selectChip(this)">Ngày 2/1</span>
+                        <span class="day-chip" onclick="selectChip(this)">Ngày 3/1</span>
+                        <span class="day-chip" onclick="selectChip(this)">Ngày 4/1</span>
+                        <span class="day-chip" onclick="selectChip(this)">Ngày 5/1</span>
+                        <span class="day-chip" onclick="selectChip(this)">Ngày 6/1</span>
+                        <span class="day-chip" onclick="selectChip(this)">Ngày 7/1</span>
+                    </div>
+                </div>
+
+                <!-- ===== BLOCK: Báo cáo sức khỏe (BR-RPT-001: Max 3 items mới nhất chưa đọc) ===== -->
+                <div class="health-block">
+                    <div class="block-header" style="justify-content: space-between; align-items: center;">
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <span class="block-icon">📋</span>
+                            <span class="block-title">Báo cáo sức khỏe</span>
+                            <span id="report-badge"
+                                style="background: var(--danger); color: white; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 10px; min-width: 20px; text-align: center;">10</span>
+                        </div>
+                        <span style="color: var(--primary); font-size: 13px; cursor: pointer;"
+                            onclick="goToScreen('scr-report-list')">Xem thêm →</span>
+                    </div>
+
+                    <!-- Toggle Filter: 3 loại báo cáo -->
+                    <div class="toggle-filter" id="report-type-filter" style="margin: 12px 0;">
+                        <button class="toggle-btn" onclick="filterReportType(this, 'ngay')">Ngày</button>
+                        <button class="toggle-btn active" onclick="filterReportType(this, 'tuan')">Tuần</button>
+                        <button class="toggle-btn" onclick="filterReportType(this, 'thang')">Tháng</button>
+                    </div>
+
+                    <!-- Report List Container (BR-RPT-001: Tối đa 3 báo cáo chưa đọc mới nhất mỗi loại) -->
+                    <div id="report-list-container">
+                        <!-- Báo cáo Tuần (default view) - MAX 3 ITEMS + Optional text -->
+                        <div class="report-type-content" id="reports-tuan">
+                            <div class="report-item" onclick="showToast('(Demo) Xem chi tiết báo cáo')"
+                                style="padding: 12px; margin-bottom: 8px; border-left: 3px solid var(--primary);">
+                                <div
+                                    style="width: 36px; height: 36px; background: linear-gradient(135deg, #E8F8F4, #D4F1EA); border-radius: 10px; display: flex; align-items: center; justify-content: center; position: relative;">
+                                    <span style="font-size: 18px;">📋</span>
+                                    <span
+                                        style="position: absolute; top: -4px; right: -4px; width: 10px; height: 10px; background: var(--danger); border-radius: 50%; border: 2px solid white;"></span>
+                                </div>
+                                <div class="report-info">
+                                    <div class="report-title" style="font-weight: 600; font-size: 14px;">Báo cáo tuần
+                                    </div>
+                                    <div class="report-date" style="font-size: 12px; color: var(--primary);">20/01/2025
+                                        - 26/01/2025</div>
+                                </div>
+                                <span style="color: var(--text-muted); font-size: 18px;">›</span>
+                            </div>
+                            <div class="report-item" onclick="showToast('(Demo) Xem chi tiết báo cáo')"
+                                style="padding: 12px; margin-bottom: 8px; border-left: 3px solid var(--primary);">
+                                <div
+                                    style="width: 36px; height: 36px; background: linear-gradient(135deg, #E8F8F4, #D4F1EA); border-radius: 10px; display: flex; align-items: center; justify-content: center; position: relative;">
+                                    <span style="font-size: 18px;">📋</span>
+                                    <span
+                                        style="position: absolute; top: -4px; right: -4px; width: 10px; height: 10px; background: var(--danger); border-radius: 50%; border: 2px solid white;"></span>
+                                </div>
+                                <div class="report-info">
+                                    <div class="report-title" style="font-weight: 600; font-size: 14px;">Báo cáo tuần
+                                    </div>
+                                    <div class="report-date" style="font-size: 12px; color: var(--primary);">13/01/2025
+                                        - 19/01/2025</div>
+                                </div>
+                                <span style="color: var(--text-muted); font-size: 18px;">›</span>
+                            </div>
+                            <div class="report-item" onclick="showToast('(Demo) Xem chi tiết báo cáo')"
+                                style="padding: 12px; margin-bottom: 8px; border-left: 3px solid var(--primary);">
+                                <div
+                                    style="width: 36px; height: 36px; background: linear-gradient(135deg, #E8F8F4, #D4F1EA); border-radius: 10px; display: flex; align-items: center; justify-content: center; position: relative;">
+                                    <span style="font-size: 18px;">📋</span>
+                                    <span
+                                        style="position: absolute; top: -4px; right: -4px; width: 10px; height: 10px; background: var(--danger); border-radius: 50%; border: 2px solid white;"></span>
+                                </div>
+                                <div class="report-info">
+                                    <div class="report-title" style="font-weight: 600; font-size: 14px;">Báo cáo tuần
+                                    </div>
+                                    <div class="report-date" style="font-size: 12px; color: var(--primary);">06/01/2025
+                                        - 12/01/2025</div>
+                                </div>
+                                <span style="color: var(--text-muted); font-size: 18px;">›</span>
+                            </div>
+                            <!-- Optional: Thông báo còn thêm báo cáo -->
+                            <div id="more-tuan-hint"
+                                style="display: flex; align-items: center; gap: 6px; padding: 8px 12px; color: var(--text-muted); font-size: 12px;">
+                                <span style="font-size: 14px;">ⓘ</span>
+                                <span>Còn 2 báo cáo tuần khác chưa đọc</span>
+                            </div>
+                        </div>
+
+                        <!-- Báo cáo Ngày (hidden by default) - MAX 3 ITEMS -->
+                        <div class="report-type-content" id="reports-ngay" style="display: none;">
+                            <div class="report-item" onclick="showToast('(Demo) Xem chi tiết báo cáo')"
+                                style="padding: 12px; margin-bottom: 8px; border-left: 3px solid var(--primary);">
+                                <div
+                                    style="width: 36px; height: 36px; background: linear-gradient(135deg, #E8F8F4, #D4F1EA); border-radius: 10px; display: flex; align-items: center; justify-content: center; position: relative;">
+                                    <span style="font-size: 18px;">📋</span>
+                                    <span
+                                        style="position: absolute; top: -4px; right: -4px; width: 10px; height: 10px; background: var(--danger); border-radius: 50%; border: 2px solid white;"></span>
+                                </div>
+                                <div class="report-info">
+                                    <div class="report-title" style="font-weight: 600; font-size: 14px;">Báo cáo ngày
+                                    </div>
+                                    <div class="report-date" style="font-size: 12px; color: var(--primary);">29/01/2025
+                                    </div>
+                                </div>
+                                <span style="color: var(--text-muted); font-size: 18px;">›</span>
+                            </div>
+                            <div class="report-item" onclick="showToast('(Demo) Xem chi tiết báo cáo')"
+                                style="padding: 12px; margin-bottom: 8px; border-left: 3px solid var(--primary);">
+                                <div
+                                    style="width: 36px; height: 36px; background: linear-gradient(135deg, #E8F8F4, #D4F1EA); border-radius: 10px; display: flex; align-items: center; justify-content: center; position: relative;">
+                                    <span style="font-size: 18px;">📋</span>
+                                    <span
+                                        style="position: absolute; top: -4px; right: -4px; width: 10px; height: 10px; background: var(--danger); border-radius: 50%; border: 2px solid white;"></span>
+                                </div>
+                                <div class="report-info">
+                                    <div class="report-title" style="font-weight: 600; font-size: 14px;">Báo cáo ngày
+                                    </div>
+                                    <div class="report-date" style="font-size: 12px; color: var(--primary);">28/01/2025
+                                    </div>
+                                </div>
+                                <span style="color: var(--text-muted); font-size: 18px;">›</span>
+                            </div>
+                            <div class="report-item" onclick="showToast('(Demo) Xem chi tiết báo cáo')"
+                                style="padding: 12px; border-left: 3px solid var(--primary);">
+                                <div
+                                    style="width: 36px; height: 36px; background: linear-gradient(135deg, #E8F8F4, #D4F1EA); border-radius: 10px; display: flex; align-items: center; justify-content: center; position: relative;">
+                                    <span style="font-size: 18px;">📋</span>
+                                    <span
+                                        style="position: absolute; top: -4px; right: -4px; width: 10px; height: 10px; background: var(--danger); border-radius: 50%; border: 2px solid white;"></span>
+                                </div>
+                                <div class="report-info">
+                                    <div class="report-title" style="font-weight: 600; font-size: 14px;">Báo cáo ngày
+                                    </div>
+                                    <div class="report-date" style="font-size: 12px; color: var(--primary);">27/01/2025
+                                    </div>
+                                </div>
+                                <span style="color: var(--text-muted); font-size: 18px;">›</span>
+                            </div>
+                            <!-- No hint: Đủ 3 items, không còn thêm -->
+                        </div>
+
+                        <!-- Báo cáo Tháng (hidden by default) - MAX 3 ITEMS -->
+                        <div class="report-type-content" id="reports-thang" style="display: none;">
+                            <div class="report-item" onclick="showToast('(Demo) Xem chi tiết báo cáo')"
+                                style="padding: 12px; margin-bottom: 8px; border-left: 3px solid var(--primary);">
+                                <div
+                                    style="width: 36px; height: 36px; background: linear-gradient(135deg, #E8F8F4, #D4F1EA); border-radius: 10px; display: flex; align-items: center; justify-content: center; position: relative;">
+                                    <span style="font-size: 18px;">📋</span>
+                                    <span
+                                        style="position: absolute; top: -4px; right: -4px; width: 10px; height: 10px; background: var(--danger); border-radius: 50%; border: 2px solid white;"></span>
+                                </div>
+                                <div class="report-info">
+                                    <div class="report-title" style="font-weight: 600; font-size: 14px;">Báo cáo tháng
+                                    </div>
+                                    <div class="report-date" style="font-size: 12px; color: var(--primary);">Tháng
+                                        01/2025</div>
+                                </div>
+                                <span style="color: var(--text-muted); font-size: 18px;">›</span>
+                            </div>
+                            <div class="report-item" onclick="showToast('(Demo) Xem chi tiết báo cáo')"
+                                style="padding: 12px; border-left: 3px solid var(--primary);">
+                                <div
+                                    style="width: 36px; height: 36px; background: linear-gradient(135deg, #E8F8F4, #D4F1EA); border-radius: 10px; display: flex; align-items: center; justify-content: center; position: relative;">
+                                    <span style="font-size: 18px;">📋</span>
+                                    <span
+                                        style="position: absolute; top: -4px; right: -4px; width: 10px; height: 10px; background: var(--danger); border-radius: 50%; border: 2px solid white;"></span>
+                                </div>
+                                <div class="report-info">
+                                    <div class="report-title" style="font-weight: 600; font-size: 14px;">Báo cáo tháng
+                                    </div>
+                                    <div class="report-date" style="font-size: 12px; color: var(--primary);">Tháng
+                                        12/2024</div>
+                                </div>
+                                <span style="color: var(--text-muted); font-size: 18px;">›</span>
+                            </div>
+                            <!-- No hint: Chỉ có 2 items -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Stop Follow Link (Phương án C: text link nhỏ, màu xám) -->
+                <div style="text-align: center; margin-top: 24px; padding-bottom: 16px;">
+                    <span
+                        style="color: var(--text-muted); font-size: 13px; cursor: pointer; text-decoration: underline;"
+                        onclick="showToast('(Demo) Ngừng theo dõi')">
+                        Ngừng theo dõi
+                    </span>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== SCR-REPORT-LIST: Danh sách Báo cáo ==================== -->
+        <div id="scr-report-list" class="screen">
+            <div class="header">
+                <span class="header-back" onclick="goToScreen('scr-main')">←</span>
+                <span class="header-title">Báo cáo sức khỏe của Mẹ</span>
+            </div>
+            <div class="content">
+                <!-- Toggle Filter: 3 loại báo cáo (matching dashboard) -->
+                <div class="toggle-filter" id="list-report-type-filter" style="margin-bottom: 16px;">
+                    <button class="toggle-btn" onclick="filterListReportType(this, 'ngay')">Ngày</button>
+                    <button class="toggle-btn active" onclick="filterListReportType(this, 'tuan')">Tuần</button>
+                    <button class="toggle-btn" onclick="filterListReportType(this, 'thang')">Tháng</button>
+                </div>
+
+                <!-- Report List Container -->
+                <div id="list-report-container">
+                    <!-- Báo cáo Tuần (default view) - Hiển thị tất cả, có chấm đỏ cho chưa đọc -->
+                    <div class="list-report-type-content" id="list-reports-tuan">
+                        <!-- UNREAD -->
+                        <div class="report-item" onclick="showToast('(Demo) Xem chi tiết báo cáo')"
+                            style="border-left: 3px solid var(--primary);">
+                            <div
+                                style="width: 40px; height: 40px; background: linear-gradient(135deg, #E8F8F4, #D4F1EA); border-radius: 10px; display: flex; align-items: center; justify-content: center; position: relative;">
+                                <span style="font-size: 20px;">📋</span>
+                                <span
+                                    style="position: absolute; top: -4px; right: -4px; width: 10px; height: 10px; background: var(--danger); border-radius: 50%; border: 2px solid white;"></span>
+                            </div>
+                            <div class="report-info">
+                                <div class="report-title" style="font-weight: 600; font-size: 15px;">Báo cáo tuần</div>
+                                <div class="report-date" style="color: var(--primary); font-size: 12px;">20/01/2025 -
+                                    26/01/2025</div>
+                            </div>
+                            <span style="color: var(--text-muted); font-size: 20px;">›</span>
+                        </div>
+                        <!-- UNREAD -->
+                        <div class="report-item" onclick="showToast('(Demo) Xem chi tiết báo cáo')"
+                            style="border-left: 3px solid var(--primary);">
+                            <div
+                                style="width: 40px; height: 40px; background: linear-gradient(135deg, #E8F8F4, #D4F1EA); border-radius: 10px; display: flex; align-items: center; justify-content: center; position: relative;">
+                                <span style="font-size: 20px;">📋</span>
+                                <span
+                                    style="position: absolute; top: -4px; right: -4px; width: 10px; height: 10px; background: var(--danger); border-radius: 50%; border: 2px solid white;"></span>
+                            </div>
+                            <div class="report-info">
+                                <div class="report-title" style="font-weight: 600; font-size: 15px;">Báo cáo tuần</div>
+                                <div class="report-date" style="color: var(--primary); font-size: 12px;">13/01/2025 -
+                                    19/01/2025</div>
+                            </div>
+                            <span style="color: var(--text-muted); font-size: 20px;">›</span>
+                        </div>
+                        <!-- READ -->
+                        <div class="report-item" onclick="showToast('(Demo) Xem chi tiết báo cáo')">
+                            <div
+                                style="width: 40px; height: 40px; background: var(--bg-gray); border-radius: 10px; display: flex; align-items: center; justify-content: center;">
+                                <span style="font-size: 20px;">📋</span>
+                            </div>
+                            <div class="report-info">
+                                <div class="report-title" style="font-weight: 600; font-size: 15px;">Báo cáo tuần</div>
+                                <div class="report-date" style="font-size: 12px;">06/01/2025 - 12/01/2025</div>
+                            </div>
+                            <span style="color: var(--text-muted); font-size: 20px;">›</span>
+                        </div>
+                    </div>
+
+                    <!-- Báo cáo Ngày (hidden by default) -->
+                    <div class="list-report-type-content" id="list-reports-ngay" style="display: none;">
+                        <!-- UNREAD -->
+                        <div class="report-item" onclick="showToast('(Demo) Xem chi tiết báo cáo')"
+                            style="border-left: 3px solid var(--primary);">
+                            <div
+                                style="width: 40px; height: 40px; background: linear-gradient(135deg, #E8F8F4, #D4F1EA); border-radius: 10px; display: flex; align-items: center; justify-content: center; position: relative;">
+                                <span style="font-size: 20px;">📋</span>
+                                <span
+                                    style="position: absolute; top: -4px; right: -4px; width: 10px; height: 10px; background: var(--danger); border-radius: 50%; border: 2px solid white;"></span>
+                            </div>
+                            <div class="report-info">
+                                <div class="report-title" style="font-weight: 600; font-size: 15px;">Báo cáo ngày</div>
+                                <div class="report-date" style="color: var(--primary); font-size: 12px;">29/01/2025
+                                </div>
+                            </div>
+                            <span style="color: var(--text-muted); font-size: 20px;">›</span>
+                        </div>
+                        <!-- READ -->
+                        <div class="report-item" onclick="showToast('(Demo) Xem chi tiết báo cáo')">
+                            <div
+                                style="width: 40px; height: 40px; background: var(--bg-gray); border-radius: 10px; display: flex; align-items: center; justify-content: center;">
+                                <span style="font-size: 20px;">📋</span>
+                            </div>
+                            <div class="report-info">
+                                <div class="report-title" style="font-weight: 600; font-size: 15px;">Báo cáo ngày</div>
+                                <div class="report-date" style="font-size: 12px;">28/01/2025</div>
+                            </div>
+                            <span style="color: var(--text-muted); font-size: 20px;">›</span>
+                        </div>
+                        <!-- READ -->
+                        <div class="report-item" onclick="showToast('(Demo) Xem chi tiết báo cáo')">
+                            <div
+                                style="width: 40px; height: 40px; background: var(--bg-gray); border-radius: 10px; display: flex; align-items: center; justify-content: center;">
+                                <span style="font-size: 20px;">📋</span>
+                            </div>
+                            <div class="report-info">
+                                <div class="report-title" style="font-weight: 600; font-size: 15px;">Báo cáo ngày</div>
+                                <div class="report-date" style="font-size: 12px;">27/01/2025</div>
+                            </div>
+                            <span style="color: var(--text-muted); font-size: 20px;">›</span>
+                        </div>
+                    </div>
+
+                    <!-- Báo cáo Tháng (hidden by default) -->
+                    <div class="list-report-type-content" id="list-reports-thang" style="display: none;">
+                        <!-- UNREAD -->
+                        <div class="report-item" onclick="showToast('(Demo) Xem chi tiết báo cáo')"
+                            style="border-left: 3px solid var(--primary);">
+                            <div
+                                style="width: 40px; height: 40px; background: linear-gradient(135deg, #E8F8F4, #D4F1EA); border-radius: 10px; display: flex; align-items: center; justify-content: center; position: relative;">
+                                <span style="font-size: 20px;">📋</span>
+                                <span
+                                    style="position: absolute; top: -4px; right: -4px; width: 10px; height: 10px; background: var(--danger); border-radius: 50%; border: 2px solid white;"></span>
+                            </div>
+                            <div class="report-info">
+                                <div class="report-title" style="font-weight: 600; font-size: 15px;">Báo cáo tháng</div>
+                                <div class="report-date" style="color: var(--primary); font-size: 12px;">Tháng 01/2025
+                                </div>
+                            </div>
+                            <span style="color: var(--text-muted); font-size: 20px;">›</span>
+                        </div>
+                        <!-- READ -->
+                        <div class="report-item" onclick="showToast('(Demo) Xem chi tiết báo cáo')">
+                            <div
+                                style="width: 40px; height: 40px; background: var(--bg-gray); border-radius: 10px; display: flex; align-items: center; justify-content: center;">
+                                <span style="font-size: 20px;">📋</span>
+                            </div>
+                            <div class="report-info">
+                                <div class="report-title" style="font-weight: 600; font-size: 15px;">Báo cáo tháng</div>
+                                <div class="report-date" style="font-size: 12px;">Tháng 12/2024</div>
+                            </div>
+                            <span style="color: var(--text-muted); font-size: 20px;">›</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Pagination -->
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 24px;">
+                    <span id="list-total-count" style="font-size: 13px; color: var(--text-secondary);">Tổng số:
+                        <strong>12</strong> bản ghi</span>
+                    <div class="pagination">
+                        <button class="page-btn active"
+                            style="background: var(--primary); color: white; border: none; border-radius: 8px;">1</button>
+                        <button class="page-btn" style="border-radius: 8px;">2</button>
+                        <button class="page-btn" style="border-radius: 8px;">→</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+
+        <!-- ==================== SCR-REPORT-LIST-EMPTY: Empty State (BR-DB-010) ==================== -->
+        <div id="scr-report-empty" class="screen">
+            <div class="header">
+                <span class="header-back" onclick="goToScreen('scr-main')">←</span>
+                <span class="header-title">Báo cáo sức khỏe của Mẹ</span>
+            </div>
+            <div class="content">
+                <div class="empty-state">
+                    <div class="empty-icon">📭</div>
+                    <div class="empty-text">Chưa có báo cáo nào.<br>Báo cáo sẽ được tạo tự động theo lịch định kỳ.
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== SCR-BP-EMPTY: BP Chart Empty State (BR-DB-009) ==================== -->
+        <div id="scr-bp-empty" class="screen">
+            <div class="header">
+                <span class="header-title">Kết nối Người thân</span>
+            </div>
+            <div class="content">
+                <!-- Profile Selector (STATIC) -->
+                <div class="profile-selector">
+                    <span class="static-badge">STATIC</span>
+                    <div class="profile-avatar">👵</div>
+                    <div class="profile-info">
+                        <div class="profile-name">Mẹ (Trần Thị D) ▼</div>
+                        <div class="profile-status">Đang theo dõi 1 người</div>
+                    </div>
+                </div>
+
+                <!-- Section Header -->
+                <div class="section-header">
+                    <span class="section-title">📊 Tổng quan sức khỏe Mẹ</span>
+                </div>
+
+                <!-- BP Chart Block with Empty State -->
+                <div class="health-block">
+                    <div class="block-header">
+                        <span class="block-icon">📈</span>
+                        <span class="block-title">Xu hướng huyết áp</span>
+                    </div>
+
+                    <!-- Toggle Filter -->
+                    <div class="toggle-filter">
+                        <button class="toggle-btn active">Tuần</button>
+                        <button class="toggle-btn">Tháng</button>
+                    </div>
+
+                    <!-- Empty State for Chart (BR-DB-009 / BR-006 pattern - matching original design) -->
+                    <div class="empty-state" style="padding: 30px 20px; background: white; border-radius: 16px;">
+                        <!-- Title matching original -->
+                        <div style="font-size: 16px; font-weight: 600; color: var(--primary); margin-bottom: 24px;">
+                            Biểu đồ biểu diễn huyết áp
+                        </div>
+
+                        <!-- Mascot Illustration (Kolia koala doctor) -->
+                        <div style="font-size: 80px; margin-bottom: 16px; opacity: 0.9;">
+                            🐨
+                        </div>
+                        <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 20px;">
+                            (Kolia Mascot)
+                        </div>
+
+                        <!-- Message matching original -->
+                        <div class="empty-text" style="font-size: 15px; color: var(--text-secondary);">
+                            Không có đủ dữ liệu để tạo biểu đồ
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+
+        <!-- ==================== DEMO NAVIGATOR (For QA/Review) ==================== -->
+        <div
+            style="position: fixed; bottom: 0; left: 0; right: 0; background: #1a1a2e; padding: 12px; display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; z-index: 999;">
+            <span style="color: #888; font-size: 11px; width: 100%; text-align: center; margin-bottom: 8px;">🔧 Demo
+                Navigator - Chọn màn để xem</span>
+            <button onclick="goToScreen('scr-main')"
+                style="padding: 8px 12px; border: none; border-radius: 8px; background: #2BB89A; color: white; font-size: 12px; cursor: pointer;">📊
+                Dashboard</button>
+            <button onclick="goToScreen('scr-report-list')"
+                style="padding: 8px 12px; border: none; border-radius: 8px; background: #3B82F6; color: white; font-size: 12px; cursor: pointer;">📋
+                Report List</button>
+            <button onclick="goToScreen('scr-report-empty')"
+                style="padding: 8px 12px; border: none; border-radius: 8px; background: #F59E0B; color: white; font-size: 12px; cursor: pointer;">📭
+                Empty: Reports</button>
+            <button onclick="goToScreen('scr-bp-empty')"
+                style="padding: 8px 12px; border: none; border-radius: 8px; background: #EF4444; color: white; font-size: 12px; cursor: pointer;">📉
+                Empty: Chart</button>
+        </div>
+
+        <!-- Toast -->
+        <div class="toast" id="toast"></div>
+    </div>
+
+    <script>
+        function goToScreen(id) {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.getElementById(id).classList.add('active');
+        }
+
+        function toggleFilter(el, value) {
+            document.querySelectorAll('.toggle-btn').forEach(b => b.classList.remove('active'));
+            el.classList.add('active');
+            showToast('Đã chuyển sang view ' + value);
+        }
+
+        function selectChip(el) {
+            document.querySelectorAll('.day-chip').forEach(c => c.classList.remove('active'));
+            el.classList.add('active');
+        }
+
+        function showToast(msg) {
+            const t = document.getElementById('toast');
+            t.textContent = msg;
+            t.classList.add('show');
+            setTimeout(() => t.classList.remove('show'), 2500);
+        }
+
+        // Report filter dropdown functions
+        function toggleReportFilter() {
+            const menu = document.getElementById('report-filter-menu');
+            menu.style.display = menu.style.display === 'none' ? 'block' : 'none';
+        }
+
+        function selectReportFilter(value) {
+            document.getElementById('filter-text').textContent = value;
+            document.getElementById('report-filter-menu').style.display = 'none';
+            showToast('Đã chọn: ' + value);
+        }
+
+        // Report type toggle filter (Phương án B: 3 loại)
+        function filterReportType(el, type) {
+            // Update toggle buttons
+            const filterDiv = document.getElementById('report-type-filter');
+            filterDiv.querySelectorAll('.toggle-btn').forEach(b => b.classList.remove('active'));
+            el.classList.add('active');
+
+            // Show/hide report lists
+            document.querySelectorAll('.report-type-content').forEach(c => c.style.display = 'none');
+            document.getElementById('reports-' + type).style.display = 'block';
+
+            // NOTE: Badge keeps total unread count (10) - không đổi khi switch tab
+            // Đây là BR-RPT-001: Badge = tổng số báo cáo chưa đọc tất cả loại
+            // Không hiển thị toast khi chuyển tab - UX mượt mà hơn
+        }
+
+        // Report list screen toggle filter
+        function filterListReportType(el, type) {
+            // Update toggle buttons
+            const filterDiv = document.getElementById('list-report-type-filter');
+            filterDiv.querySelectorAll('.toggle-btn').forEach(b => b.classList.remove('active'));
+            el.classList.add('active');
+
+            // Show/hide report lists
+            document.querySelectorAll('.list-report-type-content').forEach(c => c.style.display = 'none');
+            document.getElementById('list-reports-' + type).style.display = 'block';
+
+            // Update total count based on type
+            const counts = { ngay: 30, tuan: 12, thang: 6 };
+            document.getElementById('list-total-count').innerHTML = 'Tổng số: <strong>' + counts[type] + '</strong> bản ghi';
+
+            // Không toast khi chuyển tab - BR-RPT-002
+            // UX mượt mà hơn
+        }
+    </script>
+</body>
+
+</html>

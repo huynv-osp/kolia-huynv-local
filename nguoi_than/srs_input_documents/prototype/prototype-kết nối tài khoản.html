@@ -1,0 +1,2954 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>KOLIA-1517 | Kết nối Người thân</title>
+    <style>
+        :root {
+            /* Kolia Design System Colors */
+            --primary: #2BB89A;
+            --primary-dark: #239B82;
+            --primary-light: #E8F8F4;
+            --primary-gradient: linear-gradient(135deg, #2BB89A, #1A9F82);
+            --secondary-pink: #FFE4EC;
+            --secondary-peach: #FFE8D6;
+            --danger: #E53935;
+            --danger-light: #FFEBEE;
+            --warning: #FF9800;
+            --warning-light: #FFF8E1;
+            --text-primary: #2D3748;
+            --text-secondary: #718096;
+            --text-muted: #A0AEC0;
+            --bg-white: #FFFFFF;
+            --bg-gray: #F7FAFC;
+            --bg-cream: #FFFAF5;
+            --border: #E2E8F0;
+            --shadow: 0 4px 15px rgba(43, 184, 154, 0.12);
+            --shadow-lg: 0 8px 25px rgba(43, 184, 154, 0.18);
+            --radius: 16px;
+            --radius-lg: 24px;
+            --radius-xl: 32px;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(180deg, #E8F8F4 0%, #F7FAFC 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            padding: 20px;
+            font-size: 16px;
+            line-height: 1.5;
+        }
+
+        .phone-frame {
+            width: 375px;
+            min-height: 667px;
+            background: var(--bg-white);
+            border-radius: var(--radius-xl);
+            box-shadow: var(--shadow-lg), 0 10px 40px rgba(0, 0, 0, 0.08);
+            overflow: hidden;
+            position: relative;
+        }
+
+        .screen {
+            display: none;
+            flex-direction: column;
+            height: 100%;
+            min-height: 600px;
+        }
+
+        .screen.active {
+            display: flex;
+        }
+
+        /* Header */
+        .header {
+            background: var(--primary-gradient);
+            color: white;
+            padding: 20px 20px 24px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            position: relative;
+            border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+        }
+
+        .header::after {
+            content: '';
+            position: absolute;
+            bottom: -1px;
+            left: 0;
+            right: 0;
+            height: 20px;
+            background: var(--bg-white);
+            border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+        }
+
+        .header-back {
+            font-size: 20px;
+            cursor: pointer;
+            padding: 4px;
+        }
+
+        .header-title {
+            font-size: 20px;
+            font-weight: 700;
+            flex: 1;
+            letter-spacing: -0.3px;
+        }
+
+        /* Content */
+        .content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
+        }
+
+        /* Profile Selector */
+        .profile-selector {
+            background: var(--primary-gradient);
+            color: white;
+            padding: 20px 24px;
+            border-radius: var(--radius-lg);
+            margin-bottom: 20px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            box-shadow: var(--shadow-lg);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .profile-selector::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -30px;
+            width: 120px;
+            height: 120px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+        }
+
+        .profile-selector::after {
+            content: '';
+            position: absolute;
+            bottom: -40%;
+            left: 20%;
+            width: 80px;
+            height: 80px;
+            background: rgba(255, 255, 255, 0.08);
+            border-radius: 50%;
+        }
+
+        .profile-avatar {
+            width: 60px;
+            height: 60px;
+            background: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            position: relative;
+            z-index: 1;
+        }
+
+        .profile-info {
+            flex: 1;
+        }
+
+        .profile-name {
+            font-size: 18px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .profile-status {
+            font-size: 14px;
+            opacity: 0.9;
+            margin-top: 4px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .dropdown-arrow {
+            font-size: 20px;
+        }
+
+        /* Bottom Sheet */
+        .bottom-sheet {
+            display: none;
+            position: absolute;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: white;
+            border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+            box-shadow: 0 -8px 30px rgba(0, 0, 0, 0.15);
+            z-index: 100;
+            max-height: 75%;
+            overflow-y: auto;
+            transform: translateY(100%);
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .bottom-sheet.show {
+            display: block;
+            transform: translateY(0);
+        }
+
+        .bottom-sheet-handle {
+            width: 40px;
+            height: 4px;
+            background: var(--border);
+            border-radius: 2px;
+            margin: 12px auto 16px;
+        }
+
+        .bottom-sheet-header {
+            padding: 0 20px 16px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .bottom-sheet-title {
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        .bottom-sheet-close {
+            width: 32px;
+            height: 32px;
+            border: none;
+            background: var(--bg-gray);
+            border-radius: 50%;
+            font-size: 16px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .sheet-overlay {
+            display: none;
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.4);
+            z-index: 99;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .sheet-overlay.show {
+            display: block;
+            opacity: 1;
+        }
+
+        .bottom-sheet-content {
+            padding: 16px 20px;
+        }
+
+        .dropdown-section {
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .dropdown-section-title {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            margin-bottom: 8px;
+        }
+
+        .dropdown-item {
+            display: flex;
+            align-items: center;
+            padding: 12px;
+            gap: 12px;
+            cursor: pointer;
+            border-radius: var(--radius);
+            transition: background 0.2s;
+        }
+
+        .dropdown-item:hover {
+            background: var(--bg-gray);
+        }
+
+        .dropdown-item-avatar {
+            width: 40px;
+            height: 40px;
+            background: var(--primary-light);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .dropdown-item-info {
+            flex: 1;
+        }
+
+        .dropdown-item-name {
+            font-weight: 500;
+            color: var(--text-primary);
+        }
+
+        .dropdown-item-meta {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        .dropdown-item-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .icon-btn {
+            width: 32px;
+            height: 32px;
+            border: none;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .icon-btn.settings {
+            background: var(--bg-gray);
+            color: var(--text-secondary);
+        }
+
+        .icon-btn.delete {
+            background: var(--danger-light);
+            color: var(--danger);
+        }
+
+        /* Pending Badge Styles */
+        .pending-badge {
+            display: inline-block;
+            background: var(--warning-light);
+            color: #E65100;
+            font-size: 11px;
+            font-weight: 600;
+            padding: 4px 10px;
+            border-radius: 12px;
+            margin-left: 8px;
+        }
+
+        .dropdown-item.pending {
+            background: var(--warning-light);
+            border: 1px dashed var(--warning);
+        }
+
+        .icon-btn.view {
+            background: var(--primary-light);
+            color: var(--primary);
+        }
+
+        .dropdown-cta {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px;
+            color: var(--primary);
+            font-weight: 500;
+            cursor: pointer;
+            border-radius: var(--radius);
+        }
+
+        .dropdown-cta:hover {
+            background: var(--primary-light);
+        }
+
+        .dropdown-cta-icon {
+            width: 40px;
+            height: 40px;
+            background: var(--primary);
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+        }
+
+        /* Invite Block */
+        .invite-block {
+            background: linear-gradient(135deg, #FFF8E1 0%, #FFECB3 100%);
+            border: none;
+            border-radius: var(--radius-lg);
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: var(--shadow);
+        }
+
+        .invite-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-weight: 600;
+            color: var(--warning);
+            margin-bottom: 12px;
+        }
+
+        .invite-item {
+            background: white;
+            border-radius: var(--radius);
+            padding: 16px;
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            margin-bottom: 10px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+        }
+
+        .invite-item-avatar {
+            width: 48px;
+            height: 48px;
+            background: var(--primary-light);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+        }
+
+        .invite-item-info {
+            flex: 1;
+        }
+
+        .invite-item-name {
+            font-weight: 500;
+            color: var(--text-primary);
+        }
+
+        .invite-item-desc {
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+
+        .invite-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .btn-accept,
+        .btn-reject {
+            width: 48px;
+            height: 48px;
+            border: none;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 20px;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .btn-accept:active,
+        .btn-reject:active {
+            transform: scale(0.95);
+        }
+
+        .btn-accept {
+            background: var(--primary-gradient);
+            color: white;
+            box-shadow: 0 4px 12px rgba(43, 184, 154, 0.3);
+        }
+
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 48px 24px;
+            color: var(--text-muted);
+        }
+
+        .empty-state-icon {
+            font-size: 56px;
+            margin-bottom: 20px;
+        }
+
+        .empty-state-text {
+            font-size: 16px;
+            line-height: 1.6;
+        }
+
+        /* Form */
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-label {
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            margin-bottom: 8px;
+            display: block;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 14px 16px;
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            font-size: 16px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .form-input:focus {
+            border-color: var(--primary);
+        }
+
+        .form-input.error {
+            border-color: var(--danger);
+        }
+
+        .form-error {
+            color: var(--danger);
+            font-size: 12px;
+            margin-top: 4px;
+            display: none;
+        }
+
+        .form-error.show {
+            display: block;
+        }
+
+        /* Button */
+        .btn {
+            width: 100%;
+            padding: 18px;
+            border: none;
+            border-radius: var(--radius);
+            font-size: 17px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            min-height: 56px;
+        }
+
+        .btn-primary {
+            background: var(--primary-gradient);
+            color: white;
+            box-shadow: 0 4px 15px rgba(43, 184, 154, 0.25);
+        }
+
+        .btn-primary:hover {
+            box-shadow: 0 6px 20px rgba(43, 184, 154, 0.35);
+            transform: translateY(-1px);
+        }
+
+        .btn-primary:disabled {
+            background: var(--border);
+            box-shadow: none;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-danger {
+            background: var(--danger);
+            color: white;
+        }
+
+        .btn-outline {
+            background: white;
+            color: var(--text-primary);
+            border: 2px solid var(--border);
+        }
+
+        .btn-outline:hover {
+            border-color: var(--primary);
+            color: var(--primary);
+        }
+
+        /* Detail Card */
+        .detail-card {
+            background: linear-gradient(135deg, #FFFFFF 0%, #F7FAFC 100%);
+            border-radius: var(--radius-lg);
+            padding: 28px;
+            text-align: center;
+            margin-bottom: 20px;
+            box-shadow: var(--shadow-lg);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .detail-card::before {
+            content: '';
+            position: absolute;
+            top: -40px;
+            right: -40px;
+            width: 100px;
+            height: 100px;
+            background: var(--primary-light);
+            border-radius: 50%;
+            opacity: 0.5;
+        }
+
+        .detail-avatar {
+            width: 88px;
+            height: 88px;
+            background: linear-gradient(135deg, var(--primary-light) 0%, #D0F0E8 100%);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 36px;
+            margin: 0 auto 18px;
+            box-shadow: 0 4px 15px rgba(43, 184, 154, 0.2);
+            position: relative;
+        }
+
+        .detail-name {
+            font-size: 22px;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        .detail-meta {
+            font-size: 15px;
+            color: var(--text-muted);
+            margin-top: 6px;
+        }
+
+        /* Permission List */
+        .permission-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .permission-item {
+            display: flex;
+            align-items: center;
+            padding: 18px 16px;
+            background: white;
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            transition: transform 0.2s;
+        }
+
+        .permission-item:hover {
+            transform: translateY(-2px);
+        }
+
+        .permission-info {
+            flex: 1;
+        }
+
+        .permission-name {
+            font-weight: 600;
+            color: var(--text-primary);
+            font-size: 15px;
+        }
+
+        .permission-desc {
+            font-size: 13px;
+            color: var(--text-muted);
+            margin-top: 3px;
+        }
+
+        .toggle {
+            width: 50px;
+            height: 28px;
+            background: var(--border);
+            border-radius: 14px;
+            position: relative;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .toggle.on {
+            background: var(--primary);
+        }
+
+        .toggle::after {
+            content: '';
+            position: absolute;
+            width: 24px;
+            height: 24px;
+            background: white;
+            border-radius: 50%;
+            top: 2px;
+            left: 2px;
+            transition: transform 0.2s;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+        }
+
+        .toggle.on::after {
+            transform: translateX(22px);
+        }
+
+        /* Health Blocks */
+        .health-block {
+            background: linear-gradient(135deg, #FFFFFF 0%, var(--primary-light) 100%);
+            border-radius: var(--radius-lg);
+            padding: 20px;
+            margin-bottom: 14px;
+            box-shadow: var(--shadow);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .health-block::after {
+            content: '';
+            position: absolute;
+            bottom: -20px;
+            right: -20px;
+            width: 60px;
+            height: 60px;
+            background: rgba(43, 184, 154, 0.1);
+            border-radius: 50%;
+        }
+
+        .health-block-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .health-value {
+            font-size: 32px;
+            font-weight: 700;
+            color: var(--text-primary);
+            position: relative;
+        }
+
+        .health-value small {
+            font-size: 15px;
+            font-weight: 500;
+            color: var(--text-muted);
+            margin-left: 4px;
+        }
+
+        /* Bottom Nav */
+        .bottom-nav {
+            display: flex;
+            background: white;
+            border-top: none;
+            padding: 12px 8px 20px;
+            box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.08);
+            border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+            position: relative;
+        }
+
+        .nav-item {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+            cursor: pointer;
+            color: var(--text-muted);
+            font-size: 11px;
+            font-weight: 500;
+            padding: 8px 4px;
+            border-radius: var(--radius);
+            transition: all 0.2s;
+        }
+
+        .nav-item.active {
+            color: var(--primary);
+        }
+
+        .nav-item.active .nav-icon {
+            transform: scale(1.1);
+        }
+
+        .nav-icon {
+            font-size: 26px;
+            transition: transform 0.2s;
+        }
+
+        .nav-badge {
+            position: relative;
+        }
+
+        .nav-badge::after {
+            content: '3';
+            position: absolute;
+            top: -6px;
+            right: -10px;
+            background: var(--danger);
+            color: white;
+            font-size: 10px;
+            font-weight: 600;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 2px 6px rgba(229, 57, 53, 0.4);
+        }
+
+        /* Modal */
+        .modal {
+            display: none;
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 200;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .modal.show {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: var(--radius-lg);
+            padding: 24px;
+            width: 100%;
+            max-width: 320px;
+            text-align: center;
+        }
+
+        .modal-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+        }
+
+        .modal-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .modal-text {
+            font-size: 14px;
+            color: var(--text-secondary);
+            margin-bottom: 20px;
+            line-height: 1.5;
+        }
+
+        .modal-buttons {
+            display: flex;
+            gap: 12px;
+        }
+
+        .modal-buttons .btn {
+            flex: 1;
+            padding: 12px;
+        }
+
+        /* Success Toast */
+        .toast {
+            display: none;
+            position: absolute;
+            bottom: 100px;
+            left: 20px;
+            right: 20px;
+            background: var(--primary);
+            color: white;
+            padding: 16px;
+            border-radius: var(--radius);
+            text-align: center;
+            font-weight: 500;
+            z-index: 300;
+        }
+
+        .toast.show {
+            display: block;
+            animation: slideUp 0.3s;
+        }
+
+        @keyframes slideUp {
+            from {
+                transform: translateY(20px);
+                opacity: 0;
+            }
+
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        /* ===== US 1.1: HEALTH DASHBOARD STYLES ===== */
+
+        /* BP Chart Block */
+        .bp-chart-block {
+            background: white;
+            border-radius: var(--radius-lg);
+            padding: 20px;
+            margin-bottom: 16px;
+            box-shadow: var(--shadow);
+        }
+
+        .bp-chart-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 16px;
+        }
+
+        .bp-chart-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        /* Toggle Filter (Tuần/Tháng) */
+        .toggle-filter {
+            display: flex;
+            background: var(--bg-gray);
+            border-radius: 25px;
+            padding: 4px;
+            margin-bottom: 16px;
+        }
+
+        .toggle-filter-btn {
+            flex: 1;
+            padding: 10px 20px;
+            border: none;
+            background: transparent;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .toggle-filter-btn.active {
+            background: white;
+            color: var(--primary);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Chart Container */
+        .chart-container {
+            position: relative;
+            height: 180px;
+            margin-bottom: 16px;
+        }
+
+        .chart-svg {
+            width: 100%;
+            height: 100%;
+        }
+
+        .chart-line-systolic {
+            stroke: var(--primary);
+            stroke-width: 2.5;
+            fill: none;
+        }
+
+        .chart-line-diastolic {
+            stroke: #3B82F6;
+            stroke-width: 2.5;
+            fill: none;
+        }
+
+        .chart-dot {
+            cursor: pointer;
+            transition: r 0.2s;
+        }
+
+        .chart-dot:hover {
+            r: 8;
+        }
+
+        .chart-tooltip {
+            position: absolute;
+            background: var(--text-primary);
+            color: white;
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 12px;
+            pointer-events: none;
+            display: none;
+            z-index: 10;
+        }
+
+        .chart-tooltip.show {
+            display: block;
+        }
+
+        .chart-axis-label {
+            font-size: 11px;
+            fill: var(--text-muted);
+        }
+
+        /* Day Chips */
+        .day-chips {
+            display: flex;
+            gap: 8px;
+            overflow-x: auto;
+            padding-bottom: 4px;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .day-chips::-webkit-scrollbar {
+            display: none;
+        }
+
+        .day-chip {
+            padding: 8px 16px;
+            border: 1.5px solid var(--border);
+            background: white;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            cursor: pointer;
+            white-space: nowrap;
+            transition: all 0.2s;
+        }
+
+        .day-chip.active {
+            background: var(--primary-light);
+            border-color: var(--primary);
+            color: var(--primary);
+        }
+
+        /* Action Buttons Row */
+        .action-btn-row {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin-top: 16px;
+        }
+
+        .action-btn {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 16px;
+            background: white;
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .action-btn:hover {
+            border-color: var(--primary);
+            background: var(--primary-light);
+        }
+
+        .action-btn-icon {
+            font-size: 24px;
+        }
+
+        .action-btn-text {
+            flex: 1;
+            font-weight: 500;
+            color: var(--text-primary);
+        }
+
+        .action-btn-arrow {
+            color: var(--text-muted);
+        }
+
+        /* Report List */
+        .report-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .report-item {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            padding: 16px;
+            background: white;
+            border-radius: var(--radius);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .report-item:hover {
+            box-shadow: var(--shadow);
+        }
+
+        .report-icon {
+            font-size: 28px;
+        }
+
+        .report-info {
+            flex: 1;
+        }
+
+        .report-title {
+            font-weight: 500;
+            color: var(--text-primary);
+        }
+
+        .report-date {
+            font-size: 13px;
+            color: var(--text-muted);
+        }
+
+        /* Filter Dropdown */
+        .filter-dropdown {
+            position: relative;
+            margin-bottom: 16px;
+        }
+
+        .filter-dropdown-btn {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 16px;
+            background: white;
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--text-primary);
+            cursor: pointer;
+        }
+
+        .filter-dropdown-menu {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: white;
+            border-radius: var(--radius);
+            box-shadow: var(--shadow-lg);
+            margin-top: 4px;
+            display: none;
+            z-index: 10;
+        }
+
+        .filter-dropdown-menu.show {
+            display: block;
+        }
+
+        .filter-dropdown-item {
+            padding: 12px 16px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .filter-dropdown-item:hover {
+            background: var(--bg-gray);
+        }
+
+        .filter-dropdown-item.active {
+            color: var(--primary);
+            font-weight: 500;
+        }
+
+        /* Pagination */
+        .pagination {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 8px;
+            margin-top: 20px;
+        }
+
+        .pagination-info {
+            font-size: 13px;
+            color: var(--text-muted);
+            margin-right: 12px;
+        }
+
+        .pagination-btn {
+            width: 32px;
+            height: 32px;
+            border: 1px solid var(--border);
+            background: white;
+            border-radius: 8px;
+            font-size: 13px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .pagination-btn.active {
+            background: var(--primary);
+            border-color: var(--primary);
+            color: white;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="phone-frame">
+        <!-- SCR-01: Kết nối Người thân -->
+        <div id="scr01" class="screen active">
+            <div class="header">
+                <span class="header-title">Kết nối Người thân</span>
+            </div>
+            <div class="content">
+                <!-- Profile Selector -->
+                <div class="profile-selector" onclick="toggleBottomSheet()">
+                    <div class="profile-avatar">👤</div>
+                    <div class="profile-info">
+                        <div class="profile-name">Tài khoản của [Danh xưng] <span class="dropdown-arrow">▼</span></div>
+                        <div class="profile-status">2 người theo dõi, theo dõi 1 người</div>
+                    </div>
+                </div>
+
+                <!-- Pending Invites -->
+                <div class="invite-block" id="inviteBlock">
+                    <div class="invite-header">📬 Lời mời mới (3)</div>
+                    <div class="invite-item" data-invite-type="follow-them">
+                        <div class="invite-item-avatar">👤</div>
+                        <div class="invite-item-info">
+                            <div class="invite-item-name">Chú Út (Lê Văn...)</div>
+                            <div class="invite-item-desc">Mời bạn theo dõi sức khỏe</div>
+                        </div>
+                        <div class="invite-actions">
+                            <button class="btn-accept"
+                                onclick="event.stopPropagation(); acceptInvite('chu-ut', 'follow-them')">✓</button>
+                            <button class="btn-reject"
+                                onclick="event.stopPropagation(); rejectInvite('chu-ut')">✗</button>
+                        </div>
+                    </div>
+                    <div class="invite-item" data-invite-type="follow-me">
+                        <div class="invite-item-avatar">👩</div>
+                        <div class="invite-item-info">
+                            <div class="invite-item-name">Cô Ba (Nguyễn...)</div>
+                            <div class="invite-item-desc">Muốn theo dõi sức khỏe của bạn</div>
+                        </div>
+                        <div class="invite-actions">
+                            <button class="btn-accept"
+                                onclick="event.stopPropagation(); acceptInvite('co-ba', 'follow-me')">✓</button>
+                            <button class="btn-reject"
+                                onclick="event.stopPropagation(); rejectInvite('co-ba')">✗</button>
+                        </div>
+                    </div>
+                    <div class="invite-item" data-invite-type="follow-them">
+                        <div class="invite-item-avatar">👨</div>
+                        <div class="invite-item-info">
+                            <div class="invite-item-name">Anh Hai (Trần...)</div>
+                            <div class="invite-item-desc">Mời bạn theo dõi sức khỏe</div>
+                        </div>
+                        <div class="invite-actions">
+                            <button class="btn-accept"
+                                onclick="event.stopPropagation(); acceptInvite('anh-hai', 'follow-them')">✓</button>
+                            <button class="btn-reject"
+                                onclick="event.stopPropagation(); rejectInvite('anh-hai')">✗</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Empty State when no connections -->
+                <div class="empty-state" id="emptyState" style="display: none;">
+                    <div class="empty-state-icon">🔗</div>
+                    <div class="empty-state-text">Chưa có kết nối nào.<br>Bắt đầu kết nối với người thân ngay!
+                    </div>
+                    <div style="display: flex; gap: 12px; margin-top: 16px; width: 100%; max-width: 340px;">
+                        <button class="btn btn-primary" style="flex: 1; padding: 12px 14px; font-size: 13px;"
+                            onclick="showInviteSheet('invite')">Mời người thân theo dõi</button>
+                        <button class="btn btn-outline" style="flex: 1; padding: 12px 14px; font-size: 13px;"
+                            onclick="showInviteSheet('follow')">Theo dõi người thân</button>
+                    </div>
+                </div>
+
+                <!-- Default View Prompt (Option E) - Shows when selectedPatient = null but has connections -->
+                <!-- VISIBILITY: Hidden by default, shown via JavaScript when no patient selected -->
+                <div id="defaultViewPrompt" class="default-view-prompt"
+                    style="display: none; margin-top: 24px; text-align: center; padding: 32px 24px;">
+                    <div style="font-size: 48px; margin-bottom: 16px;">👋</div>
+                    <div style="font-size: 16px; font-weight: 600; color: var(--text-primary); margin-bottom: 8px;">
+                        Chọn người thân để bắt đầu
+                    </div>
+                    <div style="font-size: 14px; color: var(--text-muted); margin-bottom: 20px;">
+                        Nhấn nút bên dưới để chọn người bạn muốn theo dõi
+                    </div>
+                    <button class="btn btn-primary" onclick="toggleBottomSheet()"
+                        style="padding: 14px 28px; font-size: 15px; display: inline-flex; align-items: center; gap: 8px;">
+                        <span>📋</span>
+                        <span>Xem danh sách người thân</span>
+                    </button>
+                </div>
+
+                <!-- Stop Follow Link (B4.3 Pattern - Text link, grey, at bottom) -->
+                <!-- VISIBILITY: Only shown when a Patient is selected from Profile Switcher -->
+                <div id="stopFollowLinkContainer"
+                    style="text-align: center; margin-top: 24px; padding-bottom: 20px; display: none;">
+                    <span
+                        style="color: var(--text-muted); font-size: 13px; cursor: pointer; text-decoration: underline;"
+                        onclick="showStopFollowModal()">
+                        Ngừng theo dõi
+                    </span>
+                </div>
+            </div>
+
+            <!-- Bottom Sheet: Danh sách người thân -->
+            <div class="sheet-overlay" id="sheetOverlay" onclick="toggleBottomSheet()"></div>
+            <div class="bottom-sheet" id="bottomSheet">
+                <div class="bottom-sheet-handle"></div>
+                <div class="bottom-sheet-header">
+                    <span class="bottom-sheet-title">Danh sách kết nối</span>
+                    <button class="bottom-sheet-close" onclick="toggleBottomSheet()">✕</button>
+                </div>
+                <div class="bottom-sheet-content">
+                    <!-- Section 1: TÔI ĐANG THEO DÕI -->
+                    <div class="dropdown-section">
+                        <div class="dropdown-section-title">📋 Tôi đang theo dõi (1 + 1 chờ)</div>
+                        <!-- Connected Patient: tap → SCR-06 Dashboard Health -->
+                        <div class="dropdown-item" onclick="goToScreen('scr06')">
+                            <div class="dropdown-item-avatar">👵</div>
+                            <div class="dropdown-item-info">
+                                <div class="dropdown-item-name">Mẹ (Trần Thị D)</div>
+                                <div class="dropdown-item-meta">Hoạt động 5 phút trước</div>
+                            </div>
+                            <span style="color: var(--text-muted);">→</span>
+                        </div>
+                        <!-- Pending Follow Request (Chờ phản hồi) - B3.2b: chỉ có ❌, không có ⚙️ -->
+                        <div class="dropdown-item pending">
+                            <div class="dropdown-item-avatar">👩</div>
+                            <div class="dropdown-item-info">
+                                <div class="dropdown-item-name">Dì Ba (Lê Thị B)<span class="pending-badge">⏳ Chờ phản
+                                        hồi</span></div>
+                                <div class="dropdown-item-meta">Đã gửi yêu cầu 1 ngày trước</div>
+                            </div>
+                            <div class="dropdown-item-actions">
+                                <button class="icon-btn delete"
+                                    onclick="event.stopPropagation(); showCancelPendingModal('follow', 'Dì Ba')"
+                                    title="Hủy yêu cầu">❌</button>
+                            </div>
+                        </div>
+                        <div class="dropdown-cta" onclick="showInviteSheet('follow')">
+                            <div class="dropdown-cta-icon">+</div>
+                            <span>Thêm người để theo dõi</span>
+                        </div>
+                    </div>
+                    <!-- Section 2: NGƯỜI ĐANG THEO DÕI TÔI -->
+                    <div class="dropdown-section">
+                        <div class="dropdown-section-title">📋 Người đang theo dõi tôi (2 + 1 chờ)</div>
+                        <!-- Connected Caregiver: tap → SCR-04 detail screen -->
+                        <div class="dropdown-item" onclick="goToScreen('scr04')">
+                            <div class="dropdown-item-avatar">👨</div>
+                            <div class="dropdown-item-info">
+                                <div class="dropdown-item-name">Con trai (Nguyễn Văn B)</div>
+                                <div class="dropdown-item-meta">Hoạt động 2 giờ trước</div>
+                            </div>
+                        </div>
+                        <div class="dropdown-item" onclick="goToScreen('scr04')">
+                            <div class="dropdown-item-avatar">👩</div>
+                            <div class="dropdown-item-info">
+                                <div class="dropdown-item-name">Con gái (Nguyễn Thị C)</div>
+                                <div class="dropdown-item-meta">Hoạt động 5 phút trước</div>
+                            </div>
+                        </div>
+                        <!-- Pending Invite - tap để vào màn Chi tiết (SCR-04B) -->
+                        <div class="dropdown-item pending" onclick="goToScreen('scr04b')">
+                            <div class="dropdown-item-avatar">👴</div>
+                            <div class="dropdown-item-info">
+                                <div class="dropdown-item-name">Bác Hai (Nguyễn Văn H)<span class="pending-badge">⏳ Chờ
+                                        phản hồi</span></div>
+                                <div class="dropdown-item-meta">Đã gửi lời mời 2 giờ trước</div>
+                            </div>
+                            <div class="dropdown-item-actions">
+                                <button class="icon-btn delete"
+                                    onclick="event.stopPropagation(); showCancelPendingModal('invite', 'Bác Hai')"
+                                    title="Hủy lời mời">❌</button>
+                            </div>
+                        </div>
+                        <div class="dropdown-cta" onclick="showInviteSheet('invite')">
+                            <div class="dropdown-cta-icon">+</div>
+                            <span>Thêm người theo dõi bạn</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+
+            <div class="bottom-nav">
+                <div class="nav-item"><span class="nav-icon">🏠</span><span>Trang chủ</span></div>
+                <div class="nav-item"><span class="nav-icon">💊</span><span>Thuốc</span></div>
+                <div class="nav-item"><span class="nav-icon">🌳</span><span>Hoạt động</span></div>
+                <div class="nav-item active"><span class="nav-icon nav-badge">👥</span><span>Người thân</span></div>
+                <div class="nav-item"><span class="nav-icon">⚙️</span><span>Cài đặt</span></div>
+            </div>
+
+            <!-- Invite Bottom Sheet -->
+            <div class="sheet-overlay" id="inviteSheetOverlay" onclick="hideInviteSheet()"></div>
+            <div class="bottom-sheet" id="inviteSheet">
+                <div class="bottom-sheet-handle"></div>
+                <div class="bottom-sheet-header">
+                    <span class="bottom-sheet-title" id="inviteSheetTitle">Mời người thân theo dõi</span>
+                    <button class="bottom-sheet-close" onclick="hideInviteSheet()">✕</button>
+                </div>
+                <div class="bottom-sheet-content">
+                    <p id="inviteSheetDesc"
+                        style="color: var(--text-secondary); margin-bottom: 20px; font-size: 15px; line-height: 1.5;">
+                        Nhập thông tin người bạn muốn mời theo dõi sức khỏe của bạn.
+                    </p>
+                    <form id="inviteForm" onsubmit="event.preventDefault(); submitInvite();">
+                        <div class="form-group">
+                            <label class="form-label">Tên người thân *</label>
+                            <input type="text" class="form-input" id="inviteNameInput" placeholder="Ví dụ: Nguyễn Văn A"
+                                oninput="validateInviteForm()" required minlength="2">
+                            <div class="form-error" id="nameError">Tên phải có ít nhất 2 ký tự</div>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Số điện thoại *</label>
+                            <input type="tel" class="form-input" id="invitePhoneInput" placeholder="Ví dụ: 0912 345 678"
+                                maxlength="10" oninput="validateInviteForm()" required>
+                            <div class="form-error" id="phoneError">Số điện thoại phải bắt đầu bằng 0 và có 10 số</div>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Mối quan hệ *</label>
+                            <select class="form-input" id="inviteRelationship" onchange="validateInviteForm()" required>
+                                <option value="">-- Chọn mối quan hệ --</option>
+                                <option value="con_trai">Con trai</option>
+                                <option value="con_gai">Con gái</option>
+                                <option value="vo">Vợ</option>
+                                <option value="chong">Chồng</option>
+                                <option value="cha">Cha</option>
+                                <option value="me">Mẹ</option>
+                                <option value="anh_trai">Anh trai</option>
+                                <option value="chi_gai">Chị gái</option>
+                                <option value="em_trai">Em trai</option>
+                                <option value="em_gai">Em gái</option>
+                                <option value="ong">Ông</option>
+                                <option value="ba">Bà</option>
+                                <option value="chau">Cháu</option>
+                                <option value="khac">Khác</option>
+                            </select>
+                        </div>
+                        <button type="submit" class="btn btn-primary" id="inviteSubmitBtn" disabled>
+                            Tiếp tục
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- SCR-02: Mời Người thân (Invite to follow me) -->
+        <div id="scr02-invite" class="screen">
+            <div class="header">
+                <span class="header-back" onclick="goToScreen('scr01')">←</span>
+                <span class="header-title">Mời người thân theo dõi</span>
+            </div>
+            <div class="content">
+                <p style="color: var(--text-secondary); margin-bottom: 20px; line-height: 1.5;">
+                    Nhập số điện thoại của người thân để mời họ theo dõi sức khỏe của bạn.
+                </p>
+                <div class="form-group">
+                    <label class="form-label">Số điện thoại</label>
+                    <input type="tel" class="form-input" id="phoneInput1" placeholder="Ví dụ: 0912 345 678"
+                        maxlength="10" oninput="validatePhone(this, 'phoneError1', 'inviteBtn1')">
+                    <div class="form-error" id="phoneError1">Số điện thoại không hợp lệ</div>
+                </div>
+                <button class="btn btn-primary" id="inviteBtn1" disabled onclick="goToPermissionConfig()">Tiếp
+                    tục</button>
+            </div>
+        </div>
+
+        <!-- SCR-02B: Cấu hình quyền trước khi gửi lời mời -->
+        <div id="scr02b-permissions" class="screen">
+            <div class="header">
+                <span class="header-back" onclick="backToInviteSheet()">←</span>
+                <span class="header-title">Quyền truy cập</span>
+            </div>
+            <div class="content">
+                <p style="color: var(--text-secondary); margin-bottom: 16px; font-size: 14px;">
+                    Chọn quyền mà người được mời sẽ có sau khi chấp nhận:
+                </p>
+
+                <div class="permission-list">
+                    <div class="permission-item">
+                        <div class="permission-info">
+                            <div class="permission-name">Xem tổng quan sức khỏe</div>
+                            <div class="permission-desc">Chỉ số HA, báo cáo</div>
+                        </div>
+                        <div class="toggle on" onclick="togglePermission(this)"></div>
+                    </div>
+                    <div class="permission-item">
+                        <div class="permission-info">
+                            <div class="permission-name">Nhận cảnh báo khẩn cấp</div>
+                            <div class="permission-desc">Cảnh báo HA bất thường, SOS</div>
+                        </div>
+                        <div class="toggle on" onclick="togglePermission(this, true)"></div>
+                    </div>
+                    <div class="permission-item">
+                        <div class="permission-info">
+                            <div class="permission-name">Thiết lập nhiệm vụ</div>
+                            <div class="permission-desc">Tạo/sửa nhiệm vụ tuân thủ</div>
+                        </div>
+                        <div class="toggle on" onclick="togglePermission(this)"></div>
+                    </div>
+                    <div class="permission-item">
+                        <div class="permission-info">
+                            <div class="permission-name">Theo dõi kết quả</div>
+                            <div class="permission-desc">Xem lịch sử tuân thủ</div>
+                        </div>
+                        <div class="toggle on" onclick="togglePermission(this)"></div>
+                    </div>
+                    <div class="permission-item">
+                        <div class="permission-info">
+                            <div class="permission-name">Thực hiện nhiệm vụ thay</div>
+                            <div class="permission-desc">Đánh dấu hoàn thành</div>
+                        </div>
+                        <div class="toggle on" onclick="togglePermission(this)"></div>
+                    </div>
+                    <div class="permission-item">
+                        <div class="permission-info">
+                            <div class="permission-name">Gửi lời động viên</div>
+                            <div class="permission-desc">Gửi tin nhắn</div>
+                        </div>
+                        <div class="toggle on" onclick="togglePermission(this)"></div>
+                    </div>
+                </div>
+
+                <button class="btn btn-primary" style="margin-top: 20px;" onclick="sendInviteWithPermissions()">Gửi lời
+                    mời</button>
+            </div>
+        </div>
+
+        <!-- SCR-02B-ACCEPT: Cấu hình quyền sau khi nhận lời mời từ Caregiver (A2.1) -->
+        <div id="scr02b-accept" class="screen">
+            <div class="header">
+                <span class="header-back" onclick="cancelAcceptInvite()">←</span>
+                <span class="header-title">Quyền truy cập</span>
+            </div>
+            <div class="content">
+                <p style="color: var(--text-secondary); margin-bottom: 16px; font-size: 14px;">
+                    <strong id="acceptingInviterName">Người thân</strong> đã mời theo dõi bạn.<br>
+                    Chọn quyền mà họ sẽ có:
+                </p>
+
+                <div class="permission-list">
+                    <div class="permission-item">
+                        <div class="permission-info">
+                            <div class="permission-name">Xem tổng quan sức khỏe</div>
+                            <div class="permission-desc">Chỉ số HA, báo cáo</div>
+                        </div>
+                        <div class="toggle on" onclick="togglePermission(this)"></div>
+                    </div>
+                    <div class="permission-item">
+                        <div class="permission-info">
+                            <div class="permission-name">Nhận cảnh báo khẩn cấp</div>
+                            <div class="permission-desc">Cảnh báo HA bất thường, SOS</div>
+                        </div>
+                        <div class="toggle on" onclick="togglePermission(this, true)"></div>
+                    </div>
+                    <div class="permission-item">
+                        <div class="permission-info">
+                            <div class="permission-name">Thiết lập nhiệm vụ</div>
+                            <div class="permission-desc">Tạo/sửa nhiệm vụ tuân thủ</div>
+                        </div>
+                        <div class="toggle on" onclick="togglePermission(this)"></div>
+                    </div>
+                    <div class="permission-item">
+                        <div class="permission-info">
+                            <div class="permission-name">Theo dõi kết quả</div>
+                            <div class="permission-desc">Xem lịch sử tuân thủ</div>
+                        </div>
+                        <div class="toggle on" onclick="togglePermission(this)"></div>
+                    </div>
+                    <div class="permission-item">
+                        <div class="permission-info">
+                            <div class="permission-name">Thực hiện nhiệm vụ thay</div>
+                            <div class="permission-desc">Đánh dấu hoàn thành</div>
+                        </div>
+                        <div class="toggle on" onclick="togglePermission(this)"></div>
+                    </div>
+                    <div class="permission-item">
+                        <div class="permission-info">
+                            <div class="permission-name">Gửi lời động viên</div>
+                            <div class="permission-desc">Gửi tin nhắn</div>
+                        </div>
+                        <div class="toggle on" onclick="togglePermission(this)"></div>
+                    </div>
+                </div>
+
+                <button class="btn btn-primary" style="margin-top: 20px;" onclick="confirmAcceptWithPermissions()">Xác
+                    nhận kết nối</button>
+            </div>
+        </div>
+        <!-- SCR-02: Theo dõi người thân -->
+        <div id="scr02-follow" class="screen">
+            <div class="header">
+                <span class="header-back" onclick="goToScreen('scr01')">←</span>
+                <span class="header-title">Theo dõi người thân</span>
+            </div>
+            <div class="content">
+                <p style="color: var(--text-secondary); margin-bottom: 20px; line-height: 1.5;">
+                    Nhập số điện thoại của người bạn muốn theo dõi sức khỏe.
+                </p>
+                <div class="form-group">
+                    <label class="form-label">Số điện thoại</label>
+                    <input type="tel" class="form-input" id="phoneInput2" placeholder="Ví dụ: 0912 345 678"
+                        maxlength="10" oninput="validatePhone(this, 'phoneError2', 'inviteBtn2')">
+                    <div class="form-error" id="phoneError2">Số điện thoại không hợp lệ</div>
+                </div>
+                <button class="btn btn-primary" id="inviteBtn2" disabled onclick="sendInvite('follow')">Gửi lời
+                    mời</button>
+            </div>
+        </div>
+
+        <!-- SCR-04: Chi tiết Caregiver -->
+        <div id="scr04" class="screen">
+            <div class="header">
+                <span class="header-back" onclick="goToScreen('scr01')">←</span>
+                <span class="header-title">Chi tiết người thân</span>
+            </div>
+            <div class="content">
+                <div class="detail-card">
+                    <div class="detail-avatar">👨</div>
+                    <div class="detail-name">Con trai (Nguyễn Văn B)</div>
+                    <div class="detail-meta">Hoạt động 2 giờ trước</div>
+                </div>
+
+                <div style="display: flex; gap: 12px; margin-bottom: 20px;">
+                    <button class="btn btn-outline" style="flex: 1;" onclick="goToScreen('scr05')">⚙️ Quyền
+                        truy cập</button>
+                    <button class="btn btn-outline" style="flex: 1; color: var(--danger);"
+                        onclick="showDisconnectModal()">❌ Hủy kết nối</button>
+                </div>
+
+                <p style="color: var(--text-muted); font-size: 13px; text-align: center;">
+                    Người này đang theo dõi sức khỏe của bạn.<br>
+                    Bạn có thể điều chỉnh quyền truy cập của họ.
+                </p>
+            </div>
+        </div>
+
+        <!-- SCR-04B: Chi tiết người thân - Trạng thái PENDING (lời mời đang chờ) -->
+        <div id="scr04b" class="screen">
+            <div class="header">
+                <span class="header-back" onclick="goToScreen('scr01')">←</span>
+                <span class="header-title">Chi tiết người thân</span>
+            </div>
+            <div class="content">
+                <div class="detail-card">
+                    <div class="detail-avatar">👴</div>
+                    <div class="detail-name">Bác Hai (Nguyễn Văn H)</div>
+                    <div class="detail-meta" style="color: var(--warning);">⏳ Chờ phản hồi</div>
+                    <div class="detail-meta">Đã gửi lời mời 2 giờ trước</div>
+                </div>
+
+                <div style="display: flex; gap: 12px; margin-bottom: 20px;">
+                    <button class="btn btn-outline" style="flex: 1;" onclick="goToScreen('scr05')">⚙️ Quyền
+                        truy cập</button>
+                    <button class="btn btn-outline" style="flex: 1; color: var(--danger);"
+                        onclick="showCancelPendingModal('invite', 'Bác Hai')">❌ Hủy lời mời</button>
+                </div>
+
+                <p style="color: var(--text-muted); font-size: 13px; text-align: center;">
+                    Lời mời đang chờ phản hồi.<br>
+                    Bạn có thể cấu hình quyền trước hoặc hủy lời mời.
+                </p>
+            </div>
+        </div>
+
+        <!-- SCR-05: Quyền truy cập -->
+        <div id="scr05" class="screen">
+            <div class="header">
+                <span class="header-back" onclick="goToScreen('scr04')">←</span>
+                <span class="header-title">Quyền truy cập</span>
+            </div>
+            <div class="content">
+                <p style="color: var(--text-secondary); margin-bottom: 16px; font-size: 14px;">
+                    Chọn quyền mà <strong>Con trai (Nguyễn Văn B)</strong> được phép truy cập:
+                </p>
+
+                <div class="permission-list">
+                    <div class="permission-item">
+                        <div class="permission-info">
+                            <div class="permission-name">Xem tổng quan sức khỏe</div>
+                            <div class="permission-desc">Chỉ số HA, báo cáo</div>
+                        </div>
+                        <div class="toggle on" onclick="togglePermission(this)"></div>
+                    </div>
+                    <div class="permission-item">
+                        <div class="permission-info">
+                            <div class="permission-name">Nhận cảnh báo khẩn cấp</div>
+                            <div class="permission-desc">Cảnh báo HA bất thường, SOS</div>
+                        </div>
+                        <div class="toggle on" onclick="togglePermission(this, true)"></div>
+                    </div>
+                    <div class="permission-item">
+                        <div class="permission-info">
+                            <div class="permission-name">Thiết lập nhiệm vụ</div>
+                            <div class="permission-desc">Tạo/sửa nhiệm vụ tuân thủ</div>
+                        </div>
+                        <div class="toggle on" onclick="togglePermission(this)"></div>
+                    </div>
+                    <div class="permission-item">
+                        <div class="permission-info">
+                            <div class="permission-name">Theo dõi kết quả</div>
+                            <div class="permission-desc">Xem lịch sử tuân thủ</div>
+                        </div>
+                        <div class="toggle on" onclick="togglePermission(this)"></div>
+                    </div>
+                    <div class="permission-item">
+                        <div class="permission-info">
+                            <div class="permission-name">Thực hiện nhiệm vụ thay</div>
+                            <div class="permission-desc">Đánh dấu hoàn thành</div>
+                        </div>
+                        <div class="toggle on" onclick="togglePermission(this)"></div>
+                    </div>
+                    <div class="permission-item">
+                        <div class="permission-info">
+                            <div class="permission-name">Gửi lời động viên</div>
+                            <div class="permission-desc">Gửi tin nhắn</div>
+                        </div>
+                        <div class="toggle on" onclick="togglePermission(this)"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- SCR-06: Chi tiết Patient (Caregiver View) - SCR-DASHBOARD-HEALTH -->
+        <!-- NOTE: US 1.1 Health Overview is demoed in prototype-xem tình hình sức khỏe.html -->
+        <!-- This screen shows the ENTRY POINT from connection list only -->
+        <div id="scr06" class="screen">
+            <div class="header">
+                <span class="header-back" onclick="goToScreen('scr01')">←</span>
+                <span class="header-title">Sức khỏe của Mẹ</span>
+            </div>
+            <div class="content">
+                <!-- Scope Notice -->
+                <div
+                    style="background: #DBEAFE; border-radius: 12px; padding: 12px 16px; margin-bottom: 16px; display: flex; align-items: center; gap: 10px;">
+                    <span style="font-size: 18px;">ℹ️</span>
+                    <div style="font-size: 13px; color: #1E40AF;">
+                        <strong>US 1.1 - Xem tình hình sức khỏe:</strong> Xem chi tiết tại
+                        <a href="prototype-xem tình hình sức khỏe.html"
+                            style="color: #2563EB; text-decoration: underline;">prototype-xem tình hình sức
+                            khỏe.html</a>
+                    </div>
+                </div>
+
+                <!-- BP Chart Block (STATIC - US 1.1 scope) -->
+                <div class="bp-chart-block" style="opacity: 0.6; pointer-events: none; position: relative;">
+                    <span
+                        style="position: absolute; top: 8px; right: 8px; background: #6B7280; color: white; font-size: 10px; padding: 2px 8px; border-radius: 10px; font-weight: 600; z-index: 10;">STATIC</span>
+                    <div class="bp-chart-header">
+                        <span style="font-size: 20px;">📈</span>
+                        <span class="bp-chart-title">Xu hướng huyết áp</span>
+                    </div>
+
+                    <!-- Toggle Filter: Tuần/Tháng -->
+                    <div class="toggle-filter">
+                        <button class="toggle-filter-btn" onclick="toggleChartFilter('Tuần')">Tuần</button>
+                        <button class="toggle-filter-btn active" onclick="toggleChartFilter('Tháng')">Tháng</button>
+                    </div>
+
+                    <!-- Chart Container with SVG -->
+                    <div class="chart-container" onmouseleave="hideChartTooltip()">
+                        <div id="chartTooltip" class="chart-tooltip"></div>
+                        <svg class="chart-svg" viewBox="0 0 320 160">
+                            <!-- Y-axis labels -->
+                            <text x="5" y="15" class="chart-axis-label">160</text>
+                            <text x="5" y="55" class="chart-axis-label">140</text>
+                            <text x="5" y="95" class="chart-axis-label">120</text>
+                            <text x="5" y="135" class="chart-axis-label">80</text>
+                            <text x="5" y="155" class="chart-axis-label">60</text>
+
+                            <!-- X-axis labels -->
+                            <text x="45" y="155" class="chart-axis-label">12/5</text>
+                            <text x="95" y="155" class="chart-axis-label">13/5</text>
+                            <text x="145" y="155" class="chart-axis-label">14/5</text>
+                            <text x="195" y="155" class="chart-axis-label">15/5</text>
+                            <text x="245" y="155" class="chart-axis-label">16/5</text>
+                            <text x="295" y="155" class="chart-axis-label">17/5</text>
+
+                            <!-- Grid lines -->
+                            <line x1="30" y1="20" x2="310" y2="20" stroke="#E2E8F0" stroke-width="0.5" />
+                            <line x1="30" y1="50" x2="310" y2="50" stroke="#E2E8F0" stroke-width="0.5" />
+                            <line x1="30" y1="90" x2="310" y2="90" stroke="#E2E8F0" stroke-width="0.5" />
+                            <line x1="30" y1="130" x2="310" y2="130" stroke="#E2E8F0" stroke-width="0.5" />
+
+                            <!-- Systolic line (green) -->
+                            <path class="chart-line-systolic"
+                                d="M50,75 Q100,35 100,45 T150,55 T200,50 T250,60 T300,55" />
+
+                            <!-- Diastolic line (blue) -->
+                            <path class="chart-line-diastolic"
+                                d="M50,120 Q100,115 100,115 T150,118 T200,120 T250,130 T300,122" />
+
+                            <!-- Data points - Systolic -->
+                            <circle class="chart-dot" cx="50" cy="75" r="5" fill="#2BB89A"
+                                onclick="showChartTooltip(event, '12/5', 132, 76)" />
+                            <circle class="chart-dot" cx="100" cy="45" r="5" fill="#2BB89A"
+                                onclick="showChartTooltip(event, '13/5', 142, 75)" />
+                            <circle class="chart-dot" cx="150" cy="55" r="5" fill="#2BB89A"
+                                onclick="showChartTooltip(event, '14/5', 138, 77)" />
+                            <circle class="chart-dot" cx="200" cy="50" r="5" fill="#2BB89A"
+                                onclick="showChartTooltip(event, '15/5', 140, 78)" />
+                            <circle class="chart-dot" cx="250" cy="60" r="5" fill="#2BB89A"
+                                onclick="showChartTooltip(event, '16/5', 136, 68)" />
+                            <circle class="chart-dot" cx="300" cy="55" r="5" fill="#2BB89A"
+                                onclick="showChartTooltip(event, '17/5', 138, 74)" />
+
+                            <!-- Data points - Diastolic -->
+                            <circle class="chart-dot" cx="50" cy="120" r="4" fill="#3B82F6" />
+                            <circle class="chart-dot" cx="100" cy="115" r="4" fill="#3B82F6" />
+                            <circle class="chart-dot" cx="150" cy="118" r="4" fill="#3B82F6" />
+                            <circle class="chart-dot" cx="200" cy="120" r="4" fill="#3B82F6" />
+                            <circle class="chart-dot" cx="250" cy="130" r="4" fill="#3B82F6" />
+                            <circle class="chart-dot" cx="300" cy="122" r="4" fill="#3B82F6" />
+                        </svg>
+                    </div>
+
+                    <!-- Day Chips -->
+                    <div class="day-chips">
+                        <span class="day-chip active" data-value="all" onclick="selectDayChip(this)">Tất cả</span>
+                        <span class="day-chip" data-value="12/5" onclick="selectDayChip(this)">Ngày 12/5</span>
+                        <span class="day-chip" data-value="13/5" onclick="selectDayChip(this)">Ngày 13/5</span>
+                        <span class="day-chip" data-value="14/5" onclick="selectDayChip(this)">Ngày 14/5</span>
+                        <span class="day-chip" data-value="15/5" onclick="selectDayChip(this)">Ngày 15/5</span>
+                        <span class="day-chip" data-value="16/5" onclick="selectDayChip(this)">Ngày 16/5</span>
+                    </div>
+                </div>
+
+                <!-- PLACEHOLDER: Block Cảnh báo bất thường (Future US - TBD) -->
+                <div class="bp-chart-block" style="opacity: 0.6; pointer-events: none; position: relative;">
+                    <div
+                        style="position: absolute; top: 8px; right: 8px; background: #6B7280; color: white; font-size: 10px; padding: 2px 8px; border-radius: 10px; font-weight: 600;">
+                        STATIC</div>
+                    <div class="bp-chart-header">
+                        <span style="font-size: 20px;">🔔</span>
+                        <span class="bp-chart-title">Cảnh báo bất thường</span>
+                    </div>
+                    <div
+                        style="padding: 20px; background: var(--danger-light); border-radius: var(--radius); text-align: center; color: var(--text-muted);">
+                        <div style="font-size: 32px; margin-bottom: 8px;">⚠️</div>
+                        <div style="font-size: 14px;">Huyết áp cao bất thường</div>
+                        <div style="font-size: 12px; color: var(--text-muted); margin-top: 4px;">Hôm qua, 15:30</div>
+                    </div>
+                </div>
+
+                <!-- PLACEHOLDER: Block Kết quả tuân thủ (Future US - TBD) -->
+                <div class="bp-chart-block" style="opacity: 0.6; pointer-events: none; position: relative;">
+                    <div
+                        style="position: absolute; top: 8px; right: 8px; background: #6B7280; color: white; font-size: 10px; padding: 2px 8px; border-radius: 10px; font-weight: 600;">
+                        STATIC</div>
+                    <div class="bp-chart-header">
+                        <span style="font-size: 20px;">📊</span>
+                        <span class="bp-chart-title">Kết quả tuân thủ</span>
+                    </div>
+                    <div style="display: flex; gap: 12px;">
+                        <div
+                            style="flex: 1; background: var(--primary-light); border-radius: var(--radius); padding: 16px; text-align: center;">
+                            <div style="font-size: 28px; font-weight: 700; color: var(--primary);">85%</div>
+                            <div style="font-size: 12px; color: var(--text-muted);">Tuân thủ thuốc</div>
+                        </div>
+                        <div
+                            style="flex: 1; background: var(--bg-gray); border-radius: var(--radius); padding: 16px; text-align: center;">
+                            <div style="font-size: 28px; font-weight: 700; color: var(--text-secondary);">6/7</div>
+                            <div style="font-size: 12px; color: var(--text-muted);">Ngày đo HA</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- PLACEHOLDER: Block Nhiệm vụ tuân thủ (Future US - TBD) -->
+                <div class="bp-chart-block" style="opacity: 0.6; pointer-events: none; position: relative;">
+                    <div
+                        style="position: absolute; top: 8px; right: 8px; background: #6B7280; color: white; font-size: 10px; padding: 2px 8px; border-radius: 10px; font-weight: 600;">
+                        STATIC</div>
+                    <div class="bp-chart-header">
+                        <span style="font-size: 20px;">✅</span>
+                        <span class="bp-chart-title">Nhiệm vụ hôm nay</span>
+                    </div>
+                    <div style="display: flex; flex-direction: column; gap: 8px;">
+                        <div
+                            style="display: flex; align-items: center; gap: 12px; padding: 12px; background: var(--primary-light); border-radius: var(--radius);">
+                            <span style="color: var(--primary);">✓</span>
+                            <span style="flex: 1; font-size: 14px;">Uống thuốc sáng</span>
+                            <span style="font-size: 12px; color: var(--text-muted);">7:00</span>
+                        </div>
+                        <div
+                            style="display: flex; align-items: center; gap: 12px; padding: 12px; background: var(--warning-light); border-radius: var(--radius);">
+                            <span style="color: var(--warning);">○</span>
+                            <span style="flex: 1; font-size: 14px;">Đo huyết áp</span>
+                            <span style="font-size: 12px; color: var(--warning);">Chưa xong</span>
+                        </div>
+                        <div
+                            style="display: flex; align-items: center; gap: 12px; padding: 12px; background: var(--bg-gray); border-radius: var(--radius);">
+                            <span style="color: var(--text-muted);">○</span>
+                            <span style="flex: 1; font-size: 14px;">Uống thuốc tối</span>
+                            <span style="font-size: 12px; color: var(--text-muted);">19:00</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- PLACEHOLDER: Gửi lời động viên (Future US - TBD) -->
+                <button class="btn btn-primary"
+                    style="width: 100%; margin-top: 16px; opacity: 0.6; pointer-events: none; position: relative;">
+                    💬 Gửi lời động viên
+                    <span
+                        style="position: absolute; top: -8px; right: -8px; background: #6B7280; color: white; font-size: 9px; padding: 2px 6px; border-radius: 8px; font-weight: 600;">STATIC</span>
+                </button>
+
+                <!-- Action Buttons (US 1.1 - Active) -->
+                <div class="action-btn-row" style="margin-top: 16px;">
+                    <div class="action-btn" onclick="goToReportList()">
+                        <span class="action-btn-icon">📋</span>
+                        <span class="action-btn-text">Xem báo cáo sức khỏe</span>
+                        <span class="action-btn-arrow">→</span>
+                    </div>
+                </div>
+
+                <!-- Stop Follow Button -->
+                <button class="btn btn-outline" style="margin-top: 24px; color: var(--danger); width: 100%;"
+                    onclick="showStopFollowModal()">
+                    Ngừng theo dõi
+                </button>
+            </div>
+        </div>
+
+        <!-- SCR-REPORT-LIST: Danh sách Báo cáo -->
+        <div id="scr-report-list" class="screen">
+            <div class="header">
+                <span class="header-back" onclick="goToScreen('scr06')">←</span>
+                <span class="header-title">Danh sách Báo cáo</span>
+            </div>
+            <div class="content">
+                <!-- Filter Dropdown -->
+                <div class="filter-dropdown">
+                    <button class="filter-dropdown-btn" id="reportFilterBtn" onclick="toggleReportFilter()">
+                        Danh sách theo tuần <span style="margin-left:4px">▼</span>
+                    </button>
+                    <div class="filter-dropdown-menu" id="reportFilterMenu">
+                        <div class="filter-dropdown-item" onclick="selectReportFilter('day', 'Danh sách theo ngày')">
+                            Danh sách theo ngày</div>
+                        <div class="filter-dropdown-item active"
+                            onclick="selectReportFilter('week', 'Danh sách theo tuần')">Danh sách theo tuần</div>
+                        <div class="filter-dropdown-item" onclick="selectReportFilter('month', 'Danh sách theo tháng')">
+                            Danh sách theo tháng</div>
+                    </div>
+                </div>
+
+                <!-- Report List -->
+                <div class="report-list">
+                    <div class="report-item" onclick="goToReportDetail('Báo cáo Tuần 3 - Tháng 12')">
+                        <span class="report-icon">📋</span>
+                        <div class="report-info">
+                            <div class="report-title">Báo cáo tuần</div>
+                            <div class="report-date">8/9/2025, 10:30</div>
+                        </div>
+                        <span style="color: var(--text-muted);">→</span>
+                    </div>
+                    <div class="report-item" onclick="goToReportDetail('Báo cáo Tuần 2 - Tháng 12')">
+                        <span class="report-icon">📋</span>
+                        <div class="report-info">
+                            <div class="report-title">Báo cáo tuần</div>
+                            <div class="report-date">8/9/2025, 10:30</div>
+                        </div>
+                        <span style="color: var(--text-muted);">→</span>
+                    </div>
+                    <div class="report-item" onclick="goToReportDetail('Báo cáo Tuần 1 - Tháng 12')">
+                        <span class="report-icon">📋</span>
+                        <div class="report-info">
+                            <div class="report-title">Báo cáo tuần</div>
+                            <div class="report-date">8/9/2025, 10:30</div>
+                        </div>
+                        <span style="color: var(--text-muted);">→</span>
+                    </div>
+                </div>
+
+                <!-- Pagination -->
+                <div class="pagination">
+                    <span class="pagination-info">Tổng số:</span>
+                    <span class="pagination-info" style="font-weight: 600; color: var(--primary);">100 bản ghi</span>
+                    <button class="pagination-btn active">1</button>
+                    <button class="pagination-btn">2</button>
+                    <button class="pagination-btn">3</button>
+                    <button class="pagination-btn">...</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- SCR-REPORT-LIST-EMPTY: Empty State for Reports -->
+        <div id="scr-report-list-empty" class="screen">
+            <div class="header">
+                <span class="header-back" onclick="goToScreen('scr06')">←</span>
+                <span class="header-title">Danh sách Báo cáo</span>
+            </div>
+            <div class="content">
+                <!-- Filter Dropdown -->
+                <div class="filter-dropdown">
+                    <button class="filter-dropdown-btn">
+                        Danh sách theo tuần <span style="margin-left:4px">▼</span>
+                    </button>
+                </div>
+
+                <!-- Empty State -->
+                <div class="empty-state">
+                    <div class="empty-state-icon">📋</div>
+                    <div class="empty-state-text">
+                        Chưa có dữ liệu báo cáo
+                    </div>
+                    <p style="color: var(--text-muted); font-size: 14px; margin-top: 8px;">
+                        Báo cáo sẽ được tạo khi Mẹ có đủ dữ liệu theo dõi.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- SCR-DISCONNECT: Default View State - Khi chưa chọn Patient (B3.4 / B4.3 post-disconnect) -->
+        <div id="scr-disconnect" class="screen">
+            <div class="header">
+                <span class="header-title">Kết nối Người thân</span>
+            </div>
+            <div class="content">
+                <!-- Profile Selector - ISSUE-002 FIX: Navigate to scr01 first then toggle -->
+                <div class="profile-selector"
+                    onclick="goToScreen('scr01'); setTimeout(() => toggleBottomSheet(), 300);">
+                    <div class="profile-avatar">👤</div>
+                    <div class="profile-info">
+                        <div class="profile-name">Tài khoản của [Danh xưng] <span class="dropdown-arrow">▼</span></div>
+                        <div class="profile-status">2 người theo dõi, theo dõi 1 người</div>
+                    </div>
+                </div>
+
+                <!-- Pending Invites (unchanged) -->
+                <div class="invite-block" id="inviteBlockDisconnect">
+                    <div class="invite-header">📬 Lời mời mới (1)</div>
+                    <div class="invite-item">
+                        <div class="invite-item-avatar">👤</div>
+                        <div class="invite-item-info">
+                            <div class="invite-item-name">Chú Út (Lê Văn...)</div>
+                            <div class="invite-item-desc">Mời bạn theo dõi sức khỏe</div>
+                        </div>
+                        <div class="invite-actions">
+                            <button class="btn-accept">✓</button>
+                            <button class="btn-reject">✗</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Option E: Inline Prompt + CTA to open Bottom Sheet -->
+                <div class="default-view-prompt" style="margin-top: 24px; text-align: center; padding: 32px 24px;">
+                    <!-- Illustration/Icon -->
+                    <div style="font-size: 48px; margin-bottom: 16px;">👋</div>
+
+                    <!-- Prompt Message -->
+                    <div style="font-size: 16px; font-weight: 600; color: var(--text-primary); margin-bottom: 8px;">
+                        Chọn người thân để bắt đầu
+                    </div>
+                    <div style="font-size: 14px; color: var(--text-muted); margin-bottom: 20px;">
+                        Nhấn nút bên dưới để chọn người bạn muốn theo dõi
+                    </div>
+
+                    <!-- CTA Button to open Bottom Sheet -->
+                    <button class="btn btn-primary"
+                        onclick="goToScreen('scr01'); setTimeout(() => toggleBottomSheet(), 300);"
+                        style="padding: 14px 28px; font-size: 15px; display: inline-flex; align-items: center; gap: 8px;">
+                        <span>📋</span>
+                        <span>Xem danh sách người thân</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modals -->
+        <div class="modal" id="disconnectModal">
+            <div class="modal-content">
+                <div class="modal-icon">⚠️</div>
+                <div class="modal-title">Xác nhận hủy kết nối?</div>
+                <div class="modal-text">Sau khi hủy, Con trai sẽ không còn theo dõi sức khỏe của bạn.</div>
+                <div class="modal-buttons">
+                    <button class="btn btn-outline" onclick="hideModal('disconnectModal')">Quay lại</button>
+                    <button class="btn btn-danger" onclick="confirmDisconnect()">Hủy kết nối</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="modal" id="permissionModal">
+            <div class="modal-content">
+                <div class="modal-icon" style="color: var(--danger);">⚠️</div>
+                <div class="modal-title">Cảnh báo quan trọng</div>
+                <div class="modal-text">Nếu tắt, Con trai sẽ <strong>KHÔNG</strong> nhận được thông báo khi bạn gặp nguy
+                    hiểm. Điều này có thể ảnh hưởng đến sự an toàn của bạn.</div>
+                <div class="modal-buttons">
+                    <button class="btn btn-outline"
+                        onclick="hideModal('permissionModal'); currentToggle.classList.add('on');">Giữ nguyên</button>
+                    <button class="btn btn-danger" onclick="hideModal('permissionModal');">Vẫn tắt</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="modal" id="stopFollowModal">
+            <div class="modal-content">
+                <div class="modal-icon">⚠️</div>
+                <div class="modal-title">Ngừng theo dõi?</div>
+                <div class="modal-text">Bạn sẽ không còn theo dõi sức khỏe của Mẹ nữa. Mẹ sẽ nhận được thông báo về việc
+                    này.</div>
+                <div class="modal-buttons">
+                    <button class="btn btn-outline" onclick="hideModal('stopFollowModal')">Quay lại</button>
+                    <button class="btn btn-danger" onclick="confirmStopFollow()">Ngừng theo dõi</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- B4.3: Stop Follow Success Popup (Option C) -->
+        <div class="modal" id="stopFollowSuccessModal">
+            <div class="modal-content" style="text-align: center;">
+                <div style="font-size: 48px; margin-bottom: 16px;">✅</div>
+                <div class="modal-title">Đã ngừng theo dõi</div>
+                <div style="background: #FEF3C7; border-radius: 8px; padding: 12px; margin: 16px 0; text-align: left;">
+                    <div style="font-size: 12px; color: #92400E;">
+                        ℹ️ Nếu muốn theo dõi lại, bạn cần gửi lời mời kết nối mới.
+                    </div>
+                </div>
+                <div class="modal-buttons">
+                    <button class="btn btn-primary" onclick="navigateAfterStopFollow()">Đã hiểu</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="modal" id="confirmPermissionModal">
+            <div class="modal-content">
+                <div class="modal-icon">🔐</div>
+                <div class="modal-title">Xác nhận thay đổi quyền</div>
+                <div class="modal-text" id="confirmPermissionText">Bạn có chắc muốn TẮT quyền này cho Con trai?</div>
+                <div class="modal-buttons">
+                    <button class="btn btn-outline"
+                        onclick="hideModal('confirmPermissionModal'); currentToggle.classList.add('on');">Không</button>
+                    <button class="btn btn-primary"
+                        onclick="hideModal('confirmPermissionModal'); showToast('Đã cập nhật quyền');">Xác nhận</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- MISS-01: Modal for B2.3 - Patient declined Caregiver follow request -->
+        <div class="modal" id="followDeclinedModal">
+            <div class="modal-content">
+                <div class="modal-icon" style="color: var(--danger);">🚫</div>
+                <div class="modal-title">Không có quyền theo dõi</div>
+                <div class="modal-text">Người này đã từ chối cho bạn theo dõi sức khỏe của họ.</div>
+                <div class="modal-buttons">
+                    <button class="btn btn-primary" onclick="hideModal('followDeclinedModal'); goToScreen('scr01');">Đã
+                        hiểu</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Accept Invite Confirm Modal (B2.1) -->
+        <div class="modal" id="acceptInviteModal">
+            <div class="modal-content">
+                <div class="modal-icon">✓</div>
+                <div class="modal-title">Chấp nhận lời mời</div>
+                <div class="modal-text" id="acceptInviteText">Chấp nhận lời mời từ người này?</div>
+                <div class="modal-buttons">
+                    <button class="btn btn-outline" onclick="hideModal('acceptInviteModal')">Quay lại</button>
+                    <button class="btn btn-primary" onclick="confirmAcceptInvite()">Xác nhận</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Reject Invite Confirm Modal (A2.2, B2.2) -->
+        <div class="modal" id="rejectInviteModal">
+            <div class="modal-content">
+                <div class="modal-icon" style="color: var(--danger);">✗</div>
+                <div class="modal-title">Xác nhận từ chối</div>
+                <div class="modal-text" id="rejectInviteText">Từ chối lời mời từ người này?</div>
+                <div class="modal-buttons">
+                    <button class="btn btn-outline" onclick="hideModal('rejectInviteModal')">Quay lại</button>
+                    <button class="btn btn-danger" onclick="confirmRejectInvite()">Xác nhận</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Cancel Pending Invite Modal (A3.2b, B3.2b) -->
+        <div class="modal" id="cancelPendingModal">
+            <div class="modal-content">
+                <div class="modal-icon" style="color: var(--warning);">⏳</div>
+                <div class="modal-title" id="cancelPendingTitle">Hủy lời mời</div>
+                <div class="modal-text" id="cancelPendingText">Hủy lời mời đến người này?</div>
+                <div class="modal-buttons">
+                    <button class="btn btn-outline" onclick="hideModal('cancelPendingModal')">Quay lại</button>
+                    <button class="btn btn-danger" onclick="confirmCancelPending()">Xác nhận</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Toast -->
+        <div class="toast" id="toast"></div>
+    </div>
+
+    <script>
+        let currentToggle = null;
+        let selectedPatient = null;
+
+        // Profile Selection Logic - Auto-select and Persistence
+        function initProfileSelector() {
+            // Check localStorage for saved selection
+            const saved = localStorage.getItem('selectedPatient');
+            if (saved) {
+                try {
+                    selectedPatient = JSON.parse(saved);
+                    updateProfileSelector(selectedPatient);
+                } catch (e) {
+                    // Fallback: auto-select first patient if list has items
+                    autoSelectFirstPatient();
+                }
+            } else {
+                // First time: auto-select first patient if available
+                autoSelectFirstPatient();
+            }
+        }
+
+        function autoSelectFirstPatient() {
+            // ISSUE-001 FIX: Don't auto-select, show defaultViewPrompt instead
+            // This allows user to see the default state and choose their patient
+            selectedPatient = null;
+            updateProfileStatus();
+            updateStopFollowUI(null); // This will show defaultViewPrompt
+        }
+
+        function selectPatient(id, avatar, name, lastActive) {
+            selectedPatient = { id, avatar, name, lastActive };
+            localStorage.setItem('selectedPatient', JSON.stringify(selectedPatient));
+            updateProfileSelector(selectedPatient);
+            updateStopFollowUI(selectedPatient);
+            hideDropdown();
+        }
+
+        function updateProfileSelector(patient) {
+            const profileAvatar = document.querySelector('.profile-avatar');
+            const profileName = document.querySelector('.profile-name');
+            const profileStatus = document.querySelector('.profile-status');
+
+            if (patient) {
+                // State E: Đã chọn Patient
+                profileAvatar.textContent = patient.avatar;
+                profileName.innerHTML = patient.name + ' <span class="dropdown-arrow">▼</span>';
+                profileStatus.textContent = patient.lastActive;
+                // Show stop follow link
+                updateStopFollowUI(patient);
+            } else {
+                // Fallback: State A/B/C/D based on counts
+                updateProfileStatus();
+                // Hide stop follow link when no patient selected
+                updateStopFollowUI(null);
+            }
+        }
+
+        function updateProfileStatus() {
+            const profileStatus = document.querySelector('.profile-status');
+            const profileAvatar = document.querySelector('.profile-avatar');
+            const profileName = document.querySelector('.profile-name');
+
+            // Simulated counts (in real app: from API)
+            const followingCount = 1; // "Tôi đang theo dõi"
+            const followersCount = 2; // "Người theo dõi tôi"
+
+            profileAvatar.textContent = '👤';
+            profileName.innerHTML = 'Tài khoản của [Danh xưng] <span class="dropdown-arrow">▼</span>';
+
+            if (followingCount > 0 && followersCount > 0) {
+                // State A: Có cả 2
+                profileStatus.textContent = followersCount + ' người theo dõi, theo dõi ' + followingCount + ' người';
+            } else if (followersCount > 0) {
+                // State B: Chỉ có người theo dõi
+                profileStatus.textContent = followersCount + ' người theo dõi';
+            } else if (followingCount > 0) {
+                // State C: Chỉ bạn theo dõi
+                profileStatus.textContent = 'Theo dõi ' + followingCount + ' người';
+            } else {
+                // State D: Không có ai
+                profileStatus.textContent = 'Chưa có kết nối nào';
+            }
+        }
+
+        // B4.3: Update stop follow UI based on selected patient
+        function updateStopFollowUI(patient) {
+            const container = document.getElementById('stopFollowLinkContainer');
+            const defaultPrompt = document.getElementById('defaultViewPrompt');
+            const emptyState = document.getElementById('emptyState');
+
+            // BUG-003 FIX: Use getComputedStyle for reliable visibility check
+            const isEmptyStateVisible = emptyState &&
+                (window.getComputedStyle(emptyState).display !== 'none');
+
+            if (patient && !isEmptyStateVisible) {
+                // Patient selected: Show stop follow link, hide default prompt
+                if (container) container.style.display = 'block';
+                if (defaultPrompt) defaultPrompt.style.display = 'none';
+
+                // Update modal content with dynamic patient name
+                const patientDisplayName = extractDisplayName(patient.name);
+                updateStopFollowModalContent(patientDisplayName);
+            } else if (!isEmptyStateVisible) {
+                // No patient selected but has connections: Show default prompt, hide stop follow
+                if (container) container.style.display = 'none';
+                if (defaultPrompt) defaultPrompt.style.display = 'block';
+            } else {
+                // Empty state: Hide both
+                if (container) container.style.display = 'none';
+                if (defaultPrompt) defaultPrompt.style.display = 'none';
+            }
+        }
+
+        function extractDisplayName(fullName) {
+            // Extract short name: "Mẹ (Trần Thị D)" → "Mẹ"
+            const match = fullName.match(/^([^\(]+)/);
+            return match ? match[1].trim() : fullName;
+        }
+
+        function updateStopFollowModalContent(patientName) {
+            const modalText = document.querySelector('#stopFollowModal .modal-text');
+            const successTitle = document.querySelector('#stopFollowSuccessModal .modal-title');
+
+            if (modalText) {
+                modalText.textContent = `Bạn sẽ không còn theo dõi sức khỏe của ${patientName} nữa. ${patientName} sẽ nhận được thông báo về việc này.`;
+            }
+        }
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', initProfileSelector);
+
+        function goToScreen(screenId) {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.getElementById(screenId).classList.add('active');
+            hideDropdown();
+        }
+
+        function toggleBottomSheet() {
+            const sheet = document.getElementById('bottomSheet');
+            const overlay = document.getElementById('sheetOverlay');
+            const isOpen = sheet.classList.contains('show');
+
+            if (isOpen) {
+                sheet.classList.remove('show');
+                overlay.classList.remove('show');
+            } else {
+                sheet.style.display = 'block';
+                overlay.style.display = 'block';
+                // Trigger reflow for animation
+                sheet.offsetHeight;
+                sheet.classList.add('show');
+                overlay.classList.add('show');
+            }
+        }
+
+        function hideBottomSheet() {
+            document.getElementById('bottomSheet').classList.remove('show');
+            document.getElementById('sheetOverlay').classList.remove('show');
+            setTimeout(() => {
+                document.getElementById('bottomSheet').style.display = 'none';
+                document.getElementById('sheetOverlay').style.display = 'none';
+
+                // FIX: Refresh default prompt visibility when sheet closed without selection
+                updateStopFollowUI(selectedPatient);
+            }, 300);
+        }
+
+        // Legacy alias for compatibility
+        function hideDropdown() {
+            hideBottomSheet();
+        }
+
+        function showInviteSheet(type) {
+            // Hide the connection list sheet first
+            hideBottomSheet();
+
+            setTimeout(() => {
+                const inviteSheet = document.getElementById('inviteSheet');
+                const inviteOverlay = document.getElementById('inviteSheetOverlay');
+                const title = document.getElementById('inviteSheetTitle');
+                const desc = document.getElementById('inviteSheetDesc');
+
+                if (type === 'follow') {
+                    title.textContent = 'Theo dõi người thân';
+                    desc.textContent = 'Nhập thông tin người bạn muốn theo dõi sức khỏe.';
+                } else {
+                    title.textContent = 'Mời người thân theo dõi';
+                    desc.textContent = 'Nhập thông tin người bạn muốn mời theo dõi sức khỏe của bạn.';
+                }
+
+                // Store invite type
+                inviteSheet.dataset.type = type;
+
+                // Show invite sheet
+                inviteSheet.style.display = 'block';
+                inviteOverlay.style.display = 'block';
+                inviteSheet.offsetHeight;
+                inviteSheet.classList.add('show');
+                inviteOverlay.classList.add('show');
+            }, 350);
+        }
+
+        function backToInviteSheet() {
+            // Go back to SCR-01 and show invite sheet with preserved data
+            goToScreen('scr01');
+            setTimeout(() => {
+                // Restore saved invite data
+                const savedData = localStorage.getItem('pendingInvite');
+                if (savedData) {
+                    const { name, phone, relationship, type } = JSON.parse(savedData);
+
+                    // Show the correct sheet type
+                    const inviteSheet = document.getElementById('inviteSheet');
+                    const inviteOverlay = document.getElementById('inviteSheetOverlay');
+                    const title = document.getElementById('inviteSheetTitle');
+                    const desc = document.getElementById('inviteSheetDesc');
+
+                    if (type === 'follow') {
+                        title.textContent = 'Theo dõi người thân';
+                        desc.textContent = 'Nhập thông tin người bạn muốn theo dõi sức khỏe.';
+                    } else {
+                        title.textContent = 'Mời người thân theo dõi';
+                        desc.textContent = 'Nhập thông tin người bạn muốn mời theo dõi sức khỏe của bạn.';
+                    }
+                    inviteSheet.dataset.type = type;
+
+                    // Show sheet
+                    inviteSheet.style.display = 'block';
+                    inviteOverlay.style.display = 'block';
+                    inviteSheet.offsetHeight;
+                    inviteSheet.classList.add('show');
+                    inviteOverlay.classList.add('show');
+
+                    // Restore form values after sheet is shown
+                    setTimeout(() => {
+                        document.getElementById('inviteNameInput').value = name || '';
+                        document.getElementById('invitePhoneInput').value = phone || '';
+                        document.getElementById('inviteRelationship').value = relationship || '';
+                        validateInviteForm();
+                    }, 100);
+                } else {
+                    showInviteSheet('invite');
+                }
+            }, 300);
+        }
+
+        function hideInviteSheet() {
+            document.getElementById('inviteSheet').classList.remove('show');
+            document.getElementById('inviteSheetOverlay').classList.remove('show');
+            setTimeout(() => {
+                document.getElementById('inviteSheet').style.display = 'none';
+                document.getElementById('inviteSheetOverlay').style.display = 'none';
+                // Reset form
+                document.getElementById('inviteForm').reset();
+                document.getElementById('inviteSubmitBtn').disabled = true;
+            }, 300);
+        }
+
+        function validateInviteForm() {
+            const name = document.getElementById('inviteNameInput').value.trim();
+            const phone = document.getElementById('invitePhoneInput').value.trim();
+            const relationship = document.getElementById('inviteRelationship').value;
+            const btn = document.getElementById('inviteSubmitBtn');
+            const nameInput = document.getElementById('inviteNameInput');
+            const nameError = document.getElementById('nameError');
+            const phoneInput = document.getElementById('invitePhoneInput');
+            const phoneError = document.getElementById('phoneError');
+            const isPhoneValid = /^0[0-9]{9}$/.test(phone);
+
+            // Name validation (MISS-03)
+            if (name.length > 0 && name.length < 2) {
+                nameInput.classList.add('error');
+                nameError.classList.add('show');
+            } else {
+                nameInput.classList.remove('error');
+                nameError.classList.remove('show');
+            }
+
+            // Phone validation - show error when has input but invalid
+            if (phone.length > 0 && !isPhoneValid) {
+                phoneInput.classList.add('error');
+                phoneError.classList.add('show');
+            } else {
+                phoneInput.classList.remove('error');
+                phoneError.classList.remove('show');
+            }
+
+            btn.disabled = !(name.length >= 2 && isPhoneValid && relationship);
+        }
+
+        function submitInvite() {
+            const name = document.getElementById('inviteNameInput').value.trim();
+            const phone = document.getElementById('invitePhoneInput').value.trim();
+            const relationship = document.getElementById('inviteRelationship').value;
+            const type = document.getElementById('inviteSheet').dataset.type;
+
+            // Edge case checks
+            if (phone === '0912000000') {
+                showToast('❌ Bạn không thể mời chính mình');
+                return;
+            }
+            if (phone === '0912111111') {
+                showToast('❌ Bạn đã kết nối với người này');
+                return;
+            }
+            if (phone === '0912222222') {
+                showToast('⏳ Bạn đã gửi lời mời. Đang chờ phản hồi.');
+                return;
+            }
+            // MISS-01 (B2.3): Patient declined Caregiver's follow request
+            if (phone === '0912333333' && type === 'follow') {
+                hideInviteSheet();
+                setTimeout(() => showModal('followDeclinedModal'), 400);
+                return;
+            }
+
+            hideInviteSheet();
+
+            // Both flows go to permission config
+            localStorage.setItem('pendingInvite', JSON.stringify({ name, phone, relationship, type }));
+            setTimeout(() => goToScreen('scr02b-permissions'), 350);
+        }
+
+        // Multi-invite tracking
+        let pendingInvites = ['chu-ut', 'co-ba', 'anh-hai'];
+        const inviteNames = {
+            'chu-ut': 'Chú Út',
+            'co-ba': 'Cô Ba',
+            'anh-hai': 'Anh Hai'
+        };
+
+        // Current invite being processed
+        let currentAcceptingInvite = null;
+
+        function acceptInvite(id, inviteType) {
+            // Store current invite for later processing
+            currentAcceptingInvite = id;
+            currentAcceptingType = inviteType;
+
+            if (inviteType === 'follow-them') {
+                // B2.1: Show confirmation popup first (per SRS)
+                document.getElementById('acceptInviteText').textContent =
+                    'Chấp nhận lời mời từ ' + inviteNames[id] + '?';
+                showModal('acceptInviteModal');
+            } else {
+                // A2.1: Patient accepts Caregiver's invite - NEED permission config
+                document.getElementById('acceptingInviterName').textContent = inviteNames[id];
+                goToScreen('scr02b-accept');
+            }
+        }
+
+        let currentAcceptingType = null;
+
+        function confirmAcceptInvite() {
+            hideModal('acceptInviteModal');
+            if (!currentAcceptingInvite) return;
+            directAcceptInvite(currentAcceptingInvite);
+        }
+
+        function directAcceptInvite(id) {
+            // Remove from pending list
+            pendingInvites = pendingInvites.filter(i => i !== id);
+
+            // Remove the invite item from DOM
+            const inviteItems = document.querySelectorAll('#inviteBlock .invite-item');
+            inviteItems.forEach(item => {
+                if (item.querySelector('.btn-accept')?.onclick?.toString().includes(id)) {
+                    item.remove();
+                }
+            });
+
+            // Update badge count
+            updateInviteBadge();
+
+            showToast('✅ Đã kết nối với ' + inviteNames[id] + '. Bạn có thể theo dõi sức khỏe của họ.');
+            currentAcceptingInvite = null;
+        }
+
+        function cancelAcceptInvite() {
+            // Go back without accepting
+            currentAcceptingInvite = null;
+            goToScreen('scr01');
+        }
+
+        function confirmAcceptWithPermissions() {
+            if (!currentAcceptingInvite) return;
+
+            const id = currentAcceptingInvite;
+
+            // Remove from pending list
+            pendingInvites = pendingInvites.filter(i => i !== id);
+
+            // Remove the invite item from DOM
+            const inviteItems = document.querySelectorAll('#inviteBlock .invite-item');
+            inviteItems.forEach(item => {
+                if (item.querySelector('.btn-accept')?.onclick?.toString().includes(id)) {
+                    item.remove();
+                }
+            });
+
+            // Update badge count
+            updateInviteBadge();
+
+            currentAcceptingInvite = null;
+            showToast('✅ Đã kết nối với ' + inviteNames[id] + '!');
+            goToScreen('scr01');
+        }
+
+        function quickAcceptAll() {
+            // A2.1b: Quick accept with all permissions ON
+            confirmAcceptWithPermissions();
+        }
+
+        // Current invite being rejected
+        let currentRejectingInvite = null;
+
+        function rejectInvite(id) {
+            // Show confirm modal first
+            currentRejectingInvite = id;
+            document.getElementById('rejectInviteText').textContent =
+                'Từ chối lời mời từ ' + inviteNames[id] + '?';
+            showModal('rejectInviteModal');
+        }
+
+        function confirmRejectInvite() {
+            hideModal('rejectInviteModal');
+            const id = currentRejectingInvite;
+
+            // Remove from pending list
+            pendingInvites = pendingInvites.filter(i => i !== id);
+
+            // Hide the specific invite item
+            document.querySelectorAll('.invite-item').forEach(item => {
+                if (item.querySelector('.btn-reject')?.onclick?.toString().includes(id)) {
+                    item.remove();
+                }
+            });
+
+            // Update badge count
+            updateInviteBadge();
+
+            showToast('Đã từ chối lời mời từ ' + inviteNames[id]);
+            currentRejectingInvite = null;
+        }
+
+        function updateInviteBadge() {
+            const count = pendingInvites.length;
+            const header = document.querySelector('.invite-header');
+            const badge = document.querySelector('.nav-badge');
+
+            if (count === 0) {
+                document.getElementById('inviteBlock').style.display = 'none';
+                document.getElementById('emptyState').style.display = 'block';
+                if (badge) badge.classList.remove('nav-badge');
+            } else {
+                header.textContent = '📬 Lời mời mới (' + count + ')';
+                // Update badge number via CSS would need ::after content change
+            }
+        }
+
+        // Cancel pending invite/follow modal logic
+        let currentCancelType = null;
+        let currentCancelName = null;
+
+        function showCancelPendingModal(type, name) {
+            currentCancelType = type;
+            currentCancelName = name;
+
+            if (type === 'invite') {
+                document.getElementById('cancelPendingTitle').textContent = 'Hủy lời mời';
+                document.getElementById('cancelPendingText').textContent = 'Hủy lời mời đến ' + name + '?';
+            } else {
+                document.getElementById('cancelPendingTitle').textContent = 'Hủy yêu cầu';
+                document.getElementById('cancelPendingText').textContent = 'Hủy yêu cầu theo dõi ' + name + '?';
+            }
+            showModal('cancelPendingModal');
+        }
+
+        function confirmCancelPending() {
+            hideModal('cancelPendingModal');
+
+            if (currentCancelType === 'invite') {
+                // Remove from "Người đang theo dõi tôi" section
+                const sections = document.querySelectorAll('.dropdown-section');
+                sections[1]?.querySelector('.dropdown-item.pending')?.remove();
+                document.querySelectorAll('.dropdown-section-title').forEach(title => {
+                    if (title.textContent.includes('Người đang theo dõi tôi')) {
+                        title.textContent = '📋 Người đang theo dõi tôi (2)';
+                    }
+                });
+                showToast('✅ Đã hủy lời mời');
+            } else {
+                // Remove from "Tôi đang theo dõi" section
+                const sections = document.querySelectorAll('.dropdown-section');
+                sections[0]?.querySelector('.dropdown-item.pending')?.remove();
+                document.querySelectorAll('.dropdown-section-title').forEach(title => {
+                    if (title.textContent.includes('Tôi đang theo dõi')) {
+                        title.textContent = '📋 Tôi đang theo dõi (1)';
+                    }
+                });
+                showToast('✅ Đã hủy yêu cầu theo dõi');
+            }
+
+            toggleBottomSheet();
+            currentCancelType = null;
+            currentCancelName = null;
+        }
+
+        // Legacy functions (kept for compatibility)
+        function showCancelInviteModal() {
+            showCancelPendingModal('invite', 'Bác Hai');
+        }
+
+        function showCancelFollowModal() {
+            showCancelPendingModal('follow', 'Dì Ba');
+        }
+
+        // B4.3: Stop Follow Flow (Option C with Popup)
+        function confirmStopFollow() {
+            hideModal('stopFollowModal');
+            // 1. Connection status = "disconnected"
+            // 2. Patient receives notification: "[Tên Caregiver] đã ngừng theo dõi bạn"
+            // 3. Show success popup
+            showModal('stopFollowSuccessModal');
+        }
+
+        function navigateAfterStopFollow() {
+            hideModal('stopFollowSuccessModal');
+
+            // B4.3b: Reset to Default View State (Option C)
+            // 1. Clear selectedPatient
+            selectedPatient = null;
+            localStorage.removeItem('selectedPatient');
+
+            // 2. Update profile status (simulated: now following 1 person instead of 2)
+            updateProfileStatus();
+
+            // 3. Hide stop follow link since no patient selected
+            updateStopFollowUI(null);
+
+            // 4. Navigate to SCR-01 with Quick Select Cards visible
+            // For static prototype, use scr-disconnect which shows Quick Select pattern
+            goToScreen('scr-disconnect');
+        }
+
+        function validatePhone(input, errorId, btnId) {
+            const phone = input.value;
+            const isValid = /^0[0-9]{9}$/.test(phone);
+            const errorEl = document.getElementById(errorId);
+            const btnEl = document.getElementById(btnId);
+
+            if (phone.length === 10 && !isValid) {
+                input.classList.add('error');
+                errorEl.classList.add('show');
+                btnEl.disabled = true;
+            } else {
+                input.classList.remove('error');
+                errorEl.classList.remove('show');
+                btnEl.disabled = !isValid;
+            }
+        }
+
+        function goToPermissionConfig() {
+            // Save phone number temporarily, then go to permissions config
+            const phone = document.getElementById('phoneInput1').value;
+            localStorage.setItem('pendingInvitePhone', phone);
+            goToScreen('scr02b-permissions');
+        }
+
+        function sendInviteWithPermissions() {
+            const phone = localStorage.getItem('pendingInvitePhone');
+
+            // Edge case A1.3: Self-invite
+            if (phone === '0912000000') {
+                showToast('❌ Bạn không thể mời chính mình');
+                return;
+            }
+            // Edge case A1.4: Already connected
+            if (phone === '0912111111') {
+                showToast('❌ Bạn đã kết nối với người này');
+                return;
+            }
+            // Edge case A1.5: Pending invite exists
+            if (phone === '0912222222') {
+                showToast('⏳ Bạn đã gửi lời mời. Đang chờ phản hồi.');
+                return;
+            }
+
+            localStorage.removeItem('pendingInvitePhone');
+            showToast('✅ Đã gửi lời mời thành công!');
+            setTimeout(() => goToScreen('scr01'), 1500);
+        }
+
+        function sendInvite(type) {
+            const phoneInput = type === 'invite' ? document.getElementById('phoneInput1') : document.getElementById('phoneInput2');
+            const phone = phoneInput.value;
+
+            // Edge case A1.3: Self-invite
+            if (phone === '0912000000') {
+                showToast('❌ Bạn không thể mời chính mình');
+                return;
+            }
+            // Edge case A1.4: Already connected
+            if (phone === '0912111111') {
+                showToast('❌ Bạn đã kết nối với người này');
+                return;
+            }
+            // Edge case A1.5: Pending invite exists
+            if (phone === '0912222222') {
+                showToast('⏳ Bạn đã gửi lời mời. Đang chờ phản hồi.');
+                return;
+            }
+
+            showToast('✅ Đã gửi lời mời thành công!');
+            setTimeout(() => goToScreen('scr01'), 1500);
+        }
+
+        function togglePermission(el, isCritical = false) {
+            currentToggle = el;
+            const wasOn = el.classList.contains('on');
+
+            if (wasOn) {
+                el.classList.remove('on');
+                if (isCritical) {
+                    showModal('permissionModal');
+                } else {
+                    showModal('confirmPermissionModal');
+                }
+            } else {
+                el.classList.add('on');
+                showToast('Đã bật quyền');
+            }
+        }
+
+        function showModal(id) {
+            document.getElementById(id).classList.add('show');
+        }
+
+        function hideModal(id) {
+            document.getElementById(id).classList.remove('show');
+        }
+
+        function showDisconnectModal() {
+            showModal('disconnectModal');
+        }
+
+        function confirmDisconnect() {
+            hideModal('disconnectModal');
+            showToast('Đã hủy kết nối với Con trai');
+            setTimeout(() => goToScreen('scr01'), 1500);
+        }
+
+        function showStopFollowModal() {
+            // UNCOVERED CASE FIX: Validate patient is selected before showing modal
+            if (!selectedPatient) {
+                showToast('⚠️ Vui lòng chọn người thân trước');
+                return;
+            }
+            showModal('stopFollowModal');
+        }
+
+        // NOTE: confirmStopFollow and navigateAfterStopFollow are defined above at B4.3 section
+
+        function showToast(message) {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 2500);
+        }
+
+        // ===== US 1.1: HEALTH DASHBOARD FUNCTIONS =====
+
+        // Toggle filter Tuần/Tháng
+        function toggleChartFilter(selected) {
+            document.querySelectorAll('.toggle-filter-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+
+            // Reset day chips to Tất cả
+            document.querySelectorAll('.day-chip').forEach(chip => {
+                chip.classList.remove('active');
+            });
+            document.querySelector('.day-chip[data-value="all"]')?.classList.add('active');
+
+            showToast('Đã chuyển sang view ' + selected);
+        }
+
+        // Day chip selection
+        function selectDayChip(chip) {
+            document.querySelectorAll('.day-chip').forEach(c => c.classList.remove('active'));
+            chip.classList.add('active');
+
+            const value = chip.dataset.value;
+            if (value === 'all') {
+                showToast('Xem tổng quan');
+            } else {
+                showToast('Xem chi tiết ngày ' + value);
+            }
+        }
+
+        // Show chart tooltip
+        function showChartTooltip(event, date, systolic, diastolic) {
+            const tooltip = document.getElementById('chartTooltip');
+            tooltip.innerHTML = `<strong>${date}</strong><br>Tâm thu: ${systolic} mmHg<br>Tâm trương: ${diastolic} mmHg`;
+            tooltip.style.left = (event.offsetX - 60) + 'px';
+            tooltip.style.top = (event.offsetY - 70) + 'px';
+            tooltip.classList.add('show');
+        }
+
+        function hideChartTooltip() {
+            document.getElementById('chartTooltip')?.classList.remove('show');
+        }
+
+        // Filter dropdown for reports
+        function toggleReportFilter() {
+            document.getElementById('reportFilterMenu').classList.toggle('show');
+        }
+
+        function selectReportFilter(value, label) {
+            document.getElementById('reportFilterBtn').innerHTML = label + ' <span style="margin-left:4px">▼</span>';
+            document.getElementById('reportFilterMenu').classList.remove('show');
+
+            document.querySelectorAll('.filter-dropdown-item').forEach(item => {
+                item.classList.remove('active');
+            });
+            event.target.classList.add('active');
+
+            showToast('Lọc theo ' + label);
+        }
+
+        // Navigate to Report List
+        function goToReportList() {
+            goToScreen('scr-report-list');
+        }
+
+        // Navigate to Report Detail (reuse Patient UI)
+        function goToReportDetail(reportName) {
+            showToast('Xem ' + reportName);
+            // In production, this would navigate to Patient Report Detail screen
+        }
+
+        // Navigate to Dashboard Health from Profile Selector
+        function goToDashboardHealth() {
+            goToScreen('scr-dashboard-health');
+        }
+    </script>
+</body>
+
+</html>
