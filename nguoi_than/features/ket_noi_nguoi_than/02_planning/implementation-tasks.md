@@ -1,7 +1,7 @@
 # Implementation Tasks: KOLIA-1517 - Kết nối Người thân
 
 > **Feature:** Connection Flow (Patient ↔ Caregiver)  
-> **Version:** v2.16 - Added Update Pending Invite Permissions API  
+> **Version:** v2.17 - Schema v2.12 (notification_type, cancel flow, idempotency)  
 > **Total Tasks:** 45  
 > **Estimated Effort:** 92 hours
 

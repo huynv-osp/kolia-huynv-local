@@ -1,8 +1,8 @@
 # Database Mapping: KOLIA-1517 - Kết nối Người thân
 
 > **Phase:** 4 - Architecture Mapping & Analysis  
-> **Date:** 2026-01-30  
-> **Revision:** v2.11 - Added caregiver_report_views table for read tracking
+> **Date:** 2026-02-02  
+> **Revision:** v2.12 - invite_notifications enhanced (notification_type, cancelled status, idempotency)
 
 ---
 
@@ -163,29 +163,50 @@ CREATE INDEX idx_perms_contact ON connection_permissions (contact_id);
 CREATE INDEX idx_perms_code ON connection_permissions (permission_code);
 ```
 
-### 3.6 invite_notifications
+### 3.6 invite_notifications (v2.12)
 
 ```sql
 CREATE TABLE invite_notifications (
     notification_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     invite_id UUID NOT NULL REFERENCES connection_invites(invite_id) ON DELETE CASCADE,
+    notification_type VARCHAR(30) NOT NULL DEFAULT 'INVITE_CREATED',  -- v2.12
     channel VARCHAR(10) NOT NULL,
-    status SMALLINT DEFAULT 0,
+    status SMALLINT DEFAULT 0,              -- 0=pending, 1=sent, 2=delivered, 3=failed, 4=cancelled
     retry_count SMALLINT DEFAULT 0,
     deep_link_sent BOOLEAN DEFAULT FALSE,
     sent_at TIMESTAMPTZ,
+    delivered_at TIMESTAMPTZ,
+    cancelled_at TIMESTAMPTZ,               -- v2.12: when notification was cancelled
     error_message TEXT,
     external_message_id VARCHAR(100),
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     
     CONSTRAINT chk_channel CHECK (channel IN ('ZNS','SMS','PUSH')),
-    CONSTRAINT chk_notif_status CHECK (status IN (0,1,2,3)),
+    CONSTRAINT chk_notif_status CHECK (status IN (0,1,2,3,4)),  -- v2.12: added 4=cancelled
+    CONSTRAINT chk_notif_type CHECK (notification_type IN (
+        'INVITE_CREATED', 
+        'INVITE_ACCEPTED', 
+        'INVITE_REJECTED', 
+        'CONNECTION_DISCONNECTED'
+    )),
     CONSTRAINT chk_retry CHECK (retry_count <= 3)
 );
 
 CREATE INDEX idx_notif_invite ON invite_notifications (invite_id);
 CREATE INDEX idx_notif_pending ON invite_notifications (status) WHERE status IN (0,3);
+CREATE INDEX idx_notif_type ON invite_notifications (notification_type);
+
+-- v2.12: Unique constraint for idempotency (prevent duplicate notifications)
+CREATE UNIQUE INDEX idx_unique_invite_notification 
+    ON invite_notifications (invite_id, notification_type, channel) 
+    WHERE status IN (0, 1, 2);
 ```
+
+> **v2.12 Changes:**
+> - `notification_type` column to distinguish event types
+> - `cancelled_at` column for cancel audit
+> - `status = 4` (cancelled) support
+> - Idempotency constraint to prevent duplicate notifications
 
 ---
 
@@ -290,8 +311,9 @@ AND NOT EXISTS (
 |-------|:------:|:-------:|:-------:|
 | relationships | NEW | 6 | 0 |
 | connection_invites | NEW | 11 | 5 |
-| user_emergency_contacts | EXTEND | +4 | +2 |
+| user_emergency_contacts | EXTEND | +5 | +3 |
 | connection_permissions | NEW | 5 | 1 |
-| invite_notifications | NEW | 10 | 3 |
+| invite_notifications | **v2.12** | **13** | **5** |
 | **caregiver_report_views** | **NEW** | **4** | **3** |
 
+> **v2.12:** invite_notifications enhanced with notification_type, cancelled_at, idempotency

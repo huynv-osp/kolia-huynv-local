@@ -1,9 +1,9 @@
 # Feature Specification: KOLIA-1517 - Kết nối Người thân
 
-> **Version:** 2.16  
+> **Version:** 2.17  
 > **Date:** 2026-02-02  
 > **Status:** Ready for Implementation  
-> **Schema:** v2.16 + Update Pending Invite Permissions API
+> **Schema:** v2.12 Database + Notification Flow Enhancements
 
 ---
 
@@ -96,20 +96,21 @@
 
 ---
 
-## 6. Database Schema (v2.11)
+## 6. Database Schema (v2.12)
 
 | Table | Status | Purpose |
 |-------|:------:|---------|
 | `relationships` | ✅ NEW | Lookup (17 types) |
 | `connection_permission_types` | ✅ NEW | Permission lookup (6 types) |
-| `connection_invites` | ✅ NEW | Invite records |
+| `connection_invites` | ✅ NEW | Invite records (status 0-3) |
 | `user_emergency_contacts` | 🔄 EXTEND | +5 columns for caregiver (incl. is_viewing) |
 | `connection_permissions` | ✅ NEW | RBAC flags (FK to permission_types) |
-| `invite_notifications` | ✅ NEW | Delivery tracking |
+| `invite_notifications` | 🔄 **v2.12** | +notification_type, +cancelled status (4), +idempotency |
 | **`caregiver_report_views`** | ✅ **NEW** | Report read tracking |
 
-> `user_connections` from v1.0 merged into `user_emergency_contacts`
-> `is_viewing` column added in v2.7 for profile selection
+> `user_connections` from v1.0 merged into `user_emergency_contacts`  
+> `is_viewing` column added in v2.7 for profile selection  
+> **v2.12:** `invite_notifications` enhanced for cancel flow support
 
 ---
 

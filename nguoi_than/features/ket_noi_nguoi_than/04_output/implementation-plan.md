@@ -5,7 +5,7 @@
 > **Feasibility Score:** **88/100** ✅ FEASIBLE (improved from 84)  
 > **Impact Level:** 🟢 **LOW** (reduced from MEDIUM)  
 > **Estimated Duration:** 4 weeks (3 phases)  
-> **Schema:** v2.16 Optimized + Update Pending Invite Permissions
+> **Schema:** v2.12 (notification_type, cancel flow, idempotency)
 
 ---
 
@@ -122,24 +122,40 @@ CREATE TABLE IF NOT EXISTS connection_permissions (
 
 ---
 
-#### [NEW] invite_notifications
+#### [NEW] invite_notifications (v2.12)
 ```sql
 CREATE TABLE invite_notifications (
     notification_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     invite_id UUID NOT NULL REFERENCES connection_invites(invite_id) ON DELETE CASCADE,
+    notification_type VARCHAR(30) NOT NULL DEFAULT 'INVITE_CREATED',  -- v2.12
     channel VARCHAR(10) NOT NULL, -- 'ZNS', 'SMS', 'PUSH'
-    status SMALLINT DEFAULT 0, -- 0:pending, 1:sent, 2:delivered, 3:failed
+    status SMALLINT DEFAULT 0, -- 0:pending, 1:sent, 2:delivered, 3:failed, 4:cancelled
     retry_count SMALLINT DEFAULT 0,
     sent_at TIMESTAMPTZ,
+    delivered_at TIMESTAMPTZ,
+    cancelled_at TIMESTAMPTZ,  -- v2.12
     error_message TEXT,
+    external_message_id VARCHAR(100),
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT chk_channel CHECK (channel IN ('ZNS', 'SMS', 'PUSH')),
+    CONSTRAINT chk_notif_status CHECK (status IN (0, 1, 2, 3, 4)),  -- v2.12: +4=cancelled
+    CONSTRAINT chk_notif_type CHECK (notification_type IN (
+        'INVITE_CREATED', 'INVITE_ACCEPTED', 'INVITE_REJECTED', 'CONNECTION_DISCONNECTED'
+    )),
     CONSTRAINT chk_retry_count CHECK (retry_count <= 3)
 );
 
 CREATE INDEX idx_invite_notifications_invite ON invite_notifications(invite_id);
 CREATE INDEX idx_invite_notifications_pending ON invite_notifications(status) WHERE status = 0;
+CREATE INDEX idx_invite_notif_type ON invite_notifications (notification_type);
+
+-- v2.12: Idempotency constraint (prevent duplicate notifications)
+CREATE UNIQUE INDEX idx_unique_invite_notification 
+    ON invite_notifications (invite_id, notification_type, channel) 
+    WHERE status IN (0, 1, 2);
 ```
+
+> **v2.12 Changes:** notification_type, cancelled status (4), cancelled_at, idempotency constraint
 
 ---
 
