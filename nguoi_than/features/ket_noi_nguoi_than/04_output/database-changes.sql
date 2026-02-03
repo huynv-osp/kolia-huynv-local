@@ -1,8 +1,9 @@
 -- ============================================================================
--- CONNECTION FLOW FEATURE - DATABASE MIGRATION (REVISED v2.11)
--- Version: 2.11
--- Date: 2026-01-30
+-- CONNECTION FLOW FEATURE - DATABASE MIGRATION (REVISED v2.12)
+-- Version: 2.12
+-- Date: 2026-02-02
 -- Purpose: Schema optimized + permission_types + is_viewing + caregiver_report_views
+--          + invite_notifications enhanced (notification_type, cancelled status, idempotency)
 -- ============================================================================
 
 -- ============================================================================
@@ -280,26 +281,35 @@ CREATE TRIGGER trigger_create_default_permissions
     FOR EACH ROW EXECUTE FUNCTION create_default_connection_permissions();
 
 -- ============================================================================
--- TABLE 5: invite_notifications
--- Purpose: Track ZNS/SMS/Push delivery for invites (BR-004)
+-- TABLE 5: invite_notifications (v2.12)
+-- Purpose: Track ZNS/SMS/Push delivery for connection events (BR-004)
 -- Owner: schedule-service
+-- Changes v2.12: Added notification_type, cancelled status (4), idempotency constraint
 -- ============================================================================
 
 CREATE TABLE IF NOT EXISTS invite_notifications (
     notification_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     invite_id UUID NOT NULL REFERENCES connection_invites(invite_id) ON DELETE CASCADE,
+    notification_type VARCHAR(30) NOT NULL DEFAULT 'INVITE_CREATED',  -- NEW v2.12
     channel VARCHAR(10) NOT NULL,           -- 'ZNS' | 'SMS' | 'PUSH'
-    status SMALLINT DEFAULT 0,              -- 0=pending, 1=sent, 2=delivered, 3=failed
+    status SMALLINT DEFAULT 0,              -- 0=pending, 1=sent, 2=delivered, 3=failed, 4=cancelled
     retry_count SMALLINT DEFAULT 0,         -- max 3 retries (BR-004)
     deep_link_sent BOOLEAN DEFAULT FALSE,   -- true for new users (BR-003)
     sent_at TIMESTAMPTZ,
     delivered_at TIMESTAMPTZ,
+    cancelled_at TIMESTAMPTZ,               -- NEW v2.12: when notification was cancelled
     error_message TEXT,
     external_message_id VARCHAR(100),
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     
     CONSTRAINT chk_notif_channel CHECK (channel IN ('ZNS', 'SMS', 'PUSH')),
-    CONSTRAINT chk_notif_status CHECK (status IN (0, 1, 2, 3)),  -- 0=pending, 1=sent, 2=delivered, 3=failed
+    CONSTRAINT chk_notif_status CHECK (status IN (0, 1, 2, 3, 4)),  -- v2.12: added 4=cancelled
+    CONSTRAINT chk_notif_type CHECK (notification_type IN (
+        'INVITE_CREATED', 
+        'INVITE_ACCEPTED', 
+        'INVITE_REJECTED', 
+        'CONNECTION_DISCONNECTED'
+    )),
     CONSTRAINT chk_retry_max CHECK (retry_count <= 3)
 );
 
@@ -307,10 +317,18 @@ CREATE TABLE IF NOT EXISTS invite_notifications (
 CREATE INDEX IF NOT EXISTS idx_invite_notif_invite ON invite_notifications (invite_id);
 CREATE INDEX IF NOT EXISTS idx_invite_notif_pending ON invite_notifications (status) WHERE status IN (0, 3);
 CREATE INDEX IF NOT EXISTS idx_invite_notif_retry ON invite_notifications (retry_count) WHERE status = 3 AND retry_count < 3;
+CREATE INDEX IF NOT EXISTS idx_invite_notif_type ON invite_notifications (notification_type);
 
-COMMENT ON TABLE invite_notifications IS 'ZNS/SMS/Push delivery tracking for invites';
-COMMENT ON COLUMN invite_notifications.status IS '0:pending, 1:sent, 2:delivered, 3:failed';
+-- NEW v2.12: Unique constraint for idempotency (prevent duplicate notifications)
+CREATE UNIQUE INDEX IF NOT EXISTS idx_unique_invite_notification 
+    ON invite_notifications (invite_id, notification_type, channel) 
+    WHERE status IN (0, 1, 2);
+
+COMMENT ON TABLE invite_notifications IS 'ZNS/SMS/Push delivery tracking for connection events (v2.12)';
+COMMENT ON COLUMN invite_notifications.status IS '0:pending, 1:sent, 2:delivered, 3:failed, 4:cancelled';
+COMMENT ON COLUMN invite_notifications.notification_type IS 'Event type: INVITE_CREATED, INVITE_ACCEPTED, INVITE_REJECTED, CONNECTION_DISCONNECTED';
 COMMENT ON COLUMN invite_notifications.deep_link_sent IS 'True for new users (BR-003)';
+COMMENT ON COLUMN invite_notifications.cancelled_at IS 'When notification was cancelled (if status=4)';
 
 -- ============================================================================
 -- TABLE 6: caregiver_report_views (v2.11)
@@ -356,9 +374,10 @@ BEGIN
     );
     
     IF table_count = 6 THEN
-        RAISE NOTICE '✅ Connection Flow Migration v2.11 completed successfully.';
+        RAISE NOTICE '✅ Connection Flow Migration v2.12 completed successfully.';
         RAISE NOTICE '   Tables: relationships, connection_permission_types, connection_invites, connection_permissions, invite_notifications, caregiver_report_views';
         RAISE NOTICE '   Extended: user_emergency_contacts (+5 columns incl. is_viewing)';
+        RAISE NOTICE '   v2.12: invite_notifications +notification_type, +cancelled_at, +idempotency constraint';
     ELSE
         RAISE WARNING '⚠️ Migration incomplete. Only % of 6 new tables found.', table_count;
     END IF;
