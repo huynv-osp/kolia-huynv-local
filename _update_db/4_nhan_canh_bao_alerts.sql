@@ -160,7 +160,7 @@ INSERT INTO schedule_jobs (key, name, task, schedule, pattern, queue, enabled, a
     'caregiver_alerts_batch_21h',
     'Job cảnh báo Caregiver batch 21:00',
     'schedule_service.tasks.alerts.run_batch_alerts',
-    '{"type": "cron", "crontab": {"minute": "0", "hour": "21"}}',
+    '{"type": "crontab", "minute": "0", "hour": "21"}',
     '0 21 * * *',
     'alerts',
     true,
