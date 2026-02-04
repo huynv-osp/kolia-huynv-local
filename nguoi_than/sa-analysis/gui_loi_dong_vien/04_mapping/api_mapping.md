@@ -102,6 +102,7 @@ Authorization: Bearer {access_token}
     {
       "encouragement_id": "uuid-1",
       "sender_name": "HuyA",
+      "sender_avatar_url": "https://storage.kolia.vn/avatars/uuid-huyA.jpg",
       "relationship_display": "Con gái",
       "content": "Mẹ ơi, con chúc mẹ ngày mới an lành!",
       "sent_at": "2026-02-04T08:30:00+07:00",
@@ -110,6 +111,7 @@ Authorization: Bearer {access_token}
     {
       "encouragement_id": "uuid-2",
       "sender_name": "MinhB",
+      "sender_avatar_url": null,
       "relationship_display": "Con trai",
       "content": "Bố nhớ uống thuốc nha!",
       "sent_at": "2026-02-04T07:15:00+07:00",

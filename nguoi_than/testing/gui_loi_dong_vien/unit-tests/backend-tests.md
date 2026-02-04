@@ -1,9 +1,20 @@
 # Backend Unit Tests: US 1.3 - Gửi Lời Động Viên
 
-> **Version:** 1.0  
-> **Date:** 2026-02-04  
+> **Version:** 1.2 (Added Avatar Enrichment Tests)  
+> **Date:** 2026-02-05  
 > **Test Framework:** JUnit 5 + Mockito  
-> **Coverage Target:** ≥85%
+> **Coverage Target:** ≥85%  
+> **Revision:** Added EncouragementServiceGrpcImplTest with StorageServiceClient avatar enrichment tests (UT-ENC-GRPC-001 to 004)
+
+---
+
+## ⚠️ DB-SCHEMA-001 Compliance Warning
+
+> **CRITICAL**: Repository tests MUST use correct table/column names:
+> - Table: `connection_permission_types` (NOT `permission_types`)
+> - Column: `permission_code` VARCHAR (NOT `permission_type_id` INT)
+>
+> Tests should verify these patterns to prevent production errors.
 
 ---
 
@@ -13,13 +24,15 @@
 user-service/src/test/java/
 ├── com.alio.user.service/
 │   └── impl/
-│       └── EncouragementServiceImplTest.java     ← 20 tests
+│       └── EncouragementServiceImplTest.java         ← 20 tests
 ├── com.alio.user.handler/
-│   └── EncouragementServiceGrpcImplTest.java     ← 8 tests
+│   └── EncouragementServiceGrpcImplTest.java         ← 8 tests
 ├── com.alio.user.repository/
-│   └── EncouragementRepositoryTest.java          ← 6 tests
+│   ├── EncouragementRepositoryTest.java              ← 6 tests
+│   └── impl/
+│       └── ConnectionPermissionRepositoryImplTest.java ← 6 tests ⭐ NEW
 └── com.alio.user.kafka/
-    └── EncouragementKafkaProducerTest.java       ← 4 tests
+    └── EncouragementKafkaProducerTest.java           ← 4 tests
 ```
 
 ---
@@ -526,14 +539,285 @@ void publishEncouragementCreated_logSuccess() {
 | Test Class | Tests | Status |
 |------------|:-----:|:------:|
 | EncouragementServiceImplTest | 20 | ✅ Specified |
-| EncouragementServiceGrpcImplTest | 8 | 📋 Pending |
+| EncouragementServiceGrpcImplTest | 12 | ✅ Specified ⭐ |
 | EncouragementRepositoryTest | 6 | 📋 Pending |
+| ConnectionPermissionRepositoryImplTest | 6 | ✅ Specified ⭐ |
 | EncouragementKafkaProducerTest | 4 | ✅ Specified |
-| **Total** | **38** | - |
+| **Total** | **48** | - |
 
 ---
 
-## 5. Mock Setup Helper
+## 5. EncouragementServiceGrpcImplTest (12 tests) ⭐ UPDATED
+
+### 5.1 buildEncouragementInfo() - 4 tests
+
+#### UT-ENC-GRPC-001: Avatar enrichment success
+```java
+@Test
+@DisplayName("Should enrich avatar_id to presigned URL")
+void buildEncouragementInfo_withAvatarId_enrichesToUrl() {
+    // Given
+    EncouragementMessage msg = createMessage();
+    msg.setSenderAvatarUrl("avatar-id-123");  // This is avatar_id from DB
+    
+    when(storageServiceClient.getDownloadUrl("avatar-id-123", SENDER_UUID.toString()))
+        .thenReturn("https://storage.kolia.vn/presigned/avatar-id-123");
+    
+    // When
+    EncouragementInfo result = grpcImpl.buildEncouragementInfo(msg);
+    
+    // Then
+    assertThat(result.getSenderAvatarUrl())
+        .isEqualTo("https://storage.kolia.vn/presigned/avatar-id-123");
+    verify(storageServiceClient).getDownloadUrl(eq("avatar-id-123"), anyString());
+}
+```
+
+#### UT-ENC-GRPC-002: Avatar null returns empty string
+```java
+@Test
+@DisplayName("Should return empty string when avatar_id is null")
+void buildEncouragementInfo_nullAvatar_returnsEmpty() {
+    // Given
+    EncouragementMessage msg = createMessage();
+    msg.setSenderAvatarUrl(null);
+    
+    // When
+    EncouragementInfo result = grpcImpl.buildEncouragementInfo(msg);
+    
+    // Then
+    assertThat(result.getSenderAvatarUrl()).isEmpty();
+    verifyNoInteractions(storageServiceClient);
+}
+```
+
+#### UT-ENC-GRPC-003: StorageService error returns empty (fail-safe)
+```java
+@Test
+@DisplayName("Should return empty string on StorageService error (fail-safe)")
+void buildEncouragementInfo_storageError_returnsEmpty() {
+    // Given
+    EncouragementMessage msg = createMessage();
+    msg.setSenderAvatarUrl("avatar-id-123");
+    
+    when(storageServiceClient.getDownloadUrl(anyString(), anyString()))
+        .thenThrow(new RuntimeException("Storage service unavailable"));
+    
+    // When
+    EncouragementInfo result = grpcImpl.buildEncouragementInfo(msg);
+    
+    // Then
+    assertThat(result.getSenderAvatarUrl()).isEmpty();
+    // Should not propagate exception - fail-safe design
+}
+```
+
+#### UT-ENC-GRPC-004: StorageService returns null
+```java
+@Test
+@DisplayName("Should handle null URL from StorageService")
+void buildEncouragementInfo_storageReturnsNull_returnsEmpty() {
+    // Given
+    EncouragementMessage msg = createMessage();
+    msg.setSenderAvatarUrl("avatar-id-123");
+    
+    when(storageServiceClient.getDownloadUrl(anyString(), anyString()))
+        .thenReturn(null);
+    
+    // When
+    EncouragementInfo result = grpcImpl.buildEncouragementInfo(msg);
+    
+    // Then
+    assertThat(result.getSenderAvatarUrl()).isEmpty();
+}
+```
+
+### 5.2 RPC Methods - 8 tests
+
+#### UT-ENC-GRPC-005: CreateEncouragement returns EncouragementInfo
+```java
+@Test
+@DisplayName("Should return EncouragementInfo on successful create")
+void createEncouragement_success_returnsInfo() {
+    // Given
+    CreateEncouragementRequest request = createValidRequest();
+    when(encouragementService.createEncouragement(any(), any(), any(), any()))
+        .thenReturn(Future.succeededFuture(mockMessage));
+    
+    // When
+    grpcImpl.createEncouragement(request, responseObserver);
+    
+    // Then
+    verify(responseObserver).onNext(any(EncouragementResponse.class));
+    verify(responseObserver).onCompleted();
+}
+```
+
+#### UT-ENC-GRPC-006: GetEncouragementList returns list with enriched avatars
+```java
+@Test
+@DisplayName("Should enrich all avatar URLs in list response")
+void getEncouragementList_enrichesAllAvatars() {
+    // Given
+    List<EncouragementMessage> messages = List.of(
+        createMessage("avatar-1"),
+        createMessage("avatar-2"),
+        createMessage(null)  // No avatar
+    );
+    when(encouragementService.getEncouragementList(any(), anyBoolean()))
+        .thenReturn(Future.succeededFuture(new EncouragementListResult(messages, 3, 2)));
+    when(storageServiceClient.getDownloadUrl(eq("avatar-1"), any()))
+        .thenReturn("https://url1");
+    when(storageServiceClient.getDownloadUrl(eq("avatar-2"), any()))
+        .thenReturn("https://url2");
+    
+    // When
+    grpcImpl.getEncouragementList(request, responseObserver);
+    
+    // Then
+    ArgumentCaptor<EncouragementListResponse> captor = 
+        ArgumentCaptor.forClass(EncouragementListResponse.class);
+    verify(responseObserver).onNext(captor.capture());
+    
+    List<EncouragementInfo> infos = captor.getValue().getData().getMessagesList();
+    assertThat(infos.get(0).getSenderAvatarUrl()).isEqualTo("https://url1");
+    assertThat(infos.get(1).getSenderAvatarUrl()).isEqualTo("https://url2");
+    assertThat(infos.get(2).getSenderAvatarUrl()).isEmpty();
+}
+```
+
+#### UT-ENC-GRPC-007 to UT-ENC-GRPC-012: Standard gRPC methods
+*(MarkAsRead, GetQuota, error handling, etc.)*
+
+---
+
+## 5. ConnectionPermissionRepositoryImplTest (6 tests) ⭐ NEW
+
+> ⚠️ **DB-SCHEMA-001 CRITICAL**: Tests MUST verify correct table/column names
+
+### 5.1 Permission Check Tests
+
+#### UT-PERM-REPO-001: isPermissionEnabled with correct schema
+```java
+@Test
+@DisplayName("Should query connection_permission_types (NOT permission_types)")
+void isPermissionEnabled_correcTable() {
+    // Given
+    UUID contactId = UUID.randomUUID();
+    String permissionCode = "encouragement";
+    
+    // When
+    repository.isPermissionEnabled(contactId, permissionCode);
+    
+    // Then - Verify SQL uses correct table
+    ArgumentCaptor<String> sqlCaptor = ArgumentCaptor.forClass(String.class);
+    verify(pgPool).preparedQuery(sqlCaptor.capture());
+    
+    String sql = sqlCaptor.getValue();
+    assertThat(sql).contains("connection_permissions");
+    assertThat(sql).contains("permission_code");
+    assertThat(sql).doesNotContain("permission_types");  // ⚠️ DB-SCHEMA-001
+    assertThat(sql).doesNotContain("permission_type_id"); // ⚠️ DB-SCHEMA-001
+}
+```
+
+#### UT-PERM-REPO-002: Permission enabled returns true
+```java
+@Test
+@DisplayName("Should return true when permission is enabled")
+void isPermissionEnabled_enabled_true() {
+    // Given
+    mockQueryResult(true);
+    
+    // When
+    Future<Boolean> result = repository.isPermissionEnabled(contactId, "encouragement");
+    
+    // Then
+    assertThat(result.result()).isTrue();
+}
+```
+
+#### UT-PERM-REPO-003: Permission disabled returns false
+```java
+@Test
+@DisplayName("Should return false when permission is disabled")
+void isPermissionEnabled_disabled_false() {
+    // Given
+    mockQueryResult(false);
+    
+    // When
+    Future<Boolean> result = repository.isPermissionEnabled(contactId, "encouragement");
+    
+    // Then
+    assertThat(result.result()).isFalse();
+}
+```
+
+#### UT-PERM-REPO-004: No permission record returns false
+```java
+@Test
+@DisplayName("Should return false when no permission record exists")
+void isPermissionEnabled_noRecord_false() {
+    // Given
+    mockQueryResultEmpty();
+    
+    // When
+    Future<Boolean> result = repository.isPermissionEnabled(contactId, "encouragement");
+    
+    // Then
+    assertThat(result.result()).isFalse();
+}
+```
+
+### 5.2 CRUD Tests
+
+#### UT-PERM-REPO-005: Save permission with VARCHAR permission_code
+```java
+@Test
+@DisplayName("Should save permission with VARCHAR permission_code FK")
+void save_varcharPermissionCode() {
+    // Given
+    ConnectionPermission permission = ConnectionPermission.builder()
+        .contactId(contactId)
+        .permissionCode("encouragement")  // VARCHAR, not INT
+        .isEnabled(true)
+        .build();
+    
+    // When
+    repository.save(permission);
+    
+    // Then
+    ArgumentCaptor<Tuple> tupleCaptor = ArgumentCaptor.forClass(Tuple.class);
+    verify(pgPool).preparedQuery(contains("permission_code"));
+    
+    // Verify permission_code is passed as String, not Integer
+    assertThat(tupleCaptor.getValue().getString(2)).isEqualTo("encouragement");
+}
+```
+
+#### UT-PERM-REPO-006: Find by contact returns all permissions
+```java
+@Test
+@DisplayName("Should return all permissions for contact")
+void findByContactId_returnsList() {
+    // Given
+    List<Row> mockRows = List.of(
+        createMockRow("encouragement", true),
+        createMockRow("health_overview", false)
+    );
+    mockQueryResults(mockRows);
+    
+    // When
+    Future<List<ConnectionPermission>> result = repository.findByContactId(contactId);
+    
+    // Then
+    assertThat(result.result()).hasSize(2);
+}
+```
+
+---
+
+## 6. Mock Setup Helper
 
 ```java
 private void setupValidCreateMocks() {
@@ -547,3 +831,4 @@ private void setupValidCreateMocks() {
     when(mockContact.getRelationshipDisplay()).thenReturn("Con gái");
 }
 ```
+

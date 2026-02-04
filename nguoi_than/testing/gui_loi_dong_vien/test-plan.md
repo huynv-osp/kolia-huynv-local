@@ -1,9 +1,10 @@
 # Test Plan: US 1.3 - Gửi Lời Động Viên
 
-> **Version:** 1.0  
+> **Version:** 1.1 (Updated with DB-SCHEMA-001 compliance)  
 > **Date:** 2026-02-04  
 > **Feature Spec:** [feature-spec.md](../features/gui_loi_dong_vien/04_output/feature-spec.md)  
-> **Coverage Target:** ≥85%
+> **Coverage Target:** ≥85%  
+> **Revision:** Added ConnectionPermissionRepositoryTest, DB-SCHEMA-001 warnings
 
 ---
 
@@ -13,6 +14,7 @@
 | Layer | Component | Coverage |
 |-------|-----------|:--------:|
 | **user-service** | EncouragementService | Unit + Integration |
+| **user-service** | ConnectionPermissionRepositoryImpl | Unit ⭐ NEW |
 | **api-gateway** | EncouragementHandler | API Tests |
 | **schedule-service** | encouragement_consumer | Unit |
 | **Mobile App** | EncouragementWidget, EncouragementModal | Component |
@@ -27,11 +29,12 @@
 
 | Category | Count | Priority |
 |----------|:-----:|:--------:|
-| Unit Tests | 28 | HIGH |
+| Unit Tests | 34 | HIGH |
 | API Integration | 12 | HIGH |
 | Business Rule Tests | 8 | CRITICAL |
 | Error Handling | 6 | MEDIUM |
-| **Total** | **54** | - |
+| **DB Schema Compliance** | **4** | **CRITICAL** ⭐ |
+| **Total** | **64** | - |
 
 ---
 

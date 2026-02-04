@@ -2,7 +2,7 @@
 
 > **Phase:** 4 - Architecture Mapping & Analysis  
 > **Date:** 2026-02-04  
-> **Revision:** v1.0  
+> **Revision:** v1.1 (Updated with DB-SCHEMA-001 compliance)  
 > **Source:** SRS-Gửi-Lời-Động-Viên_v1.3  
 > **Applies Rule:** SA-002 (Service-Level Impact Detailing)
 
@@ -18,7 +18,9 @@
 |-------|------|:----:|-------------|
 | Proto | `proto/encouragement_service.proto` | NEW | 4 gRPC methods |
 | Entity | `entity/EncouragementMessage.java` | NEW | Message entity |
-| Repository | `repository/EncouragementRepository.java` | NEW | Data access |
+| Repository | `repository/EncouragementRepository.java` | NEW | Message data access |
+| Repository | `repository/ConnectionPermissionRepository.java` | NEW | Permission check interface |
+| Repository Impl | `repository/impl/ConnectionPermissionRepositoryImpl.java` | NEW | Permission check implementation |
 | Service | `service/EncouragementService.java` | NEW | Interface |
 | Service | `service/impl/EncouragementServiceImpl.java` | NEW | Implementation |
 | Handler | `handler/EncouragementServiceGrpcImpl.java` | NEW | gRPC handler |
@@ -28,6 +30,7 @@
 | DTO | `dto/response/EncouragementInfo.java` | NEW | Message info |
 | DTO | `dto/response/QuotaInfo.java` | NEW | Quota status |
 | Constants | `constants/EncouragementConstants.java` | NEW | Quota limits |
+| Config | `UserServiceApplication.java` | MODIFY | Register gRPC service + initialize dependencies |
 
 ### gRPC Methods (encouragement_service.proto)
 
@@ -81,11 +84,17 @@ message EncouragementListResponse {
 message EncouragementInfo {
   string encouragement_id = 1;
   string sender_id = 2;
-  string sender_name = 3;     // e.g., "HuyA"
-  string relationship_display = 4;  // e.g., "Con gái" (Patient's perspective)
+  string patient_id = 3;
+  string contact_id = 4;
   string content = 5;
-  int64 sent_at = 6;          // Epoch millis
-  bool is_read = 7;
+  string sender_name = 6;            // e.g., "HuyA"
+  string sender_avatar_url = 7;      // Presigned URL from storage-service
+  string relationship_code = 8;      // Raw code
+  string relationship_display = 9;   // e.g., "Con gái" (Patient's perspective)
+  bool is_read = 10;
+  string read_at = 11;               // ISO 8601
+  string sent_at = 12;               // ISO 8601
+  string created_at = 13;            // ISO 8601
 }
 
 message MarkAsReadRequest {
@@ -121,9 +130,25 @@ message QuotaResponse {
 ### Business Logic
 
 1. **Permission Check (BR-003):**
+
+   > ⚠️ **DB-SCHEMA-001 CRITICAL**: Use `connection_permission_types` (NOT `permission_types`),
+   > join on `permission_code` (VARCHAR FK, NOT INT FK).
+
    ```java
+   // ConnectionPermissionRepositoryImpl.java - CORRECT query
+   String sql = """
+       SELECT cp.is_enabled
+       FROM connection_permissions cp
+       WHERE cp.contact_id = $1 AND cp.permission_code = $2
+       """;
+   // DO NOT use: JOIN permission_types pt ON cp.permission_type_id = pt.id ❌
+   ```
+
+   ```java
+   // EncouragementServiceImpl.java
    boolean hasPermission = connectionPermissionRepository
-       .checkPermission(contactId, "encouragement");
+       .isPermissionEnabled(contactId, "encouragement")
+       .toCompletionStage().toCompletableFuture().get();
    if (!hasPermission) throw new ForbiddenException("PERMISSION_DENIED");
    ```
 
@@ -138,6 +163,16 @@ message QuotaResponse {
    ```java
    if (content.isEmpty()) throw new BadRequestException("EMPTY_CONTENT");
    if (content.length() > 150) throw new BadRequestException("CONTENT_TOO_LONG");
+   ```
+
+4. **gRPC Service Registration (REQUIRED in UserServiceApplication.java):**
+   ```java
+   // In initializeServices()
+   this.connectionPermissionRepository = new ConnectionPermissionRepositoryImpl(pool);
+   this.encouragementService = new EncouragementServiceImpl(...);
+
+   // In startGrpcServer()
+   .addService((io.grpc.BindableService) new EncouragementServiceGrpcImpl(encouragementService))
    ```
 
 ### Estimated Effort: 24 hours

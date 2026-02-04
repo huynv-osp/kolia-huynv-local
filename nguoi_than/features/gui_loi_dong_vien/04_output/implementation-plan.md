@@ -1,9 +1,10 @@
 # Implementation Plan: US 1.3 - Gửi Lời Động Viên
 
-> **Version:** v1.0  
+> **Version:** v1.1 (Updated with Lessons Learned)  
 > **Date:** 2026-02-04  
 > **Total Effort:** 54 hours (~6.75 man-days)  
-> **Status:** Ready for Sprint Planning
+> **Status:** Ready for Sprint Planning  
+> **Revision:** Added DB-SCHEMA-001 compliance notes and gRPC registration requirements
 
 ---
 
@@ -54,14 +55,27 @@
 ### Task 2.1: Entity & Repository (6h)
 
 - [ ] Create `EncouragementMessage.java` entity
-- [ ] Create `EncouragementRepository.java`
-- [ ] Implement queries: countToday, findUnread24h, batchMarkRead
+- [ ] Create `EncouragementRepository.java` (message CRUD)
+- [ ] Create `ConnectionPermissionRepository.java` (interface)
+- [ ] **Create `ConnectionPermissionRepositoryImpl.java`** (implementation)
+- [ ] Implement queries: countToday, findUnread24h, batchMarkRead, isPermissionEnabled
+
+> ⚠️ **DB-SCHEMA-001 CRITICAL**: For permission check query, use:
+> - Table: `connection_permission_types` (NOT `permission_types`)
+> - Column: `permission_code` VARCHAR FK (NOT `permission_type_id` INT FK)
+>
+> ```sql
+> SELECT is_enabled FROM connection_permissions
+> WHERE contact_id = $1 AND permission_code = 'encouragement';
+> ```
 
 **Files:**
 ```
 user-service/src/main/java/com/userservice/
-├── entity/EncouragementMessage.java       [NEW]
-├── repository/EncouragementRepository.java [NEW]
+├── entity/EncouragementMessage.java                    [NEW]
+├── repository/EncouragementRepository.java             [NEW]
+├── repository/ConnectionPermissionRepository.java      [NEW]
+├── repository/impl/ConnectionPermissionRepositoryImpl.java [NEW]
 ```
 
 ---
@@ -81,17 +95,36 @@ user-service/src/main/java/com/userservice/
 
 ---
 
-### Task 2.3: gRPC Handler & Kafka (4h)
+### Task 2.3: gRPC Handler & Service Registration (4h)
 
 - [ ] Create `EncouragementServiceGrpcImpl.java`
 - [ ] Create `EncouragementKafkaProducer.java`
-- [ ] Register in GrpcServerConfig
+- [ ] **CRITICAL: Register in `UserServiceApplication.java`**
+  - Add import for `EncouragementServiceGrpcImpl`
+  - Add service/repository fields
+  - Initialize in `initializeServices()`
+  - Register in `startGrpcServer()` with `.addService(...)`
+
+> ⚠️ **Missing gRPC registration causes 404 NOT_FOUND error!**
 
 **Files:**
 ```
 user-service/src/main/java/com/userservice/
-├── handler/EncouragementServiceGrpcImpl.java [NEW]
-├── kafka/EncouragementKafkaProducer.java     [NEW]
+├── grpc/EncouragementServiceGrpcImpl.java [NEW]
+├── kafka/EncouragementKafkaProducer.java  [NEW]
+└── UserServiceApplication.java            [MODIFY - Add gRPC registration]
+```
+
+**Registration Code (in UserServiceApplication.java):**
+```java
+// In initializeServices()
+this.connectionPermissionRepository = new ConnectionPermissionRepositoryImpl(pool);
+this.encouragementRepository = new EncouragementRepositoryImpl(pool);
+this.encouragementService = new EncouragementServiceImpl(
+    encouragementRepository, connectionPermissionRepository, ...);
+
+// In startGrpcServer()
+.addService((io.grpc.BindableService) new EncouragementServiceGrpcImpl(encouragementService))
 ```
 
 ---
@@ -269,6 +302,46 @@ graph TD
 | Push delivery delay | 🟢 LOW | Retry queue |
 | Permission race | 🟢 LOW | Real-time check |
 | Quota bypass | 🟢 LOW | Server enforcement |
+| **DB Schema mismatch** | 🔴 HIGH | **Verify against `_Alio_database_create.sql`** |
+| **gRPC missing registration** | 🔴 HIGH | **Add `.addService()` in UserServiceApplication** |
+
+---
+
+## ⚠️ Lessons Learned (2026-02-04)
+
+> **This section was added after production bug fix**
+
+### Common Mistakes to Avoid
+
+| ❌ Wrong | ✅ Correct | Impact |
+|----------|------------|--------|
+| `permission_types` | `connection_permission_types` | 500 error: relation not found |
+| `permission_type_id` (INT) | `permission_code` (VARCHAR) | Query fails |
+| Missing gRPC registration | Add `.addService()` in `startGrpcServer()` | 404 UNIMPLEMENTED |
+
+### DB-SCHEMA-001 Compliance Checklist
+
+Before writing ANY repository code, verify:
+
+- [ ] Table name matches `_Alio_database_create.sql`
+- [ ] Column names match exactly
+- [ ] FK types match (VARCHAR vs INT)
+- [ ] Check lookup tables (`connection_permission_types`, `relationships`, etc.)
+
+### Permission Check Query Pattern
+
+```sql
+-- CORRECT (v2.24)
+SELECT cp.is_enabled
+FROM connection_permissions cp
+WHERE cp.contact_id = $1 AND cp.permission_code = 'encouragement';
+
+-- WRONG ❌ (causes 42P01 error)
+SELECT cp.is_enabled
+FROM connection_permissions cp
+JOIN permission_types pt ON cp.permission_type_id = pt.id
+WHERE cp.contact_id = $1 AND pt.code = 'encouragement';
+```
 
 ---
 
