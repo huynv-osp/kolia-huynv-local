@@ -148,7 +148,7 @@ CREATE TABLE encouragement_messages (
 
 | Integration | Change | Risk |
 |-------------|--------|:----:|
-| Kafka | New topic `topic-encouragement-created` | 🟢 |
+| Kafka | New topic `topic-encouragement-events` | 🟢 |
 | FCM | New notification type | 🟢 |
 | Permission #6 | New usage (already exists) | 🟢 |
 

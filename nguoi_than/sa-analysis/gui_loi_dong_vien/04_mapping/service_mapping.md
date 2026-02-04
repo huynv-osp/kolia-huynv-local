@@ -244,7 +244,7 @@ message QuotaResponse {
 
 | Topic | Direction | Purpose |
 |-------|:---------:|---------| 
-| topic-encouragement-created | IN | Receive new message event |
+| topic-encouragement-events | IN | Receive new message event |
 
 ### Push Notification Template
 

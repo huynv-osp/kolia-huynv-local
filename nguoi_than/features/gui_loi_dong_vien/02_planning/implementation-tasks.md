@@ -241,7 +241,7 @@ Create Kafka consumer for encouragement events.
 
 #### Technical Scope
 - [ ] File: `consumers/encouragement_consumer.py`
-- [ ] Subscribe: `topic-encouragement-created`
+- [ ] Subscribe: `topic-encouragement-events`
 - [ ] Parse event, call push task
 
 ---

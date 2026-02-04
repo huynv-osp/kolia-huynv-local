@@ -459,7 +459,7 @@ void getQuota_midnightReset() {
 #### UT-ENC-KFK-001: Publish event with correct topic
 ```java
 @Test
-@DisplayName("Should publish to topic-encouragement-created")
+@DisplayName("Should publish to topic-encouragement-events")
 void publishEncouragementCreated_correctTopic() {
     // Given
     EncouragementCreatedEvent event = createEvent();
@@ -468,7 +468,7 @@ void publishEncouragementCreated_correctTopic() {
     producer.publishEncouragementCreated(event);
     
     // Then
-    verify(kafkaTemplate).send(eq("topic-encouragement-created"), any());
+    verify(kafkaTemplate).send(eq("topic-encouragement-events"), any());
 }
 ```
 

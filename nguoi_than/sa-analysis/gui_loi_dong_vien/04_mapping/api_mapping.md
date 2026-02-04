@@ -186,7 +186,7 @@ service EncouragementService {
 
 ### Encouragement Created Event
 
-**Topic:** `topic-encouragement-created`
+**Topic:** `topic-encouragement-events`
 
 **Producer:** user-service  
 **Consumer:** schedule-service

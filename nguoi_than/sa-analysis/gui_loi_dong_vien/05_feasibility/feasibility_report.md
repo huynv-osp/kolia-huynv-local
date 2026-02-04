@@ -150,7 +150,7 @@
 
 ```
 ✅ VERIFIED: Kafka topology available
-   - topic-encouragement-created: New topic needed
+   - topic-encouragement-events: New topic needed
    - Consumer pattern in schedule-service ✓
 ```
 

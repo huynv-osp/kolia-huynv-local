@@ -127,7 +127,7 @@
 
 | Topic | Partitions | Producers | Consumers |
 |-------|:----------:|-----------|-----------|
-| topic-encouragement-created | 3 | user-service | schedule-service |
+| topic-encouragement-events | 3 | user-service | schedule-service |
 
 ---
 
@@ -147,7 +147,7 @@
 ### If Issues Detected
 
 1. **Database:** DROP TABLE encouragement_messages
-2. **Kafka:** Delete topic-encouragement-created
+2. **Kafka:** Delete topic-encouragement-events
 3. **Code:** Feature flag OFF (disable widget)
 4. **Mobile:** OTA update to hide widget
 

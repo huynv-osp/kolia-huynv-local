@@ -117,7 +117,7 @@ service EncouragementService {
 ### 4.2 Kafka Consumer
 
 ```python
-# Topic: topic-encouragement-created
+# Topic: topic-encouragement-events
 {
     "event_type": "ENCOURAGEMENT_CREATED",
     "encouragement_id": "uuid",

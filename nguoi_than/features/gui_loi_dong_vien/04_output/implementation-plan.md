@@ -180,7 +180,7 @@ api-gateway-service/src/main/java/com/apigateway/
 ### Task 4.1: Kafka Consumer (2h)
 
 - [ ] Create `encouragement_consumer.py`
-- [ ] Subscribe to `topic-encouragement-created`
+- [ ] Subscribe to `topic-encouragement-events`
 
 **Files:**
 - `schedule-service/consumers/encouragement_consumer.py` [NEW]
