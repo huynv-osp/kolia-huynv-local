@@ -1,8 +1,8 @@
 # Service Mapping: KOLIA-1517 - Kết nối Người thân
 
 > **Phase:** 4 - Architecture Mapping & Analysis  
-> **Date:** 2026-02-02  
-> **Revision:** v2.9 - Added Default View State (UX-DVS-*) mobile requirements
+> **Date:** 2026-02-04  
+> **Revision:** v2.13 - Added inverse_relationship_code for bidirectional awareness
 > **Applies Rule:** SA-002 (Service-Level Impact Detailing)
 
 ---
@@ -48,8 +48,8 @@
 | Table | Change | Details |
 |-------|:------:|---------|
 | connection_permission_types | CREATE | 8 columns, lookup table |
-| connection_invites | CREATE | 10 columns, 5 indexes |
-| user_emergency_contacts | ALTER | +5 columns (incl. is_viewing) |
+| connection_invites | CREATE | 11 columns, 5 indexes |
+| user_emergency_contacts | ALTER | **+6 columns** (incl. is_viewing, inverse_relationship_code) |
 | connection_permissions | CREATE | 5 columns, 2 indexes (FK) |
 | relationships | CREATE | 7 columns, lookup table (v2.8) |
 | invite_notifications | CREATE | 9 columns, 3 indexes |

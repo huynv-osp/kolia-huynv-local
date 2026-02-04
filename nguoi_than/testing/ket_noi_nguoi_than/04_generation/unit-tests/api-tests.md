@@ -1,9 +1,9 @@
 # 🔌 API Integration Tests - KOLIA-1517 Kết nối Người thân
 
-> **Version:** 2.14  
-> **Date:** 2026-01-30  
+> **Version:** 2.19  
+> **Date:** 2026-02-04  
 > **Coverage Target:** 100% Endpoints  
-> **Total Test Cases:** ~130 (+9 Mark Report Read v2.14)
+> **Total Test Cases:** ~139 (+9 Inverse Relationship v2.19)
 
 ---
 
@@ -223,6 +223,8 @@ class InviteApiIntegrationTest {
 | TC-INT-INV-028 | Already accepted | 400 ALREADY_ACCEPTED | - | 🟡 P1 |
 | TC-INT-INV-029 | Response includes connection_id | 200, connection_id present | - | 🔴 P0 |
 | TC-INT-INV-030 | Response includes relationship | 200, relationship present | BR-028 | 🟡 P1 |
+| TC-INT-INV-080 | Response includes inverse_relationship_code (v2.19) | 200, inverse_relationship_code present | BR-036 | 🔴 P0 |
+| TC-INT-INV-081 | Response includes inverse_relationship_name (v2.19) | 200, inverse_relationship_name present | BR-036 | 🔴 P0 |
 
 ```java
     // TC-INT-INV-024: Patient accept with permissions

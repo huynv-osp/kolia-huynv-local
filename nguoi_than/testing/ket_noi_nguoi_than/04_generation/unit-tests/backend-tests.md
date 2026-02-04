@@ -1,9 +1,9 @@
 # 🧪 Backend Unit Tests - KOLIA-1517 Kết nối Người thân
 
-> **Version:** 1.5  
-> **Date:** 2026-02-02  
+> **Version:** 2.19  
+> **Date:** 2026-02-04  
 > **Coverage Target:** ≥85%  
-> **Total Test Cases:** ~198 (+8 UpdatePendingInvitePermissions v2.16)
+> **Total Test Cases:** ~210 (+12 Inverse Relationship v2.19)
 
 ---
 
@@ -248,6 +248,10 @@ class InviteServiceTest {
 | TC-CON-008 | testAcceptInvite_NotAuthorized_ThrowException | Không phải receiver | - | 🟡 P1 |
 | TC-CON-009 | testAcceptInvite_AlreadyAccepted_ThrowException | Invite đã accept | - | 🟡 P1 |
 | TC-CON-010 | testAcceptInvite_RelationshipStored_Success | Relationship được lưu vào connection | BR-028 | 🔴 P0 |
+| TC-CON-101 | testAcceptInvite_InverseRelationshipStored_PatientToCaregiver | inverse_relationship_code được lưu (P→C flow) | BR-035 | 🔴 P0 |
+| TC-CON-102 | testAcceptInvite_InverseRelationshipStored_CaregiverToPatient | inverse_relationship_code được lưu + SWAP (C→P flow) | BR-035 | 🔴 P0 |
+| TC-CON-103 | testAcceptInvite_InverseRelationshipSwapMapping_Success | C→P: relationshipCode/inverseCode SWAP for UEC | BR-035 | 🔴 P0 |
+| TC-CON-104 | testListConnections_IncludesInverseRelationship | API response includes inverse_relationship_code/name | BR-036 | 🔴 P0 |
 
 ```java
 @ExtendWith(MockitoExtension.class)

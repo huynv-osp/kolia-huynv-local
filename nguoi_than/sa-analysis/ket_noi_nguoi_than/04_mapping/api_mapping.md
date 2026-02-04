@@ -1,8 +1,8 @@
 # API Mapping: KOLIA-1517 - Kết nối Người thân
 
 > **Phase:** 4 - Architecture Mapping & Analysis  
-> **Date:** 2026-02-02  
-> **Revision:** v2.16 - Added Update Pending Invite Permissions API
+> **Date:** 2026-02-04  
+> **Revision:** v2.19 - Added inverse_relationship_code/name to API responses (BR-035)
 
 ---
 
@@ -235,6 +235,9 @@
   "receiver": { "id": "uuid", "name": "...", "phone": "..." },
   "invite_type": "patient_to_caregiver",
   "relationship_code": "con_trai",
+  "relationship_name": "Con trai",
+  "inverse_relationship_code": "me",
+  "inverse_relationship_name": "Mẹ",
   "status": "pending",
   "permissions": [...],
   "created_at": "2026-01-28T10:00:00Z",
@@ -293,8 +296,11 @@
     {
       "connection_id": "uuid",
       "patient": { "id": "uuid", "name": "...", "avatar": "..." },
-      "relationship": "me",
+      "relationship_code": "me",
+      "relationship_name": "Mẹ",
       "relationship_display": "Mẹ (Nguyễn Thị B)",
+      "inverse_relationship_code": "con_trai",
+      "inverse_relationship_name": "Con trai",
       "last_active": "2026-01-28T09:00:00Z"
     }
   ],
@@ -302,8 +308,11 @@
     {
       "connection_id": "uuid",
       "caregiver": { "id": "uuid", "name": "..." },
-      "relationship": "con_trai",
+      "relationship_code": "con_trai",
+      "relationship_name": "Con trai",
       "relationship_display": "Con trai (Nguyễn Văn A)",
+      "inverse_relationship_code": "me",
+      "inverse_relationship_name": "Mẹ",
       "last_active": "2026-01-28T08:30:00Z"
     }
   ]
@@ -549,7 +558,11 @@
     "patient_id": "uuid",
     "patient_name": "Nguyễn Thị Cúc",
     "patient_avatar": "...",
+    "relationship_code": "me",
+    "relationship_name": "Mẹ",
     "relationship_display": "Mẹ (Nguyễn Thị Cúc)",
+    "inverse_relationship_code": "con_trai",
+    "inverse_relationship_name": "Con trai",
     "last_active": "2026-01-29T14:30:00Z"
   }
 }

@@ -1,8 +1,8 @@
-# Complete Analysis: KOLIA-1517 (REVISED v2.15)
+# Complete Analysis: KOLIA-1517 (REVISED v2.19)
 
 > **SA Analysis Report**  
-> **Date:** 2026-02-02  
-> **Revision:** v2.15 - Added Default View State (UX-DVS-*) from SRS v3, synced version numbers
+> **Date:** 2026-02-04  
+> **Revision:** v2.19 - Added inverse_relationship_code/name to API responses (BR-035)
 
 ---
 
@@ -87,8 +87,8 @@
 | Table | Status | Columns | Indexes |
 |-------|:------:|:-------:|:-------:|
 | relationships | NEW | 6 | 0 |
-| connection_invites | NEW | 11 | 5 |
-| user_emergency_contacts | EXTEND | +4 | +2 |
+| connection_invites | NEW | **12** | 5 |
+| user_emergency_contacts | EXTEND | **+6** | +2 |
 | connection_permissions | NEW | 5 | 1 |
 | invite_notifications | NEW | 10 | 3 |
 
@@ -111,13 +111,14 @@
 |----------|:------:|
 | 02_context/database_entities.md | ✅ v2.0 |
 | 03_extraction/functional_requirements.md | ✅ v2.11 (UX-DVS-*) |
-| 04_mapping/database_mapping.md | ✅ v2.7 |
-| 04_mapping/api_mapping.md | ✅ v2.13 |
+| 04_mapping/database_mapping.md | ✅ v2.13 |
+| 04_mapping/api_mapping.md | ✅ v2.19 |
 | 06_impact/impact_analysis.md | ✅ v2.13 |
 | v2.14_mark_report_read_api.md | ✅ v2.14 |
-| v2.15_default_view_state.md | ✅ v2.15 (NEW) |
-| 08_report/complete_analysis.md | ✅ v2.15 |
-| features/.../database-changes.sql | ✅ v2.0 |
+| v2.15_default_view_state.md | ✅ v2.15 |
+| **v2.18_inverse_relationship.md** | ✅ **v2.18** |
+| 08_report/complete_analysis.md | ✅ v2.19 |
+| features/.../database-changes.sql | ✅ v2.13 |
 
 ---
 

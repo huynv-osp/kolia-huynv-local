@@ -4,14 +4,14 @@
 
 | Attribute | Value |
 |-----------|-------|
-| **Version** | 2.16 |
-| **Date** | 2026-02-02 |
+| **Version** | 2.19 |
+| **Date** | 2026-02-04 |
 | **Author** | Test Generator (Automated via /alio-testing) |
 | **Status** | Draft |
 | **Feature** | KOLIA-1517 - Kết nối Người thân (Connection Flow) |
 | **SRS Version** | v3.0 |
-| **FA Version** | v2.16 |
-| **Changes** | Added Update Pending Invite Permissions API (BR-031 to BR-034) |
+| **FA Version** | v2.19 |
+| **Changes** | Added inverse_relationship_code (BR-035/BR-036) + API response fields (v2.19) |
 
 ---
 
@@ -43,7 +43,8 @@
 8. **Validate Dashboard APIs (v2.11)**: Blood Pressure Chart, Periodic Reports với Authorization Flow
 9. **Validate Mark Report Read API (v2.14)**: Đánh dấu báo cáo đã đọc với SEC-DB-001 check
 10. **Validate Default View State (v2.15)**: Đảm bảo UX-DVS-001 → UX-DVS-005 hoạt động đúng
-11. **Validate Update Pending Invite Permissions (v2.16)**: Đảm bảo BR-031 → BR-034 hoạt động đúng (NEW) (NEW)
+11. **Validate Update Pending Invite Permissions (v2.16)**: Đảm bảo BR-031 → BR-034 hoạt động đúng
+12. **Validate Inverse Relationship Code (v2.18/v2.19)**: Đảm bảo BR-035/BR-036 cho bidirectional relationship display hoạt động đúng (NEW)
 
 ## 1.2 Coverage Targets
 
@@ -53,12 +54,13 @@
 | Branch Coverage | ≥75% | JaCoCo, pytest-cov |
 | API Endpoint Coverage | 100% | All **18** REST endpoints tested |
 | gRPC Method Coverage | 100% | All **17** gRPC methods tested |
-| Business Rule Coverage | 100% | All **50** rules validated (v2.16: +4 BR-031 to BR-034) |
+| Business Rule Coverage | 100% | All **52** rules validated (v2.19: +BR-035/BR-036) |
 | Error Code Coverage | 100% | All 10 error codes tested |
 | Gherkin Scenario Coverage | 100% | All SRS scenarios covered |
 | Dashboard API Coverage | 100% | BP Chart + Reports tested |
 | Default View State Coverage | 100% | All 5 UX-DVS rules tested |
-| **Update Pending Invite Permissions Coverage** | **100%** | **All 4 BR-031 to BR-034 rules tested (NEW v2.16)** |
+| Update Pending Invite Permissions Coverage | 100% | All 4 BR-031 to BR-034 rules tested |
+| **Inverse Relationship Coverage** | **100%** | **BR-035/BR-036 bidirectional display tested (NEW v2.19)** |
 
 ---
 
@@ -113,9 +115,10 @@
 
 ### Business Rules
 
-- **50 Business Rules** total:
+- **52 Business Rules** total:
   - Connection Rules: BR-001 → BR-029 (25 rules)
-  - **Update Pending Invite Permissions: BR-031 → BR-034 (4 rules) - NEW v2.16**
+  - Update Pending Invite Permissions: BR-031 → BR-034 (4 rules)
+  - **Inverse Relationship: BR-035 → BR-036 (2 rules) - NEW v2.19**
   - Dashboard Rules: BR-DB-001 → BR-DB-011 (11 rules)
   - Report Rules: BR-RPT-001 → BR-RPT-003 (3 rules)
   - Security Rules: SEC-DB-001 → SEC-DB-003 (3 rules)
@@ -325,6 +328,8 @@ permissions:
 | BR-019 | Patient disconnect → Notify Caregiver | Kafka event |
 | BR-020 | Caregiver exit → Notify Patient | Kafka event |
 | BR-028 | Relationship stored | Database, Entity |
+| **BR-035** | **Inverse relationship stored (v2.18)** | **Database, Entity** |
+| **BR-036** | **API returns inverse_relationship_code/name (v2.19)** | **API Response** |
 
 ## 6.3 Medium Priority Rules (P2)
 
@@ -408,6 +413,20 @@ permissions:
 > 1. Sender updates permissions successfully → 200 + updated permissions
 > 2. Non-sender attempts update → 403 NOT_AUTHORIZED
 > 3. Update non-pending invite → 409 INVITE_NOT_PENDING
+
+## 6.9 Inverse Relationship Rules (v2.18/v2.19) - NEW
+
+| Rule-ID | Rule | Test Category | Priority |
+|---------|------|---------------|:--------:|
+| BR-035 | inverse_relationship_code stored in DB | ConnectionService Unit Test, Repository | 🔴 P0 |
+| BR-036 | API responses include inverse_relationship_code/name | API Response Test | 🔴 P0 |
+
+> **Inverse Relationship Test Scenarios:**
+> 1. Patient→Caregiver invite: relationship_code = Patient mô tả Caregiver, inverse = Caregiver mô tả Patient
+> 2. Caregiver→Patient invite: SWAP mapping khi accept → UEC perspective đúng
+> 3. ListInvites API returns inverse_relationship_code/name
+> 4. ListConnections API returns inverse_relationship_code/name
+> 5. GetViewingPatient API returns relationship from correct perspective
 > 4. Update non-existent invite → 404 INVITE_NOT_FOUND
 > 5. Invalid permission code → 400 INVALID_PERMISSION_TYPE
 > 6. Verify no notification sent to receiver

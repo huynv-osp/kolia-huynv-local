@@ -1,7 +1,7 @@
 # 📊 Coverage Matrix - KOLIA-1517 Kết nối Người thân
 
-> **Version:** 2.16  
-> **Date:** 2026-02-02  
+> **Version:** 2.19  
+> **Date:** 2026-02-04  
 > **Coverage Target:** ≥85%
 
 ---
@@ -61,12 +61,12 @@
 
 | Priority | Total BRs | Covered | Coverage |
 |:--------:|:---------:|:-------:|:--------:|
-| 🔴 P0 | 31 | 31 | **100%** |
+| 🔴 P0 | 33 | 33 | **100%** |
 | 🟡 P1 | 15 | 15 | **100%** |
 | 🟢 P2 | 4 | 4 | **100%** |
-| **Total** | **50** | **50** | **100%** |
+| **Total** | **52** | **52** | **100%** |
 
-> **v2.16 Addition:** See section 1.7 for new Update Pending Invite Permissions (BR-031 to BR-034) rules
+> **v2.19 Addition:** See section 1.8 for new Inverse Relationship Code (BR-035/BR-036) rules
 
 ## 1.3 Dashboard Rules Coverage (v2.11)
 
@@ -124,6 +124,14 @@
 | BR-032 | Chỉ áp dụng cho invite status = 0 (pending) | 2 | 2 | 4 | ✅ |
 | BR-033 | Permissions lưu vào `initial_permissions` | 2 | 1 | 3 | ✅ |
 | BR-034 | Không gửi notification đến receiver | 1 | 1 | 2 | ✅ |
+| **Total** | | **7** | **6** | **13** | ✅ |
+
+## 1.8 Inverse Relationship Code Coverage (v2.19) - NEW
+
+| Rule-ID | Rule | Unit Tests | API Tests | Total | Status |
+|:-------:|------|:----------:|:---------:|:-----:|:------:|
+| BR-035 | inverse_relationship_code stored in DB | 4 | 2 | 6 | ✅ |
+| BR-036 | API returns inverse_relationship_code/name | 3 | 4 | 7 | ✅ |
 | **Total** | | **7** | **6** | **13** | ✅ |
 
 ---
@@ -381,10 +389,11 @@
 | Error Code Coverage | 100% | 100% | ✅ |
 | **UX-DVS Coverage (v2.15)** | **100%** | **100%** | **✅** |
 | **BR-031 to BR-034 Coverage (v2.16)** | **100%** | **100%** | **✅** |
+| **BR-035/BR-036 Coverage (v2.19)** | **100%** | **100%** | **✅** |
 | P0 Test Pass Rate | 100% | TBD | ⏳ |
 | P1 Test Pass Rate | ≥95% | TBD | ⏳ |
 
 ---
 
-**Generated:** 2026-02-02T08:42:00+07:00  
+**Generated:** 2026-02-04T11:42:00+07:00  
 **Workflow:** `/alio-testing`

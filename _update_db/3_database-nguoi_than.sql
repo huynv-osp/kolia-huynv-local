@@ -1,9 +1,11 @@
 -- ============================================================================
--- CONNECTION FLOW FEATURE - DATABASE MIGRATION (REVISED v2.12)
--- Version: 2.12
--- Date: 2026-02-02
+-- CONNECTION FLOW FEATURE - DATABASE MIGRATION (REVISED v2.21)
+-- Version: 2.21
+-- Date: 2026-02-04
 -- Purpose: Schema optimized + permission_types + is_viewing + caregiver_report_views
 --          + invite_notifications enhanced (notification_type, cancelled status, idempotency)
+--          + inverse_relationship_code for bidirectional relationship awareness (v2.13)
+--          + relationship_inverse_mapping for gender-based inverse derivation (v2.21)
 -- ============================================================================
 
 -- ============================================================================
@@ -45,6 +47,76 @@ ON CONFLICT DO NOTHING;
 COMMENT ON TABLE relationships IS 'Lookup table for relationship types (SOS + Caregiver)';
 
 -- ============================================================================
+-- TABLE 1.5: relationship_inverse_mapping (v2.21 - Gender-based Inverse Derivation)
+-- Purpose: Derive inverse_relationship_code based on original code + target gender
+-- Owner: user-service
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS relationship_inverse_mapping (
+    relationship_code VARCHAR(30) NOT NULL REFERENCES relationships(relationship_code),
+    target_gender SMALLINT NOT NULL,  -- 0: Nam, 1: Nữ (gender of the OTHER party)
+    inverse_code VARCHAR(30) NOT NULL REFERENCES relationships(relationship_code),
+    PRIMARY KEY (relationship_code, target_gender)
+);
+
+-- Seed data: Mapping logic for all 17 relationship types × 2 genders
+INSERT INTO relationship_inverse_mapping (relationship_code, target_gender, inverse_code) VALUES
+-- Con → Cha/Mẹ (nếu Sender gọi Receiver là "con", thì inverse = "cha/mẹ" tùy gender của Sender)
+('con_trai', 0, 'bo'),       -- Receiver (con trai) → Sender là Nam = Bố
+('con_trai', 1, 'me'),       -- Receiver (con trai) → Sender là Nữ = Mẹ
+('con_gai', 0, 'bo'),        -- Receiver (con gái) → Sender là Nam = Bố
+('con_gai', 1, 'me'),        -- Receiver (con gái) → Sender là Nữ = Mẹ
+
+-- Cha/Mẹ → Con (nếu gọi người kia là "cha/mẹ", inverse = "con" tùy gender của Sender)
+('bo', 0, 'con_trai'),       -- Receiver (bố) → Sender là Nam = Con trai
+('bo', 1, 'con_gai'),        -- Receiver (bố) → Sender là Nữ = Con gái
+('me', 0, 'con_trai'),       -- Receiver (mẹ) → Sender là Nam = Con trai
+('me', 1, 'con_gai'),        -- Receiver (mẹ) → Sender là Nữ = Con gái
+
+-- Anh/Chị → Em
+('anh_trai', 0, 'em_trai'),  -- Receiver (anh trai) → Sender là Nam = Em trai
+('anh_trai', 1, 'em_gai'),   -- Receiver (anh trai) → Sender là Nữ = Em gái
+('chi_gai', 0, 'em_trai'),   -- Receiver (chị gái) → Sender là Nam = Em trai
+('chi_gai', 1, 'em_gai'),    -- Receiver (chị gái) → Sender là Nữ = Em gái
+
+-- Em → Anh/Chị
+('em_trai', 0, 'anh_trai'),  -- Receiver (em trai) → Sender là Nam = Anh trai
+('em_trai', 1, 'chi_gai'),   -- Receiver (em trai) → Sender là Nữ = Chị gái
+('em_gai', 0, 'anh_trai'),   -- Receiver (em gái) → Sender là Nam = Anh trai
+('em_gai', 1, 'chi_gai'),    -- Receiver (em gái) → Sender là Nữ = Chị gái
+
+-- Vợ/Chồng (gender-matched)
+('vo', 0, 'chong'),          -- Receiver (vợ) → Sender là Nam = Chồng
+('vo', 1, 'khac'),           -- Receiver (vợ) → Sender là Nữ = N/A (fallback khác)
+('chong', 0, 'khac'),        -- Receiver (chồng) → Sender là Nam = N/A (fallback khác)
+('chong', 1, 'vo'),          -- Receiver (chồng) → Sender là Nữ = Vợ
+
+-- Ông/Bà → Cháu
+('ong_noi', 0, 'chau_trai'), -- Receiver (ông nội) → Sender là Nam = Cháu trai
+('ong_noi', 1, 'chau_gai'),  -- Receiver (ông nội) → Sender là Nữ = Cháu gái
+('ba_noi', 0, 'chau_trai'),
+('ba_noi', 1, 'chau_gai'),
+('ong_ngoai', 0, 'chau_trai'),
+('ong_ngoai', 1, 'chau_gai'),
+('ba_ngoai', 0, 'chau_trai'),
+('ba_ngoai', 1, 'chau_gai'),
+
+-- Cháu → Ông/Bà (default to nội, có thể customize)
+('chau_trai', 0, 'ong_noi'), -- Receiver (cháu trai) → Sender là Nam = Ông nội
+('chau_trai', 1, 'ba_noi'),  -- Receiver (cháu trai) → Sender là Nữ = Bà nội
+('chau_gai', 0, 'ong_noi'),
+('chau_gai', 1, 'ba_noi'),
+
+-- Khác (fallback to khác)
+('khac', 0, 'khac'),
+('khac', 1, 'khac')
+ON CONFLICT DO NOTHING;
+
+COMMENT ON TABLE relationship_inverse_mapping IS 'v2.21: Gender-based inverse relationship derivation lookup';
+COMMENT ON COLUMN relationship_inverse_mapping.target_gender IS '0: Nam, 1: Nữ - giới tính của bên còn lại';
+COMMENT ON COLUMN relationship_inverse_mapping.inverse_code IS 'Mối quan hệ inverse được suy ra';
+
+-- ============================================================================
 -- TABLE 2: connection_invites
 -- Purpose: Track invite lifecycle (pending/accepted/rejected)
 -- Owner: user-service
@@ -58,6 +130,7 @@ CREATE TABLE IF NOT EXISTS connection_invites (
     receiver_name VARCHAR(100),
     invite_type VARCHAR(30) NOT NULL,      -- 'patient_to_caregiver' | 'caregiver_to_patient'
     relationship_code VARCHAR(30) REFERENCES relationships(relationship_code),
+    inverse_relationship_code VARCHAR(30) REFERENCES relationships(relationship_code),  -- v2.13: Receiver mô tả Sender
     initial_permissions JSONB,              -- Generated by service layer from connection_permission_types
     status SMALLINT DEFAULT 0,              -- 0=pending, 1=accepted, 2=rejected, 3=cancelled
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
@@ -87,6 +160,8 @@ CREATE TRIGGER trigger_invites_updated_at
 COMMENT ON TABLE connection_invites IS 'Connection invite tracking for KOLIA-1517';
 COMMENT ON COLUMN connection_invites.status IS '0:pending, 1:accepted, 2:rejected, 3:cancelled';
 COMMENT ON COLUMN connection_invites.invite_type IS 'patient_to_caregiver or caregiver_to_patient';
+COMMENT ON COLUMN connection_invites.relationship_code IS 'v2.13: Sender mô tả Receiver là [X]';
+COMMENT ON COLUMN connection_invites.inverse_relationship_code IS 'v2.13: Receiver mô tả Sender là [X]';
 
 -- ============================================================================
 -- EXTEND: user_emergency_contacts (ADD COLUMNS)
@@ -109,6 +184,12 @@ ADD COLUMN IF NOT EXISTS invite_id UUID REFERENCES connection_invites(invite_id)
 -- NEW v2.7: is_viewing column for profile selection (BR-026)
 ALTER TABLE user_emergency_contacts 
 ADD COLUMN IF NOT EXISTS is_viewing BOOLEAN DEFAULT FALSE;
+
+-- NEW v2.13: inverse_relationship_code for bidirectional awareness
+-- relationship_code = Patient (user_id) mô tả Caregiver (linked_user_id)
+-- inverse_relationship_code = Caregiver (linked_user_id) mô tả Patient (user_id)
+ALTER TABLE user_emergency_contacts 
+ADD COLUMN IF NOT EXISTS inverse_relationship_code VARCHAR(30) REFERENCES relationships(relationship_code);
 
 -- Add constraint for contact_type
 DO $$ BEGIN
@@ -184,6 +265,8 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_unique_caregiver_connection
 COMMENT ON COLUMN user_emergency_contacts.linked_user_id IS 'App user ID if caregiver has account';
 COMMENT ON COLUMN user_emergency_contacts.contact_type IS 'emergency (SOS), caregiver (connection), both';
 COMMENT ON COLUMN user_emergency_contacts.is_viewing IS 'Currently viewing this patient (only one per user)';
+COMMENT ON COLUMN user_emergency_contacts.relationship_code IS 'v2.13: Patient (user_id) mô tả Caregiver (linked_user_id) là [X]';
+COMMENT ON COLUMN user_emergency_contacts.inverse_relationship_code IS 'v2.13: Caregiver (linked_user_id) mô tả Patient (user_id) là [X]';
 
 -- ============================================================================
 -- CONSTRAINT: Only ONE is_viewing=true per user (BR-026)
@@ -374,10 +457,12 @@ BEGIN
     );
     
     IF table_count = 6 THEN
-        RAISE NOTICE '✅ Connection Flow Migration v2.12 completed successfully.';
-        RAISE NOTICE '   Tables: relationships, connection_permission_types, connection_invites, connection_permissions, invite_notifications, caregiver_report_views';
-        RAISE NOTICE '   Extended: user_emergency_contacts (+5 columns incl. is_viewing)';
+        RAISE NOTICE '✅ Connection Flow Migration v2.21 completed successfully.';
+        RAISE NOTICE '   Tables: relationships, relationship_inverse_mapping, connection_permission_types, connection_invites, connection_permissions, invite_notifications, caregiver_report_views';
+        RAISE NOTICE '   Extended: user_emergency_contacts (+6 columns incl. is_viewing, inverse_relationship_code)';
         RAISE NOTICE '   v2.12: invite_notifications +notification_type, +cancelled_at, +idempotency constraint';
+        RAISE NOTICE '   v2.13: +inverse_relationship_code for bidirectional relationship awareness';
+        RAISE NOTICE '   v2.21: +relationship_inverse_mapping for gender-based inverse derivation';
     ELSE
         RAISE WARNING '⚠️ Migration incomplete. Only % of 6 new tables found.', table_count;
     END IF;
@@ -393,11 +478,15 @@ DROP TABLE IF EXISTS caregiver_report_views;
 DROP TABLE IF EXISTS invite_notifications;
 DROP TABLE IF EXISTS connection_permissions;
 DROP TABLE IF EXISTS connection_permission_types;
+ALTER TABLE user_emergency_contacts DROP COLUMN IF EXISTS inverse_relationship_code;  -- v2.13
 ALTER TABLE user_emergency_contacts DROP COLUMN IF EXISTS is_viewing;
 ALTER TABLE user_emergency_contacts DROP COLUMN IF EXISTS invite_id;
 ALTER TABLE user_emergency_contacts DROP COLUMN IF EXISTS relationship_code;
 ALTER TABLE user_emergency_contacts DROP COLUMN IF EXISTS contact_type;
 ALTER TABLE user_emergency_contacts DROP COLUMN IF EXISTS linked_user_id;
+ALTER TABLE connection_invites DROP COLUMN IF EXISTS inverse_relationship_code;  -- v2.13
 DROP TABLE IF EXISTS connection_invites;
+DROP TABLE IF EXISTS relationship_inverse_mapping;  -- v2.21
 DROP TABLE IF EXISTS relationships;
 */
+

@@ -1,11 +1,11 @@
 # Implementation Plan: KOLIA-1517 - Kết nối Người thân
 
-> **SRS Version:** v3.0 + Update Pending Invite Permissions  
-> **Date:** 2026-02-02  
+> **SRS Version:** v3.0 + Update Pending Invite Permissions + Inverse Relationship  
+> **Date:** 2026-02-04  
 > **Feasibility Score:** **88/100** ✅ FEASIBLE (improved from 84)  
 > **Impact Level:** 🟢 **LOW** (reduced from MEDIUM)  
 > **Estimated Duration:** 4 weeks (3 phases)  
-> **Schema:** v2.12 (notification_type, cancel flow, idempotency)
+> **Schema:** v2.13 (notification_type, cancel flow, idempotency, inverse_relationship_code)
 
 ---
 
@@ -72,12 +72,15 @@ CREATE TABLE IF NOT EXISTS connection_invites (
     receiver_name VARCHAR(100),
     invite_type VARCHAR(30) NOT NULL, -- 'patient_to_caregiver', 'caregiver_to_patient'
     relationship_code VARCHAR(30) REFERENCES relationships(relationship_code),
+    inverse_relationship_code VARCHAR(30) REFERENCES relationships(relationship_code),  -- v2.13
     initial_permissions JSONB DEFAULT '{...}'::jsonb,
     status SMALLINT DEFAULT 0, -- 0:pending, 1:accepted, 2:rejected, 3:cancelled
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT chk_no_self_invite CHECK (sender_id != receiver_id)
 );
+-- relationship_code = Sender mô tả Receiver là [X]
+-- inverse_relationship_code = Receiver mô tả Sender là [X]
 -- Create new constraint với invite_type
 CREATE UNIQUE INDEX idx_unique_pending_invite 
     ON connection_invites (sender_id, receiver_phone, invite_type) 
@@ -86,9 +89,8 @@ CREATE UNIQUE INDEX idx_unique_pending_invite
 
 ---
 
-#### [🔄 EXTEND] user_emergency_contacts
 ```sql
--- Add 4 new columns to existing table
+-- Add columns to existing table (v2.13: +inverse_relationship_code)
 ALTER TABLE user_emergency_contacts 
 ADD COLUMN IF NOT EXISTS linked_user_id UUID REFERENCES users(user_id);
 
@@ -98,6 +100,11 @@ ADD COLUMN IF NOT EXISTS contact_type VARCHAR(20) DEFAULT 'emergency';
 
 ALTER TABLE user_emergency_contacts 
 ADD COLUMN IF NOT EXISTS relationship_code VARCHAR(30) REFERENCES relationships(relationship_code);
+
+ALTER TABLE user_emergency_contacts 
+ADD COLUMN IF NOT EXISTS inverse_relationship_code VARCHAR(30) REFERENCES relationships(relationship_code);  -- v2.13
+-- relationship_code = Patient mô tả Caregiver là [X]
+-- inverse_relationship_code = Caregiver mô tả Patient là [X]
 
 ALTER TABLE user_emergency_contacts 
 ADD COLUMN IF NOT EXISTS invite_id UUID REFERENCES connection_invites(invite_id);
@@ -407,6 +414,7 @@ mvn verify -Pintegration-test -DskipTests=false
 | BR-008 | Accept → Create connection | Transaction in AcceptInvite |
 | BR-017 | Permission OFF → Hide UI | Real-time permission check |
 | BR-018 | Red warning for emergency | Frontend validation |
+| **BR-035** | **Inverse Relationship Code** | **v2.18: Bidirectional awareness** |
 
 ### Default View State Rules (NEW v2.15)
 
