@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Popup Lời nhắn gia đình - Kolia HealthTech</title>
+    <style>
+        :root {
+            --primary: #2E7D5A;
+            --accent: #FF6B6B;
+            --bg-warm: #FFF8F0;
+            --card-bg: #F5F7FA;
+            --text-dark: #2C3E50;
+            --text-body: #4A5568;
+            --text-muted: #9CA3AF;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: linear-gradient(180deg, #B8E6D4 0%, #8ED1B8 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.45);
+            backdrop-filter: blur(10px);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .popup {
+            background: var(--bg-warm);
+            border-radius: 28px;
+            width: 92%;
+            max-width: 380px;
+            max-height: 85vh;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+            animation: popUp 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+            overflow: hidden;
+        }
+
+        @keyframes popUp {
+            from {
+                transform: scale(0.85) translateY(30px);
+                opacity: 0;
+            }
+
+            to {
+                transform: scale(1) translateY(0);
+                opacity: 1;
+            }
+        }
+
+        /* Header */
+        .popup-header {
+            padding: 24px 24px 16px;
+            text-align: center;
+            flex-shrink: 0;
+        }
+
+        .heart-icon {
+            width: 52px;
+            height: 52px;
+            background: linear-gradient(135deg, #FF6B6B 0%, #FF8E8E 100%);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 26px;
+            margin: 0 auto 10px;
+            box-shadow: 0 6px 20px rgba(255, 107, 107, 0.35);
+        }
+
+        .title {
+            font-size: 20px;
+            font-weight: 600;
+            color: var(--accent);
+        }
+
+        /* Message List */
+        .message-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 0 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            max-height: 400px;
+        }
+
+        .message-list::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        .message-list::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .message-list::-webkit-scrollbar-thumb {
+            background: #DDD;
+            border-radius: 2px;
+        }
+
+        /* Message Card */
+        .message-card {
+            background: var(--card-bg);
+            border-radius: 20px;
+            padding: 16px;
+            display: flex;
+            gap: 14px;
+            align-items: flex-start;
+        }
+
+        .avatar {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            overflow: hidden;
+            flex-shrink: 0;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .message-content {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .sender-row {
+            display: flex;
+            align-items: baseline;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+
+        .sender-name {
+            font-size: 16px;
+            font-weight: 700;
+            color: var(--text-dark);
+        }
+
+        .message-time {
+            font-size: 13px;
+            color: var(--text-muted);
+        }
+
+        .message-text {
+            font-size: 16px;
+            line-height: 1.5;
+            color: var(--text-body);
+        }
+
+        /* Footer */
+        .popup-footer {
+            padding: 16px 16px 24px;
+            flex-shrink: 0;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 16px;
+            font-size: 18px;
+            font-weight: 700;
+            color: white;
+            background: linear-gradient(135deg, var(--primary) 0%, #3D9970 100%);
+            border: none;
+            border-radius: 14px;
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: 0 5px 18px rgba(46, 125, 90, 0.35);
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(46, 125, 90, 0.4);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="overlay" id="overlay">
+        <div class="popup">
+            <!-- Header -->
+            <div class="popup-header">
+                <div class="heart-icon">💌</div>
+                <div class="title">Lời nhắn từ gia đình</div>
+            </div>
+
+            <!-- Message List -->
+            <div class="message-list">
+                <!-- Card 1 -->
+                <div class="message-card">
+                    <div class="avatar">
+                        <img src="https://i.pravatar.cc/150?img=47" alt="Con gái Lan">
+                    </div>
+                    <div class="message-content">
+                        <div class="sender-row">
+                            <span class="sender-name">Con gái Lan</span>
+                            <span class="message-time">5 phút trước</span>
+                        </div>
+                        <p class="message-text">"Bố ơi nhớ tập thể dục đều đặn nhé! Con yêu bố nhiều lắm! 💪❤️"</p>
+                    </div>
+                </div>
+
+                <!-- Card 2 -->
+                <div class="message-card">
+                    <div class="avatar">
+                        <img src="https://i.pravatar.cc/150?img=47" alt="Con gái Lan">
+                    </div>
+                    <div class="message-content">
+                        <div class="sender-row">
+                            <span class="sender-name">Con gái Lan</span>
+                            <span class="message-time">2 phút trước</span>
+                        </div>
+                        <p class="message-text">"Bố nhớ uống thuốc đúng giờ nha! Chiều con gọi điện cho bố! 📞"</p>
+                    </div>
+                </div>
+
+                <!-- Card 3 -->
+                <div class="message-card">
+                    <div class="avatar">
+                        <img src="https://i.pravatar.cc/150?img=12" alt="Cháu nội Minh">
+                    </div>
+                    <div class="message-content">
+                        <div class="sender-row">
+                            <span class="sender-name">Cháu nội Minh</span>
+                            <span class="message-time">30 phút trước</span>
+                        </div>
+                        <p class="message-text">"Ông ơi, cả nhà yêu ông nhiều lắm ạ! Cuối tuần con về thăm ông nhé! 🏠"
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Footer -->
+            <div class="popup-footer">
+                <button class="btn" id="btnDone">Đóng</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('btnDone').addEventListener('click', function () {
+            document.getElementById('overlay').style.display = 'none';
+        });
+    </script>
+
+</body>
+
+</html>
