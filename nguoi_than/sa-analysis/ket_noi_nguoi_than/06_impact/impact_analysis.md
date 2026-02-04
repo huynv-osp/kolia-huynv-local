@@ -1,8 +1,8 @@
-# Impact Analysis: KOLIA-1517 (REVISED v2.13)
+# Impact Analysis: KOLIA-1517 (REVISED v2.23)
 
 > **Phase:** 6 - Impact Analysis  
-> **Date:** 2026-01-30  
-> **Revision:** v2.13 - Added Patient BP Thresholds to Blood Pressure Chart API
+> **Date:** 2026-02-04  
+> **Revision:** v2.23 - Perspective Display Standard + relationship_inverse_mapping
 > **Impact Level:** 🟢 LOW (reduced from MEDIUM)
 
 ---
@@ -11,7 +11,7 @@
 
 | Factor | Before | After (Optimized) |
 |--------|:------:|:-----------------:|
-| **New Tables** | 4 | **5 + 1 ALTER** |
+| **New Tables** | 4 | **6 + 1 ALTER** |
 | **Schema Reuse** | None | `user_emergency_contacts` |
 | **Code Duplication** | Yes | Minimized |
 | **Impact Level** | 🟡 MEDIUM | 🟢 **LOW** |
@@ -25,9 +25,10 @@
 | Table | Status | Purpose |
 |-------|:------:|---------|
 | relationships | ✅ NEW | Lookup (17 types) |
+| **relationship_inverse_mapping** | ✅ **v2.21** | **Gender-based inverse derivation** |
 | connection_permission_types | ✅ NEW | Permission lookup (6 types) |
-| user_emergency_contacts | 🔄 EXTEND | Add 4 columns |
-| connection_invites | ✅ NEW | Invite tracking |
+| user_emergency_contacts | 🔄 EXTEND | Add **7 columns** (incl. is_viewing, inverse_relationship_code) |
+| connection_invites | ✅ NEW | Invite tracking (+ inverse_relationship_code) |
 | connection_permissions | ✅ NEW | RBAC (FK to permission_types) |
 | invite_notifications | ✅ NEW | Delivery tracking |
 

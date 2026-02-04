@@ -1,9 +1,9 @@
 # Feature Specification: KOLIA-1517 - Kết nối Người thân
 
-> **Version:** 2.18  
+> **Version:** 2.23  
 > **Date:** 2026-02-04  
 > **Status:** Ready for Implementation  
-> **Schema:** v2.13 Database + Inverse Relationship Awareness
+> **Schema:** v2.23 Database + Inverse Relationship Awareness + Perspective Display Standard
 
 ---
 
@@ -23,12 +23,12 @@
 
 ## 2. Metrics (v2.15)
 
-| Metric | v1.0 | v2.16 (Current) |
+| Metric | v1.0 | v2.23 (Current) |
 |--------|:----:|:----------------:|
 | **Feasibility** | 84/100 | **88/100** ✅ |
 | **Impact** | 🟡 MEDIUM | 🟢 **LOW** |
 | **Services** | 3 | 3 |
-| **New Tables** | 4 | **6 NEW + 1 ALTER** |
+| **New Tables** | 4 | **7 NEW + 1 ALTER** |
 | **Endpoints** | 8 REST, 9 gRPC | **18 REST, 17 gRPC** |
 | **Tasks** | 29 | **45** |
 | **Effort** | 67h | **92h** |
@@ -101,9 +101,10 @@
 | Table | Status | Purpose |
 |-------|:------:|---------|
 | `relationships` | ✅ NEW | Lookup (17 types) |
+| **`relationship_inverse_mapping`** | ✅ **v2.21** | **Gender-based inverse derivation** |
 | `connection_permission_types` | ✅ NEW | Permission lookup (6 types) |
 | `connection_invites` | ✅ NEW | Invite records (status 0-3) |
-| `user_emergency_contacts` | 🔄 EXTEND | +6 columns for caregiver (incl. is_viewing, inverse_relationship_code) |
+| `user_emergency_contacts` | 🔄 EXTEND | +7 columns for caregiver (incl. is_viewing, inverse_relationship_code) |
 | `connection_permissions` | ✅ NEW | RBAC flags (FK to permission_types) |
 | `invite_notifications` | 🔄 **v2.12** | +notification_type, +cancelled status (4), +idempotency |
 | **`caregiver_report_views`** | ✅ **NEW** | Report read tracking |
@@ -111,7 +112,9 @@
 > `user_connections` from v1.0 merged into `user_emergency_contacts`  
 > `is_viewing` column added in v2.7 for profile selection  
 > **v2.12:** `invite_notifications` enhanced for cancel flow support  
-> **v2.13:** `inverse_relationship_code` added for bidirectional relationship awareness
+> **v2.13:** `inverse_relationship_code` added for bidirectional relationship awareness  
+> **v2.21:** `relationship_inverse_mapping` for gender-based inverse derivation  
+> **v2.23:** `inverse_relationship_display` for UI perspective display
 
 ---
 
@@ -141,6 +144,7 @@
 | **SEC-DB-*** | 3 Security rules |
 | **BR-031 to BR-034** | **Update Pending Invite Permissions rules (NEW v2.16)** |
 | **BR-035** | **Inverse Relationship Code: Bidirectional awareness (NEW v2.18)** |
+| **BR-036** | **Perspective Display Standard: inverse_relationship_display (NEW v2.23)** |
 | **UX-DVS-*** | **5 Default View State rules (NEW v2.15)** |
 
 ### Default View State Rules (UX-DVS-*) - NEW v2.15
@@ -185,6 +189,7 @@
 ## References
 
 - [SRS v3.0](file:///Users/nguyenvanhuy/Desktop/OSP/Kolia/dev/kolia/docs/nguoi_than/srs_input_documents/srs_nguoi_than_v3.md)
-- [SA Analysis v2.16](file:///Users/nguyenvanhuy/Desktop/OSP/Kolia/dev/kolia/docs/nguoi_than/sa-analysis/ket_noi_nguoi_than/v2.16_update_pending_invite_permissions.md)
+- [SA Analysis v2.23](file:///Users/nguyenvanhuy/Desktop/OSP/Kolia/dev/kolia/docs/nguoi_than/sa-analysis/ket_noi_nguoi_than/08_report/complete_analysis.md)
+- [v2.23 Perspective Display Standard](file:///Users/nguyenvanhuy/Desktop/OSP/Kolia/dev/kolia/docs/nguoi_than/sa-analysis/ket_noi_nguoi_than/v2.23_perspective_display_standard.md)
 - [Implementation Plan](file:///Users/nguyenvanhuy/Desktop/OSP/Kolia/dev/kolia/docs/nguoi_than/features/ket_noi_nguoi_than/04_output/implementation-plan.md)
 - [Tasks](file:///Users/nguyenvanhuy/Desktop/OSP/Kolia/dev/kolia/docs/nguoi_than/features/ket_noi_nguoi_than/02_planning/implementation-tasks.md)

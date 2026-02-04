@@ -2,7 +2,7 @@
 
 > **Phase:** 4 - Architecture Mapping & Analysis  
 > **Date:** 2026-02-04  
-> **Revision:** v2.13 - invite_notifications enhanced + inverse_relationship_code for bidirectional awareness
+> **Revision:** v2.23 - Added relationship_inverse_mapping table (v2.21) + perspective display standard (BR-036)
 
 ---
 
@@ -65,6 +65,37 @@ INSERT INTO relationships VALUES
 ('chong', 'Chồng', 'Husband', 'spouse', 16, true),
 ('khac', 'Khác', 'Other', 'other', 99, true);
 ```
+
+### 3.1.1 relationship_inverse_mapping (NEW v2.21)
+
+> **Purpose:** Gender-based inverse relationship derivation lookup
+
+```sql
+CREATE TABLE IF NOT EXISTS relationship_inverse_mapping (
+    relationship_code VARCHAR(30) NOT NULL REFERENCES relationships(relationship_code),
+    target_gender SMALLINT NOT NULL,  -- 0: Nam, 1: Nữ (gender of the OTHER party)
+    inverse_code VARCHAR(30) NOT NULL REFERENCES relationships(relationship_code),
+    PRIMARY KEY (relationship_code, target_gender)
+);
+
+-- Seed data examples:
+INSERT INTO relationship_inverse_mapping VALUES
+('con_trai', 0, 'bo'),       -- Receiver (con trai) → Sender là Nam = Bố
+('con_trai', 1, 'me'),       -- Receiver (con trai) → Sender là Nữ = Mẹ
+('chau_trai', 0, 'ong_noi'), -- Receiver (cháu trai) → Sender là Nam = Ông nội
+('chau_trai', 1, 'ba_noi'),  -- Receiver (cháu trai) → Sender là Nữ = Bà nội
+-- ... (full 34 mappings in migration file)
+ON CONFLICT DO NOTHING;
+
+COMMENT ON TABLE relationship_inverse_mapping IS 'v2.21: Gender-based inverse relationship derivation lookup';
+COMMENT ON COLUMN relationship_inverse_mapping.target_gender IS '0: Nam, 1: Nữ - giới tính của bên còn lại';
+```
+
+> **Use Case:** Derive `inverse_relationship_code` at invite creation time:
+> ```sql
+> SELECT inverse_code FROM relationship_inverse_mapping 
+> WHERE relationship_code = 'chau_trai' AND target_gender = 0; -- Returns 'ong_noi'
+> ```
 
 ### 3.2 Extend user_emergency_contacts
 
@@ -320,6 +351,7 @@ AND NOT EXISTS (
 | Table | Status | Columns | Indexes |
 |-------|:------:|:-------:|:-------:|
 | relationships | NEW | 6 | 0 |
+| **relationship_inverse_mapping** | **NEW v2.21** | **3** | **1** |
 | connection_invites | NEW | **12** | 5 |
 | user_emergency_contacts | EXTEND | **+6** | +3 |
 | connection_permissions | NEW | 5 | 1 |
@@ -327,4 +359,6 @@ AND NOT EXISTS (
 | **caregiver_report_views** | **NEW** | **4** | **3** |
 
 > **v2.12:** invite_notifications enhanced with notification_type, cancelled_at, idempotency  
-> **v2.13:** inverse_relationship_code added to connection_invites and user_emergency_contacts for bidirectional awareness
+> **v2.13:** inverse_relationship_code added to connection_invites and user_emergency_contacts  
+> **v2.21:** relationship_inverse_mapping table for gender-based inverse derivation  
+> **v2.23:** inverse_relationship_display field for UI perspective display (see api_mapping.md)

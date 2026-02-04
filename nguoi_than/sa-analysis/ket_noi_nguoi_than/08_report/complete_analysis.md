@@ -1,8 +1,8 @@
-# Complete Analysis: KOLIA-1517 (REVISED v2.19)
+# Complete Analysis: KOLIA-1517 (REVISED v2.23)
 
 > **SA Analysis Report**  
 > **Date:** 2026-02-04  
-> **Revision:** v2.19 - Added inverse_relationship_code/name to API responses (BR-035)
+> **Revision:** v2.23 - Perspective display standard + relationship_inverse_mapping table
 
 ---
 
@@ -12,7 +12,7 @@
 |--------|-------|
 | **Feasibility** | 88/100 ✅ (improved) |
 | **Impact** | 🟢 LOW (reduced from MEDIUM) |
-| **Tables** | 5 NEW + 1 ALTER |
+| **Tables** | 6 NEW + 1 ALTER |
 | **Effort** | 68 hours (updated) |
 
 ---
@@ -87,10 +87,11 @@
 | Table | Status | Columns | Indexes |
 |-------|:------:|:-------:|:-------:|
 | relationships | NEW | 6 | 0 |
+| **relationship_inverse_mapping** | **v2.21** | **3** | **1** |
 | connection_invites | NEW | **12** | 5 |
-| user_emergency_contacts | EXTEND | **+6** | +2 |
+| user_emergency_contacts | EXTEND | **+7** | +3 |
 | connection_permissions | NEW | 5 | 1 |
-| invite_notifications | NEW | 10 | 3 |
+| invite_notifications | NEW | 13 | 5 |
 
 ---
 
@@ -109,15 +110,17 @@
 
 | Document | Status |
 |----------|:------:|
-| 02_context/database_entities.md | ✅ v2.0 |
+| 02_context/database_entities.md | ✅ v2.23 |
 | 03_extraction/functional_requirements.md | ✅ v2.11 (UX-DVS-*) |
-| 04_mapping/database_mapping.md | ✅ v2.13 |
-| 04_mapping/api_mapping.md | ✅ v2.19 |
-| 06_impact/impact_analysis.md | ✅ v2.13 |
+| 04_mapping/database_mapping.md | ✅ v2.23 |
+| 04_mapping/api_mapping.md | ✅ v2.23 |
+| 04_mapping/service_mapping.md | ✅ v2.23 |
+| 06_impact/impact_analysis.md | ✅ v2.23 |
 | v2.14_mark_report_read_api.md | ✅ v2.14 |
 | v2.15_default_view_state.md | ✅ v2.15 |
-| **v2.18_inverse_relationship.md** | ✅ **v2.18** |
-| 08_report/complete_analysis.md | ✅ v2.19 |
+| v2.18_inverse_relationship.md | ✅ v2.18 |
+| **v2.23_perspective_display_standard.md** | ✅ **v2.23** |
+| 08_report/complete_analysis.md | ✅ v2.23 |
 | features/.../database-changes.sql | ✅ v2.13 |
 
 ---

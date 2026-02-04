@@ -2,7 +2,7 @@
 
 > **Phase:** 4 - Architecture Mapping & Analysis  
 > **Date:** 2026-02-04  
-> **Revision:** v2.19 - Added inverse_relationship_code/name to API responses (BR-035)
+> **Revision:** v2.23 - Added inverse_relationship_display for perspective display (BR-036)
 
 ---
 
@@ -558,15 +558,19 @@
     "patient_id": "uuid",
     "patient_name": "Nguyễn Thị Cúc",
     "patient_avatar": "...",
+    "patient_phone": "0912345678",
     "relationship_code": "me",
     "relationship_name": "Mẹ",
     "relationship_display": "Mẹ (Nguyễn Thị Cúc)",
     "inverse_relationship_code": "con_trai",
     "inverse_relationship_name": "Con trai",
+    "inverse_relationship_display": "Con trai (Caregiver Name)",
     "last_active": "2026-01-29T14:30:00Z"
   }
 }
 ```
+
+> **v2.23 Note:** `inverse_relationship_display` = perspectiv của Patient (Patient gọi Caregiver). Dùng cho UI khi Caregiver xem thông tin Patient.
 
 **Response (200 - No Selection):**
 ```json
@@ -597,7 +601,9 @@
     "patient_id": "uuid",
     "patient_name": "Nguyễn Thị Cúc",
     "patient_avatar": "...",
+    "patient_phone": "0912345678",
     "relationship_display": "Mẹ (Nguyễn Thị Cúc)",
+    "inverse_relationship_display": "Con trai (Caregiver Name)",
     "last_active": "2026-01-29T14:30:00Z"
   },
   "updated_at": "2026-01-29T15:00:00Z"

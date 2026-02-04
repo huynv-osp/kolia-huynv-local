@@ -2,7 +2,7 @@
 
 > **Phase:** 4 - Architecture Mapping & Analysis  
 > **Date:** 2026-02-04  
-> **Revision:** v2.13 - Added inverse_relationship_code for bidirectional awareness
+> **Revision:** v2.23 - Added inverse_relationship_display for perspective display (BR-036)
 > **Applies Rule:** SA-002 (Service-Level Impact Detailing)
 
 ---

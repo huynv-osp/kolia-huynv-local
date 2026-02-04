@@ -1,8 +1,8 @@
 # Database Entities: Connection Flow (REVISED)
 
 > **Phase:** 2 - ALIO Architecture Context Loading  
-> **Date:** 2026-01-28  
-> **Revision:** v2.0 - Schema optimized
+> **Date:** 2026-02-04  
+> **Revision:** v2.23 - Schema optimized + inverse relationship + is_viewing
 
 ---
 
@@ -12,17 +12,21 @@
 ┌─────────────────────┐
 │    relationships    │ ← Lookup table (17 types)
 └────────┬────────────┘
+         │ FK                    ┌───────────────────────────┐
+┌────────▼────────────┐          │ relationship_inverse_     │
+│ connection_invites  │          │ mapping (v2.21)           │
+│ (invite tracking)   │          │ Gender-based derivation   │
+└────────┬────────────┘          └───────────────────────────┘
          │ FK
 ┌────────▼────────────┐     ┌─────────────────────┐
-│ user_emergency_     │◄────│  connection_invites │
-│ contacts (EXTENDED) │     │  (invite tracking)  │
-└────────┬────────────┘     └──────────┬──────────┘
-         │ FK                          │ FK
-┌────────▼────────────┐     ┌──────────▼──────────┐
-│ connection_         │     │ invite_notifications │
-│ permissions (RBAC)  │     │ (delivery tracking)  │
-└────────────────────┘     └─────────────────────┘
-```
+│ user_emergency_     │◄────│  invite_notifications│
+│ contacts (EXTENDED) │     │  (delivery tracking) │
+└────────┬────────────┘     └─────────────────────┘
+         │ FK                          
+┌────────▼────────────┐     
+│ connection_         │     
+│ permissions (RBAC)  │     
+└────────────────────┘
 
 ---
 
@@ -43,6 +47,22 @@
 
 ---
 
+### 2.1.1 relationship_inverse_mapping (NEW v2.21)
+
+> **Purpose:** Gender-based inverse relationship derivation
+
+| Column | Type | Description |
+|--------|------|-------------|
+| relationship_code | VARCHAR(30) PK,FK | Original relationship |
+| target_gender | SMALLINT PK | 0: Nam, 1: Nữ (gender of other party) |
+| inverse_code | VARCHAR(30) FK | Derived inverse code |
+
+**Example Data:**
+- `('chau_trai', 0, 'ong_noi')` → Cháu trai's sender (Nam) = Ông nội
+- `('chau_trai', 1, 'ba_noi')` → Cháu trai's sender (Nữ) = Bà nội
+
+---
+
 ### 2.2 user_emergency_contacts (EXTEND existing)
 
 **Existing columns** (SOS - unchanged):
@@ -54,7 +74,9 @@
 |--------|------|-------------|
 | linked_user_id | UUID FK → users | App user ID (nullable) |
 | contact_type | VARCHAR(20) | 'emergency', 'caregiver', 'both', 'disconnected' |
-| relationship_code | VARCHAR(30) FK | Normalized relationship |
+| relationship_code | VARCHAR(30) FK | Patient mô tả Caregiver |
+| **inverse_relationship_code** | VARCHAR(30) FK | Caregiver mô tả Patient **(v2.13)** |
+| **is_viewing** | BOOLEAN | Đánh dấu Patient đang được xem **(v2.7)** |
 | invite_id | UUID FK | Created from which invite |
 
 ---
@@ -69,7 +91,8 @@
 | receiver_id | UUID FK → users | If existing user (nullable) |
 | receiver_name | VARCHAR(100) | Display name |
 | invite_type | VARCHAR(30) | patient_to_caregiver / caregiver_to_patient |
-| relationship_code | VARCHAR(30) FK | Relationship type |
+| relationship_code | VARCHAR(30) FK | Sender mô tả Receiver |
+| **inverse_relationship_code** | VARCHAR(30) FK | Receiver mô tả Sender **(v2.13)** |
 | initial_permissions | JSONB | 6 permissions at invite time |
 | status | SMALLINT | 0:pending, 1:accepted, 2:rejected, 3:cancelled |
 | created_at | TIMESTAMPTZ | Created time |

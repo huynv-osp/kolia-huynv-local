@@ -1,10 +1,12 @@
 -- ============================================================================
--- CONNECTION FLOW FEATURE - DATABASE MIGRATION (REVISED v2.13)
--- Version: 2.13
+-- CONNECTION FLOW FEATURE - DATABASE MIGRATION (REVISED v2.23)
+-- Version: 2.23
 -- Date: 2026-02-04
 -- Purpose: Schema optimized + permission_types + is_viewing + caregiver_report_views
 --          + invite_notifications enhanced (notification_type, cancelled status, idempotency)
 --          + inverse_relationship_code for bidirectional relationship awareness (v2.13)
+--          + relationship_inverse_mapping for gender-based inverse derivation (v2.21)
+--          + inverse_relationship_display for UI perspective display (v2.23)
 -- ============================================================================
 
 -- ============================================================================
@@ -44,6 +46,61 @@ INSERT INTO relationships (relationship_code, name_vi, name_en, category, displa
 ON CONFLICT DO NOTHING;
 
 COMMENT ON TABLE relationships IS 'Lookup table for relationship types (SOS + Caregiver)';
+
+-- ============================================================================
+-- TABLE 1.1: relationship_inverse_mapping (v2.21 - Gender-based Inverse)
+-- Purpose: Derive inverse_relationship_code based on gender
+-- Owner: user-service
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS relationship_inverse_mapping (
+    relationship_code VARCHAR(30) NOT NULL REFERENCES relationships(relationship_code),
+    target_gender SMALLINT NOT NULL,  -- 0: Nam, 1: Nữ
+    inverse_code VARCHAR(30) NOT NULL REFERENCES relationships(relationship_code),
+    PRIMARY KEY (relationship_code, target_gender)
+);
+
+-- Seed data: 34 mappings (17 relationships × 2 genders)
+INSERT INTO relationship_inverse_mapping (relationship_code, target_gender, inverse_code) VALUES
+('con_trai', 0, 'bo'),
+('con_trai', 1, 'me'),
+('con_gai', 0, 'bo'),
+('con_gai', 1, 'me'),
+('chau_trai', 0, 'ong_noi'),
+('chau_trai', 1, 'ba_noi'),
+('chau_gai', 0, 'ong_noi'),
+('chau_gai', 1, 'ba_noi'),
+('bo', 0, 'con_trai'),
+('bo', 1, 'con_gai'),
+('me', 0, 'con_trai'),
+('me', 1, 'con_gai'),
+('ong_noi', 0, 'chau_trai'),
+('ong_noi', 1, 'chau_gai'),
+('ba_noi', 0, 'chau_trai'),
+('ba_noi', 1, 'chau_gai'),
+('ong_ngoai', 0, 'chau_trai'),
+('ong_ngoai', 1, 'chau_gai'),
+('ba_ngoai', 0, 'chau_trai'),
+('ba_ngoai', 1, 'chau_gai'),
+('anh_trai', 0, 'em_trai'),
+('anh_trai', 1, 'em_gai'),
+('chi_gai', 0, 'em_trai'),
+('chi_gai', 1, 'em_gai'),
+('em_trai', 0, 'anh_trai'),
+('em_trai', 1, 'chi_gai'),
+('em_gai', 0, 'anh_trai'),
+('em_gai', 1, 'chi_gai'),
+('vo', 0, 'chong'),
+('vo', 1, 'vo'),
+('chong', 0, 'chong'),
+('chong', 1, 'vo'),
+('khac', 0, 'khac'),
+('khac', 1, 'khac')
+ON CONFLICT DO NOTHING;
+
+COMMENT ON TABLE relationship_inverse_mapping IS 'Gender-based inverse relationship derivation (v2.21)';
+COMMENT ON COLUMN relationship_inverse_mapping.target_gender IS '0: Nam, 1: Nữ (gender of sender)';
+COMMENT ON COLUMN relationship_inverse_mapping.inverse_code IS 'The derived inverse relationship code';
 
 -- ============================================================================
 -- TABLE 2: connection_invites
@@ -378,6 +435,7 @@ BEGIN
     WHERE table_schema = 'public' 
     AND table_name IN (
         'relationships',
+        'relationship_inverse_mapping',
         'connection_permission_types',
         'connection_invites',
         'connection_permissions',
@@ -385,14 +443,16 @@ BEGIN
         'caregiver_report_views'
     );
     
-    IF table_count = 6 THEN
-        RAISE NOTICE '✅ Connection Flow Migration v2.13 completed successfully.';
-        RAISE NOTICE '   Tables: relationships, connection_permission_types, connection_invites, connection_permissions, invite_notifications, caregiver_report_views';
-        RAISE NOTICE '   Extended: user_emergency_contacts (+6 columns incl. is_viewing, inverse_relationship_code)';
+    IF table_count = 7 THEN
+        RAISE NOTICE '✅ Connection Flow Migration v2.23 completed successfully.';
+        RAISE NOTICE '   Tables: relationships, relationship_inverse_mapping, connection_permission_types, connection_invites, connection_permissions, invite_notifications, caregiver_report_views';
+        RAISE NOTICE '   Extended: user_emergency_contacts (+7 columns incl. is_viewing, inverse_relationship_code)';
         RAISE NOTICE '   v2.12: invite_notifications +notification_type, +cancelled_at, +idempotency constraint';
         RAISE NOTICE '   v2.13: +inverse_relationship_code for bidirectional relationship awareness';
+        RAISE NOTICE '   v2.21: +relationship_inverse_mapping for gender-based inverse derivation';
+        RAISE NOTICE '   v2.23: perspective display standard with inverse_relationship_display';
     ELSE
-        RAISE WARNING '⚠️ Migration incomplete. Only % of 6 new tables found.', table_count;
+        RAISE WARNING '⚠️ Migration incomplete. Only % of 7 new tables found.', table_count;
     END IF;
 END $$;
 
