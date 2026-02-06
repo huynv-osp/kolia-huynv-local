@@ -1,0 +1,1740 @@
+<!DOCTYPE html>
+<!--
+    PROTOTYPE: US 1.2 - Xem Kết Quả Tuân Thủ (Caregiver Compliance View)
+    
+    VERSION: v2.2 (Aligned with SRS v2.2)
+    DATE: 2026-02-04
+    AUTHOR: UX Designer (Sally)
+    
+    SCREENS INCLUDED:
+    - SCR-CG-DASH: Dashboard với 3 khối VIEW (HA, Thuốc, Tái khám)
+    - SCR-CG-HA-LIST: Danh sách kết quả đo HA
+    - SCR-CG-HA-DETAIL: Chi tiết 1 lần đo HA
+    - SCR-CG-MED-SCHEDULE: Lịch uống thuốc
+    - SCR-CG-CHECKUP-LIST: Lịch khám sức khỏe
+    - SCR-CG-CHECKUP-DETAIL: Chi tiết lịch khám
+    
+    DESIGN DECISIONS:
+    - 3 khối VIEW (no SETUP block - US 2.1 scope)
+    - Context Header ở drill-down screens (không ở Dashboard)
+    - {Danh xưng} → {Mối quan hệ} override pattern
+    - Textlink "Xem lịch sử →" ở mỗi block
+    
+    PENDING:
+    - Action buttons cho US 2.2 sẽ được thêm sau
+-->
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>US 1.2 | Xem Kết Quả Tuân Thủ</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #2BB89A;
+            --primary-dark: #239B82;
+            --primary-light: #E8F8F4;
+            --primary-gradient: linear-gradient(135deg, #2BB89A, #1A9F82);
+            --danger: #E53935;
+            --danger-light: #FFEBEE;
+            --warning: #FF9800;
+            --warning-light: #FFF8E1;
+            --success: #00A86B;
+            --success-light: #E8F5E9;
+            --text-primary: #2D3748;
+            --text-secondary: #718096;
+            --text-muted: #A0AEC0;
+            --bg-white: #FFFFFF;
+            --bg-gray: #F7FAFC;
+            --border: #E2E8F0;
+            --shadow: 0 4px 15px rgba(43, 184, 154, 0.12);
+            --shadow-lg: 0 8px 25px rgba(43, 184, 154, 0.18);
+            --radius: 16px;
+            --radius-lg: 24px;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(180deg, #E8F8F4 0%, #F7FAFC 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .phone-frame {
+            width: 375px;
+            min-height: 700px;
+            background: var(--bg-white);
+            border-radius: 32px;
+            box-shadow: var(--shadow-lg);
+            overflow: hidden;
+            position: relative;
+        }
+
+        .screen {
+            display: none;
+            flex-direction: column;
+            height: 100%;
+        }
+
+        .screen.active {
+            display: flex;
+        }
+
+        /* ===== Header ===== */
+        .header {
+            background: var(--primary-gradient);
+            color: white;
+            padding: 20px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            position: relative;
+        }
+
+        .header::after {
+            content: '';
+            position: absolute;
+            bottom: -20px;
+            left: 0;
+            right: 0;
+            height: 40px;
+            background: inherit;
+            border-radius: 0 0 24px 24px;
+            z-index: 0;
+        }
+
+        .header-back {
+            font-size: 20px;
+            cursor: pointer;
+            z-index: 1;
+        }
+
+        .header-title {
+            font-size: 18px;
+            font-weight: 700;
+            flex: 1;
+            z-index: 1;
+        }
+
+        /* ===== Content ===== */
+        .content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
+            padding-top: 24px;
+            background: var(--bg-gray);
+        }
+
+        /* ===== Profile Selector ===== */
+        .profile-selector {
+            background: var(--primary-gradient);
+            color: white;
+            padding: 16px 20px;
+            border-radius: var(--radius-lg);
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            box-shadow: var(--shadow-lg);
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .profile-selector:hover {
+            transform: scale(1.02);
+        }
+
+        .profile-avatar {
+            width: 52px;
+            height: 52px;
+            background: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 26px;
+        }
+
+        .profile-info {
+            flex: 1;
+        }
+
+        .profile-name {
+            font-size: 17px;
+            font-weight: 600;
+        }
+
+        .profile-status {
+            font-size: 13px;
+            opacity: 0.9;
+            margin-top: 3px;
+        }
+
+        .profile-chevron {
+            font-size: 16px;
+            opacity: 0.8;
+        }
+
+        /* ===== Compliance Blocks ===== */
+        .compliance-block {
+            background: white;
+            border-radius: var(--radius-lg);
+            padding: 16px;
+            margin-bottom: 12px;
+            box-shadow: var(--shadow);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .compliance-block:hover {
+            transform: translateX(4px);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .block-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 12px;
+        }
+
+        .block-title-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .block-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+        }
+
+        .block-icon.ha {
+            background: #FFEBEE;
+        }
+
+        .block-icon.med {
+            background: #E3F2FD;
+        }
+
+        .block-icon.checkup {
+            background: #E8F5E9;
+        }
+
+        .block-icon.gray {
+            background: var(--bg-gray);
+        }
+
+        .block-title {
+            font-size: 15px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .block-arrow {
+            color: var(--text-muted);
+            font-size: 18px;
+        }
+
+        .block-content {
+            padding-left: 50px;
+        }
+
+        .status-tag {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .status-tag.success {
+            background: var(--success-light);
+            color: var(--success);
+        }
+
+        .status-tag.warning {
+            background: var(--warning-light);
+            color: var(--warning);
+        }
+
+        .status-tag.danger {
+            background: var(--danger-light);
+            color: var(--danger);
+        }
+
+        .status-tag.neutral {
+            background: var(--bg-gray);
+            color: var(--text-secondary);
+        }
+
+        .block-value {
+            font-size: 14px;
+            color: var(--text-primary);
+            line-height: 1.5;
+            margin-bottom: 8px;
+        }
+
+        .block-value strong {
+            font-size: 22px;
+            font-weight: 700;
+        }
+
+        .block-insight {
+            font-size: 13px;
+            color: var(--text-secondary);
+            line-height: 1.4;
+            margin-bottom: 10px;
+        }
+
+        .textlink {
+            color: var(--primary);
+            font-size: 13px;
+            font-weight: 500;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .textlink:hover {
+            text-decoration: underline;
+        }
+
+        /* ===== Medication Progress ===== */
+        .med-progress {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+
+        .med-status-chip {
+            padding: 4px 10px;
+            border-radius: 10px;
+            font-size: 11px;
+            font-weight: 500;
+        }
+
+        .med-status-chip.done {
+            background: var(--success-light);
+            color: var(--success);
+        }
+
+        .med-status-chip.missed {
+            background: var(--danger-light);
+            color: var(--danger);
+        }
+
+        .med-status-chip.wrong {
+            background: var(--warning-light);
+            color: var(--warning);
+        }
+
+        .med-status-chip.pending {
+            background: var(--bg-gray);
+            color: var(--text-muted);
+        }
+
+        /* ===== Empty State ===== */
+        .empty-state {
+            text-align: center;
+            padding: 16px;
+        }
+
+        .empty-state .block-icon {
+            width: 48px;
+            height: 48px;
+            margin: 0 auto 12px;
+            background: var(--bg-gray);
+        }
+
+        .empty-message {
+            font-size: 13px;
+            color: var(--text-secondary);
+            line-height: 1.5;
+        }
+
+        /* ===== Context Header (Drill-down) - Enhanced visibility ===== */
+        .context-header {
+            background: linear-gradient(135deg, var(--primary-light) 0%, #D4F1EB 100%);
+            padding: 14px 20px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            border-bottom: 2px solid var(--primary);
+            box-shadow: 0 2px 8px rgba(43, 184, 154, 0.15);
+        }
+
+        .context-avatar {
+            width: 40px;
+            height: 40px;
+            background: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            box-shadow: 0 2px 10px rgba(43, 184, 154, 0.25);
+            border: 2px solid var(--primary);
+        }
+
+        .context-text {
+            font-size: 15px;
+            color: var(--primary-dark);
+            font-weight: 600;
+        }
+
+        /* ===== List Items ===== */
+        .list-item {
+            background: white;
+            border-radius: var(--radius);
+            padding: 14px 16px;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+        }
+
+        .list-item:hover {
+            transform: translateX(4px);
+            box-shadow: var(--shadow);
+        }
+
+        .list-icon {
+            width: 44px;
+            height: 44px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+        }
+
+        .list-icon.normal {
+            background: var(--success-light);
+        }
+
+        .list-icon.high {
+            background: var(--danger-light);
+        }
+
+        .list-icon.low {
+            background: #E3F2FD;
+        }
+
+        .list-icon.med-done {
+            background: var(--success-light);
+        }
+
+        .list-icon.med-missed {
+            background: var(--danger-light);
+        }
+
+        .list-content {
+            flex: 1;
+        }
+
+        .list-title {
+            font-size: 15px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 3px;
+        }
+
+        .list-subtitle {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        .list-meta {
+            text-align: right;
+        }
+
+        .list-time {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        .list-status {
+            font-size: 11px;
+            font-weight: 500;
+            margin-top: 2px;
+        }
+
+        .list-status.success {
+            color: var(--success);
+        }
+
+        .list-status.danger {
+            color: var(--danger);
+        }
+
+        .list-status.warning {
+            color: var(--warning);
+        }
+
+        /* ===== Date Separator ===== */
+        .date-separator {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            padding: 12px 0 8px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .date-separator::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: var(--border);
+        }
+
+        /* ===== Detail Screen ===== */
+        .detail-card {
+            background: white;
+            border-radius: var(--radius-lg);
+            padding: 20px;
+            margin-bottom: 16px;
+            box-shadow: var(--shadow);
+        }
+
+        .detail-header {
+            text-align: center;
+            padding-bottom: 16px;
+            border-bottom: 1px solid var(--border);
+            margin-bottom: 16px;
+        }
+
+        .detail-value-large {
+            font-size: 42px;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        .detail-unit {
+            font-size: 14px;
+            color: var(--text-secondary);
+        }
+
+        .detail-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 12px 0;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .detail-row:last-child {
+            border-bottom: none;
+        }
+
+        .detail-label {
+            font-size: 14px;
+            color: var(--text-secondary);
+        }
+
+        .detail-data {
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--text-primary);
+        }
+
+        /* ===== Checkup List ===== */
+        .tab-bar {
+            display: flex;
+            gap: 0;
+            background: var(--bg-gray);
+            border-radius: 12px;
+            padding: 4px;
+            margin-bottom: 16px;
+        }
+
+        .tab-item {
+            flex: 1;
+            padding: 10px;
+            text-align: center;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .tab-item.active {
+            background: white;
+            color: var(--primary);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        }
+
+        .checkup-card {
+            background: white;
+            border-radius: var(--radius);
+            padding: 16px;
+            margin-bottom: 12px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .checkup-card:hover {
+            transform: translateX(4px);
+            box-shadow: var(--shadow);
+        }
+
+        .checkup-date {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 6px;
+        }
+
+        .checkup-info {
+            font-size: 13px;
+            color: var(--text-secondary);
+            line-height: 1.5;
+        }
+
+        .checkup-status {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 10px;
+            font-size: 11px;
+            font-weight: 500;
+            margin-top: 8px;
+        }
+
+        .checkup-status.upcoming {
+            background: #E3F2FD;
+            color: #1976D2;
+        }
+
+        .checkup-status.done {
+            background: var(--success-light);
+            color: var(--success);
+        }
+
+        .checkup-status.need-update {
+            background: var(--warning-light);
+            color: var(--warning);
+        }
+
+        /* ===== Toast ===== */
+        .toast {
+            position: absolute;
+            bottom: 80px;
+            left: 20px;
+            right: 20px;
+            background: var(--text-primary);
+            color: white;
+            padding: 14px 18px;
+            border-radius: var(--radius);
+            font-size: 13px;
+            text-align: center;
+            display: none;
+            z-index: 300;
+        }
+
+        .toast.show {
+            display: block;
+            animation: slideUp 0.3s ease;
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* ===== Error State ===== */
+        .error-state {
+            text-align: center;
+            padding: 48px 24px;
+        }
+
+        .error-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+        }
+
+        .error-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 8px;
+        }
+
+        .error-subtitle {
+            font-size: 14px;
+            color: var(--text-secondary);
+            margin-bottom: 20px;
+        }
+
+        .btn {
+            padding: 14px 24px;
+            border: none;
+            border-radius: var(--radius);
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .btn-primary {
+            background: var(--primary-gradient);
+            color: white;
+            box-shadow: 0 4px 12px rgba(43, 184, 154, 0.3);
+        }
+
+        /* ===== Demo Controls ===== */
+        .demo-controls {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            z-index: 1000;
+        }
+
+        .demo-btn {
+            padding: 10px 16px;
+            background: var(--text-primary);
+            color: white;
+            border: none;
+            border-radius: var(--radius);
+            font-size: 12px;
+            cursor: pointer;
+            box-shadow: var(--shadow-lg);
+        }
+
+        .demo-btn:hover {
+            background: #1A202C;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="phone-frame">
+        <!-- ==================== SCR-CG-DASH: Dashboard với 3 khối VIEW ==================== -->
+        <div id="scr-dashboard" class="screen active">
+            <div class="header">
+                <span class="header-title">Kết nối Người thân</span>
+            </div>
+            <div class="content">
+                <!-- Profile Selector -->
+                <div class="profile-selector" onclick="showToast('Mở danh sách Patients để chọn')">
+                    <div class="profile-avatar">👵</div>
+                    <div class="profile-info">
+                        <div class="profile-name">Mẹ (Trần Thị D)</div>
+                        <div class="profile-status">Hoạt động 5 phút trước</div>
+                    </div>
+                    <span class="profile-chevron">▼</span>
+                </div>
+
+                <!-- Khối 1: Huyết áp hôm nay (Reuse từ Bản tin 24H - BR-010) -->
+                <div class="compliance-block" id="block-ha" onclick="goToScreen('scr-ha-list')">
+                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 16px;">
+                        <span style="font-size: 20px;">💊</span>
+                        <span style="font-size: 20px;">❤️</span>
+                        <span style="font-size: 16px; font-weight: 600; color: var(--text-primary);">Huyết áp hôm
+                            nay</span>
+                    </div>
+
+                    <!-- Status Label (Big, Centered) -->
+                    <div style="text-align: center; margin-bottom: 16px;">
+                        <div style="font-size: 28px; font-weight: 700; color: var(--primary);">Kiểm soát tốt</div>
+                    </div>
+
+                    <!-- Insight Box with Warning Icon -->
+                    <div
+                        style="background: var(--bg-gray); border-radius: 12px; padding: 14px; display: flex; gap: 12px; align-items: flex-start;">
+                        <div
+                            style="width: 24px; height: 24px; background: var(--warning); border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                            <span style="color: white; font-size: 14px; font-weight: 700;">!</span>
+                        </div>
+                        <div style="font-size: 14px; color: var(--text-secondary); line-height: 1.5;">
+                            Huyết áp của Mẹ hôm nay đang hơi 'chập chờn', lúc tăng lúc giảm khiến mạch máu chưa đạt được
+                            trạng thái ổn định và êm ái nhất.
+                        </div>
+                    </div>
+                    <!-- Textlink -->
+                    <a href="#" class="textlink" style="margin-top: 12px; display: block;"
+                        onclick="event.stopPropagation(); goToScreen('scr-ha-list')">Xem lịch sử →</a>
+                </div>
+
+                <!-- Khối 2: Kết quả tuân thủ thuốc (Reuse từ Bản tin 24H - BR-011) -->
+                <div class="compliance-block" id="block-med" onclick="goToScreen('scr-med-schedule')">
+                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
+                        <span style="font-size: 20px;">💊</span>
+                        <span style="font-size: 16px; font-weight: 600; color: var(--text-primary);">Kết quả tuân thủ
+                            thuốc</span>
+                    </div>
+
+                    <div style="font-size: 14px; color: var(--text-secondary); margin-bottom: 16px;">
+                        Tổng số: <strong style="color: var(--text-primary);">11 liều dùng</strong>
+                    </div>
+
+                    <!-- Status Breakdown (Dot + Label + Count) -->
+                    <div style="display: flex; flex-direction: column; gap: 10px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <span
+                                    style="width: 10px; height: 10px; background: var(--success); border-radius: 50%;"></span>
+                                <span style="font-size: 14px; color: var(--text-secondary);">Đã uống</span>
+                            </div>
+                            <span style="font-size: 16px; font-weight: 600; color: var(--text-primary);">2</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <span
+                                    style="width: 10px; height: 10px; background: var(--danger); border-radius: 50%;"></span>
+                                <span style="font-size: 14px; color: var(--text-secondary);">Quên uống</span>
+                            </div>
+                            <span style="font-size: 16px; font-weight: 600; color: var(--text-primary);">3</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <span
+                                    style="width: 10px; height: 10px; background: var(--warning); border-radius: 50%;"></span>
+                                <span style="font-size: 14px; color: var(--text-secondary);">Sai liều</span>
+                            </div>
+                            <span style="font-size: 16px; font-weight: 600; color: var(--text-primary);">2</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <span
+                                    style="width: 10px; height: 10px; background: var(--text-muted); border-radius: 50%;"></span>
+                                <span style="font-size: 14px; color: var(--text-secondary);">Chưa phản hồi</span>
+                            </div>
+                            <span style="font-size: 16px; font-weight: 600; color: var(--text-primary);">4</span>
+                        </div>
+                    </div>
+                    <!-- Textlink -->
+                    <a href="#" class="textlink" style="margin-top: 12px; display: block;"
+                        onclick="event.stopPropagation(); goToScreen('scr-med-schedule')">Xem lịch sử →</a>
+                </div>
+
+                <!-- Khối 3: Kết quả tái khám (Reuse từ Bản tin 24H - BR-012) -->
+                <div class="compliance-block" id="block-checkup" onclick="goToScreen('scr-checkup-list')">
+                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
+                        <span style="font-size: 20px;">🏥</span>
+                        <span style="font-size: 16px; font-weight: 600; color: var(--text-primary);">Lịch tái
+                            khám</span>
+                    </div>
+
+                    <div style="font-size: 14px; color: var(--primary); margin-bottom: 16px;">
+                        2 kết quả
+                    </div>
+
+                    <!-- Checkup List Items with Status Badges per BR-CG-016 -->
+                    <div style="display: flex; flex-direction: column; gap: 12px;">
+                        <!-- Item 1: 🟠 Cần cập nhật kết quả -->
+                        <div style="padding: 12px; background: var(--bg-gray); border-radius: 10px;">
+                            <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                                <div>
+                                    <div
+                                        style="font-size: 14px; font-weight: 600; color: var(--text-primary); margin-bottom: 4px;">
+                                        Khoa tim mạch</div>
+                                    <div
+                                        style="display: flex; align-items: center; gap: 4px; font-size: 13px; color: var(--text-secondary);">
+                                        <span>🏥</span>
+                                        <span>BV Bạch Mai</span>
+                                    </div>
+                                </div>
+                                <span style="font-size: 13px; color: var(--text-muted);">Ngày hẹn: 01/02</span>
+                            </div>
+                            <div
+                                style="margin-top: 8px; display: flex; justify-content: space-between; align-items: center;">
+                                <span class="checkup-status needs-update">🟠 Cần cập nhật</span>
+                                <!-- US 1.2 VIEW mode: Action 'Báo cáo →' thuộc US 2.2 - hidden -->
+                            </div>
+                        </div>
+                        <!-- Item 2: 🟢 Sắp tới -->
+                        <div style="padding: 12px; background: var(--bg-gray); border-radius: 10px;">
+                            <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                                <div>
+                                    <div
+                                        style="font-size: 14px; font-weight: 600; color: var(--text-primary); margin-bottom: 4px;">
+                                        Khoa mắt</div>
+                                    <div
+                                        style="display: flex; align-items: center; gap: 4px; font-size: 13px; color: var(--text-secondary);">
+                                        <span>🏥</span>
+                                        <span>BV Mắt TW</span>
+                                    </div>
+                                </div>
+                                <span style="font-size: 13px; color: var(--text-muted);">Ngày hẹn: 10/02</span>
+                            </div>
+                            <div
+                                style="margin-top: 8px; display: flex; justify-content: space-between; align-items: center;">
+                                <span class="checkup-status upcoming">🟢 Sắp tới</span>
+                                <a href="#" class="textlink"
+                                    onclick="event.stopPropagation(); goToScreen('scr-checkup-detail'); showToast('Xem chi tiết lịch khám (US-003)')">Xem
+                                    chi tiết
+                                    →</a>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Textlink -->
+                    <a href="#" class="textlink" style="margin-top: 12px; display: block;"
+                        onclick="event.stopPropagation(); goToScreen('scr-checkup-list')">Xem kết quả →</a>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== SCR-CG-HA-LIST: Danh sách kết quả đo HA ==================== -->
+        <div id="scr-ha-list" class="screen">
+            <div class="header">
+                <span class="header-back" onclick="goToScreen('scr-dashboard')">←</span>
+                <span class="header-title">Đo huyết áp</span>
+            </div>
+            <div class="context-header">
+                <div class="context-avatar">👵</div>
+                <span class="context-text">Mẹ (Trần Thị D)</span>
+            </div>
+            <div class="content" style="padding-top: 16px;">
+                <!-- Week Calendar Selector (reuse from UI_Do_huyet_ap) -->
+                <div style="margin-bottom: 16px;">
+                    <div style="color: var(--primary); font-size: 13px; font-weight: 500; margin-bottom: 12px;">Tháng
+                        02/2026</div>
+                    <div style="display: flex; gap: 8px; overflow-x: auto; padding-bottom: 8px;">
+                        <div
+                            style="min-width: 44px; padding: 8px 0; text-align: center; border: 1px solid var(--border); border-radius: 12px; cursor: pointer;">
+                            <div style="font-size: 11px; color: var(--text-muted);">T2</div>
+                            <div style="font-size: 15px; font-weight: 500; color: var(--text-secondary);">31</div>
+                        </div>
+                        <div
+                            style="min-width: 44px; padding: 8px 0; text-align: center; border: 1px solid var(--border); border-radius: 12px; cursor: pointer;">
+                            <div style="font-size: 11px; color: var(--text-muted);">T3</div>
+                            <div style="font-size: 15px; font-weight: 500; color: var(--text-secondary);">01</div>
+                        </div>
+                        <div
+                            style="min-width: 44px; padding: 8px 0; text-align: center; border: 1px solid var(--border); border-radius: 12px; cursor: pointer;">
+                            <div style="font-size: 11px; color: var(--text-muted);">T4</div>
+                            <div style="font-size: 15px; font-weight: 500; color: var(--text-secondary);">02</div>
+                        </div>
+                        <div
+                            style="min-width: 44px; padding: 8px 0; text-align: center; border: 1px solid var(--border); border-radius: 12px; cursor: pointer;">
+                            <div style="font-size: 11px; color: var(--text-muted);">T5</div>
+                            <div style="font-size: 15px; font-weight: 500; color: var(--text-secondary);">03</div>
+                        </div>
+                        <div
+                            style="min-width: 44px; padding: 8px 0; text-align: center; background: var(--primary); border-radius: 12px; cursor: pointer;">
+                            <div style="font-size: 11px; color: rgba(255,255,255,0.8);">T6</div>
+                            <div style="font-size: 15px; font-weight: 600; color: white;">04</div>
+                        </div>
+                        <div
+                            style="min-width: 44px; padding: 8px 0; text-align: center; border: 1px solid var(--border); border-radius: 12px; cursor: pointer;">
+                            <div style="font-size: 11px; color: var(--text-muted);">T7</div>
+                            <div style="font-size: 15px; font-weight: 500; color: var(--text-secondary);">05</div>
+                        </div>
+                        <div
+                            style="min-width: 44px; padding: 8px 0; text-align: center; border: 1px solid var(--border); border-radius: 12px; cursor: pointer;">
+                            <div style="font-size: 11px; color: var(--text-muted);">CN</div>
+                            <div style="font-size: 15px; font-weight: 500; color: var(--text-secondary);">06</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- HA Result Card (reuse from UI_Do_huyet_ap - 3-column layout) -->
+                <div class="detail-card" onclick="goToScreen('scr-ha-detail')" style="cursor: pointer;">
+                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 16px;">
+                        <span style="font-size: 20px;">☀️</span>
+                        <span style="font-size: 15px; font-weight: 500; color: var(--text-primary);">Sáng</span>
+                        <span style="flex: 1;"></span>
+                        <span style="font-size: 18px; color: var(--text-muted);">›</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-around; text-align: center;">
+                        <div>
+                            <div style="font-size: 28px; font-weight: 700; color: var(--text-primary);">120</div>
+                            <div style="font-size: 12px; color: var(--text-secondary);">Tâm thu</div>
+                        </div>
+                        <div>
+                            <div style="font-size: 28px; font-weight: 700; color: var(--text-primary);">80</div>
+                            <div style="font-size: 12px; color: var(--text-secondary);">Tâm trương</div>
+                        </div>
+                        <div>
+                            <div style="font-size: 28px; font-weight: 700; color: var(--text-primary);">70</div>
+                            <div style="font-size: 12px; color: var(--text-secondary);">Nhịp tim</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Koala Tư vấn (reuse mascot pattern) -->
+                <div style="display: flex; justify-content: flex-end; margin: 16px 0;">
+                    <div style="position: relative;">
+                        <img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI2MCIgaGVpZ2h0PSI2MCIgdmlld0JveD0iMCAwIDI0IDI0Ij48dGV4dCB4PSIwIiB5PSIyMCIgZm9udC1zaXplPSIyMCI+8J+QqDwvdGV4dD48L3N2Zz4="
+                            alt="🐨" style="width: 50px; height: 50px;">
+                        <div
+                            style="position: absolute; top: 50%; right: 55px; transform: translateY(-50%); background: var(--primary); color: white; padding: 6px 12px; border-radius: 12px; font-size: 12px; font-weight: 500; white-space: nowrap;">
+                            Tư vấn</div>
+                    </div>
+                </div>
+                <!-- Note: Caregiver VIEW mode - Không có nút thêm kết quả -->
+            </div>
+        </div>
+
+        <!-- ==================== SCR-CG-HA-DETAIL: Chi tiết 1 lần đo HA ==================== -->
+        <div id="scr-ha-detail" class="screen">
+            <div class="header">
+                <span class="header-back" onclick="goToScreen('scr-ha-list')">←</span>
+                <span class="header-title">Chi tiết kết quả đo</span>
+            </div>
+            <div class="context-header">
+                <div class="context-avatar">👵</div>
+                <span class="context-text">Mẹ (Trần Thị D)</span>
+            </div>
+            <div class="content" style="padding-top: 16px;">
+                <div class="detail-card">
+                    <div class="detail-header">
+                        <div class="detail-value-large">125/78</div>
+                        <div class="detail-unit">mmHg</div>
+                        <span class="status-tag success" style="margin-top: 12px;">Kiểm soát tốt</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Tâm thu</span>
+                        <span class="detail-data">125 mmHg</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Tâm trương</span>
+                        <span class="detail-data">78 mmHg</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Nhịp tim</span>
+                        <span class="detail-data">72 bpm</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Thời gian</span>
+                        <span class="detail-data">04/02/2026 - 08:30</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Nguồn</span>
+                        <span class="detail-data">Nhập thủ công</span>
+                    </div>
+                </div>
+
+                <div class="detail-card">
+                    <div style="font-size: 14px; font-weight: 600; color: var(--text-primary); margin-bottom: 12px;">
+                        💬 Nhận xét từ Kolia
+                    </div>
+                    <div style="font-size: 14px; color: var(--text-secondary); line-height: 1.6;">
+                        Mẹ đang kiểm soát huyết áp rất tốt! Giá trị này nằm trong ngưỡng mục tiêu SYS 105-140 mmHg và
+                        DIA 60-90 mmHg. Hãy tiếp tục duy trì lịch đo đều đặn nhé.
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== SCR-CG-MED-SCHEDULE: Lịch uống thuốc ==================== -->
+        <div id="scr-med-schedule" class="screen">
+            <div class="header">
+                <span class="header-back" onclick="goToScreen('scr-dashboard')">←</span>
+                <span class="header-title">Lịch uống thuốc</span>
+            </div>
+            <div class="context-header">
+                <div class="context-avatar">👵</div>
+                <span class="context-text">Mẹ (Trần Thị D)</span>
+            </div>
+            <div class="content" style="padding-top: 16px;">
+                <!-- Week Calendar (reuse from UI_Uong_thuoc) -->
+                <div style="margin-bottom: 16px;">
+                    <div style="display: flex; gap: 8px; overflow-x: auto; padding-bottom: 8px;">
+                        <div
+                            style="min-width: 44px; padding: 8px 0; text-align: center; border: 1px solid var(--border); border-radius: 12px; cursor: pointer;">
+                            <div style="font-size: 11px; color: var(--text-muted);">T2</div>
+                            <div style="font-size: 15px; font-weight: 500; color: var(--text-secondary);">31</div>
+                        </div>
+                        <div
+                            style="min-width: 44px; padding: 8px 0; text-align: center; border: 1px solid var(--border); border-radius: 12px; cursor: pointer;">
+                            <div style="font-size: 11px; color: var(--text-muted);">T3</div>
+                            <div style="font-size: 15px; font-weight: 500; color: var(--text-secondary);">01</div>
+                        </div>
+                        <div
+                            style="min-width: 44px; padding: 8px 0; text-align: center; border: 1px solid var(--border); border-radius: 12px; cursor: pointer;">
+                            <div style="font-size: 11px; color: var(--text-muted);">T4</div>
+                            <div style="font-size: 15px; font-weight: 500; color: var(--text-secondary);">02</div>
+                        </div>
+                        <div
+                            style="min-width: 44px; padding: 8px 0; text-align: center; border: 1px solid var(--border); border-radius: 12px; cursor: pointer;">
+                            <div style="font-size: 11px; color: var(--text-muted);">T5</div>
+                            <div style="font-size: 15px; font-weight: 500; color: var(--text-secondary);">03</div>
+                        </div>
+                        <div
+                            style="min-width: 44px; padding: 8px 0; text-align: center; background: var(--primary); border-radius: 12px; cursor: pointer;">
+                            <div style="font-size: 11px; color: rgba(255,255,255,0.8);">T6</div>
+                            <div style="font-size: 15px; font-weight: 600; color: white;">04</div>
+                        </div>
+                        <div
+                            style="min-width: 44px; padding: 8px 0; text-align: center; border: 1px solid var(--border); border-radius: 12px; cursor: pointer;">
+                            <div style="font-size: 11px; color: var(--text-muted);">T7</div>
+                            <div style="font-size: 15px; font-weight: 500; color: var(--text-secondary);">05</div>
+                        </div>
+                        <div
+                            style="min-width: 44px; padding: 8px 0; text-align: center; border: 1px solid var(--border); border-radius: 12px; cursor: pointer;">
+                            <div style="font-size: 11px; color: var(--text-muted);">CN</div>
+                            <div style="font-size: 15px; font-weight: 500; color: var(--text-secondary);">06</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Sáng Section (reuse from UI_Uong_thuoc timeline pattern) -->
+                <div style="display: flex; align-items: flex-start; gap: 12px; margin-bottom: 16px;">
+                    <div style="display: flex; flex-direction: column; align-items: center;">
+                        <span style="font-size: 18px;">☀️</span>
+                        <div
+                            style="width: 2px; height: 100px; background: linear-gradient(to bottom, var(--primary), var(--primary-light));">
+                        </div>
+                    </div>
+                    <div style="flex: 1;">
+                        <div style="font-size: 14px; font-weight: 600; color: var(--text-primary); margin-bottom: 8px;">
+                            Sáng</div>
+                        <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 12px;">Đến giờ uống</div>
+
+                        <!-- Medicine Card -->
+                        <div
+                            style="background: white; border-radius: 12px; padding: 12px; margin-bottom: 8px; box-shadow: 0 1px 4px rgba(0,0,0,0.05); border-left: 3px solid var(--success);">
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <span style="font-size: 16px;">💊</span>
+                                <div style="flex: 1;">
+                                    <div style="font-size: 14px; font-weight: 600; color: var(--text-primary);">Arthur
+                                        200mg</div>
+                                    <div style="font-size: 12px; color: var(--text-secondary);">1 viên vào lúc 8:30
+                                    </div>
+                                    <div style="font-size: 11px; color: var(--text-muted);">Sau khi ăn</div>
+                                </div>
+                                <span style="color: var(--success); font-size: 18px;">✓</span>
+                            </div>
+                        </div>
+
+                        <div
+                            style="background: white; border-radius: 12px; padding: 12px; margin-bottom: 8px; box-shadow: 0 1px 4px rgba(0,0,0,0.05); border-left: 3px solid var(--danger);">
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <span style="font-size: 16px;">💊</span>
+                                <div style="flex: 1;">
+                                    <div style="font-size: 14px; font-weight: 600; color: var(--text-primary);">
+                                        Hydrochlorothiazide</div>
+                                    <div style="font-size: 12px; color: var(--text-secondary);">1 viên vào lúc 9:00
+                                    </div>
+                                    <div style="font-size: 11px; color: var(--text-muted);">Trước khi ăn</div>
+                                </div>
+                                <span style="color: var(--danger); font-size: 14px;">✗</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Action Buttons -->
+                <!-- US 1.2 VIEW mode: Action buttons thuộc US 2.2 - hidden -->
+                <div
+                    style="padding: 12px; background: var(--bg-gray); border-radius: 10px; font-size: 13px; color: var(--text-secondary); text-align: center;">
+                    Chế độ xem kết quả - Caregiver chỉ có thể xem, không thể báo cáo
+                </div>
+
+                <!-- Trưa Section -->
+                <div style="display: flex; align-items: flex-start; gap: 12px; margin-bottom: 16px;">
+                    <div style="display: flex; flex-direction: column; align-items: center;">
+                        <span style="font-size: 18px;">🌤️</span>
+                        <div
+                            style="width: 2px; height: 60px; background: linear-gradient(to bottom, var(--warning), var(--warning-light));">
+                        </div>
+                    </div>
+                    <div style="flex: 1;">
+                        <div style="font-size: 14px; font-weight: 600; color: var(--text-primary); margin-bottom: 8px;">
+                            Trưa</div>
+                        <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 12px;">Chưa đến giờ uống
+                        </div>
+
+                        <div
+                            style="background: white; border-radius: 12px; padding: 12px; margin-bottom: 8px; box-shadow: 0 1px 4px rgba(0,0,0,0.05); border-left: 3px solid var(--text-muted);">
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <span style="font-size: 16px;">💊</span>
+                                <div style="flex: 1;">
+                                    <div style="font-size: 14px; font-weight: 600; color: var(--text-primary);">Aspirin
+                                        81mg</div>
+                                    <div style="font-size: 12px; color: var(--text-secondary);">1 viên vào lúc 12:00
+                                    </div>
+                                    <div style="font-size: 11px; color: var(--text-muted);">Sau khi ăn</div>
+                                </div>
+                                <span style="color: var(--text-muted); font-size: 14px;">⏳</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tối Section -->
+                <div style="display: flex; align-items: flex-start; gap: 12px;">
+                    <div style="display: flex; flex-direction: column; align-items: center;">
+                        <span style="font-size: 18px;">🌙</span>
+                    </div>
+                    <div style="flex: 1;">
+                        <div style="font-size: 14px; font-weight: 600; color: var(--text-primary); margin-bottom: 8px;">
+                            Tối</div>
+                        <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 12px;">Chưa đến giờ uống
+                        </div>
+
+                        <div
+                            style="background: white; border-radius: 12px; padding: 12px; margin-bottom: 8px; box-shadow: 0 1px 4px rgba(0,0,0,0.05); border-left: 3px solid var(--text-muted);">
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <span style="font-size: 16px;">💊</span>
+                                <div style="flex: 1;">
+                                    <div style="font-size: 14px; font-weight: 600; color: var(--text-primary);">
+                                        Metformin 500mg</div>
+                                    <div style="font-size: 12px; color: var(--text-secondary);">1 viên vào lúc 19:00
+                                    </div>
+                                    <div style="font-size: 11px; color: var(--text-muted);">Sau khi ăn</div>
+                                </div>
+                                <span style="color: var(--text-muted); font-size: 14px;">⏳</span>
+                            </div>
+                        </div>
+
+                        <div
+                            style="background: white; border-radius: 12px; padding: 12px; margin-bottom: 8px; box-shadow: 0 1px 4px rgba(0,0,0,0.05); border-left: 3px solid var(--text-muted);">
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <span style="font-size: 16px;">💊</span>
+                                <div style="flex: 1;">
+                                    <div style="font-size: 14px; font-weight: 600; color: var(--text-primary);">
+                                        Simvastatin 20mg</div>
+                                    <div style="font-size: 12px; color: var(--text-secondary);">1 viên vào lúc 20:00
+                                    </div>
+                                    <div style="font-size: 11px; color: var(--text-muted);">Sau khi ăn</div>
+                                </div>
+                                <span style="color: var(--text-muted); font-size: 14px;">⏳</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== SCR-CG-CHECKUP-LIST: Lịch khám sức khỏe ==================== -->
+        <div id="scr-checkup-list" class="screen">
+            <div class="header">
+                <span class="header-back" onclick="goToScreen('scr-dashboard')">←</span>
+                <span class="header-title">Lịch khám sức khỏe</span>
+                <!-- Note: Caregiver VIEW mode - Không có icon nào trong header -->
+            </div>
+            <div class="context-header">
+                <div class="context-avatar">👵</div>
+                <span class="context-text">Mẹ (Trần Thị D)</span>
+            </div>
+            <div class="content" style="padding-top: 16px;">
+                <!-- Note: Caregiver VIEW mode - Không có nút thêm kết quả khám -->
+
+                <div class="tab-bar">
+                    <div class="tab-item active" id="tab-upcoming" onclick="showUpcoming()">Lịch sắp tới</div>
+                    <div class="tab-item" id="tab-past" onclick="showPast()">Lịch đã qua</div>
+                </div>
+
+                <!-- ===== TAB 1: Lịch sắp tới ===== -->
+                <div id="content-upcoming">
+                    <!-- Section Header (per UI - has dropdown) -->
+                    <div
+                        style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                        <div style="font-size: 14px; font-weight: 500; color: var(--text-primary);">Lịch khám của Mẹ
+                        </div>
+                        <div
+                            style="display: flex; align-items: center; gap: 4px; color: var(--text-muted); font-size: 13px; cursor: pointer;">
+                            <span>⚙️</span>
+                            <span>▼</span>
+                        </div>
+                    </div>
+
+                    <!-- Checkup Card 1: 🟠 Cần cập nhật -->
+                    <div class="detail-card" onclick="goToScreen('scr-checkup-detail')" style="cursor: pointer;">
+                        <div style="display: flex; align-items: flex-start; gap: 12px;">
+                            <div style="font-size: 24px;">🩺</div>
+                            <div style="flex: 1;">
+                                <div
+                                    style="font-size: 15px; font-weight: 600; color: var(--text-primary); margin-bottom: 4px;">
+                                    Tim mạch, Tiết niệu, Thận, Mắt, Thần kinh, N...</div>
+                                <div style="font-size: 13px; color: var(--text-secondary); margin-bottom: 8px;">
+                                    <span>📅</span> Lịch hẹn: 8/9/2025, 10:30
+                                </div>
+                                <div style="font-size: 13px; color: var(--text-secondary); margin-bottom: 4px;">
+                                    <span>🏥</span> Cơ sở y tế: Bệnh viện đa khoa Y học cổ truyền Hà Nội
+                                </div>
+                                <div style="font-size: 13px; color: var(--text-secondary);">
+                                    <span>👨‍⚕️</span> Bác sĩ: Nguyễn Văn Chiến
+                                </div>
+                            </div>
+                            <div style="font-size: 18px; color: var(--text-muted);">›</div>
+                        </div>
+                        <!-- US 1.2 VIEW mode: 'Báo cáo kết quả' button hidden - no status badges per original UI -->
+                    </div>
+
+                    <!-- Checkup Card 2: 🟢 Sắp tới -->
+                    <div class="detail-card" onclick="goToScreen('scr-checkup-detail')" style="cursor: pointer;">
+                        <div style="display: flex; align-items: flex-start; gap: 12px;">
+                            <div style="font-size: 24px;">🔬</div>
+                            <div style="flex: 1;">
+                                <div
+                                    style="font-size: 15px; font-weight: 600; color: var(--text-primary); margin-bottom: 4px;">
+                                    Khoa Nội tiết</div>
+                                <div style="font-size: 13px; color: var(--text-secondary); margin-bottom: 8px;">
+                                    <span>📅</span> Lịch hẹn: 25/02/2026, 09:00
+                                </div>
+                                <div style="font-size: 13px; color: var(--text-secondary); margin-bottom: 4px;">
+                                    <span>🏥</span> Cơ sở y tế: Phòng khám Đa khoa Medlatec
+                                </div>
+                                <div style="font-size: 13px; color: var(--text-secondary);">
+                                    <span>👨‍⚕️</span> Bác sĩ: Trần Minh Anh
+                                </div>
+                            </div>
+                            <div style="font-size: 18px; color: var(--text-muted);">›</div>
+                        </div>
+                        <!-- US 1.2 VIEW mode: No status badges per original UI -->
+                    </div>
+                </div>
+
+                <!-- ===== TAB 2: Lịch đã qua (Per UI_Tai_Kham/07-Màn hình Lịch khám sức khỏe Tab Lịch đã qua.png) ===== -->
+                <div id="content-past" style="display: none;">
+                    <!-- Section Header (per UI - has dropdown) -->
+                    <div
+                        style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                        <div style="font-size: 14px; font-weight: 500; color: var(--text-primary);">Lịch khám của Mẹ
+                        </div>
+                        <div
+                            style="display: flex; align-items: center; gap: 4px; color: var(--text-muted); font-size: 13px; cursor: pointer;">
+                            <span>⚙️</span>
+                            <span>▼</span>
+                        </div>
+                    </div>
+
+                    <!-- Past Checkup Card 1: ⚫ Đã báo cáo (Tim mạch) -->
+                    <div class="detail-card" onclick="showToast('Xem kết quả phân tích Tim mạch (US-007)')"
+                        style="cursor: pointer;">
+                        <div style="display: flex; align-items: flex-start; gap: 12px;">
+                            <div style="font-size: 24px;">🩺</div>
+                            <div style="flex: 1;">
+                                <div
+                                    style="font-size: 15px; font-weight: 600; color: var(--text-primary); margin-bottom: 4px;">
+                                    Tim mạch</div>
+                                <div style="font-size: 13px; color: var(--text-secondary); margin-bottom: 8px;">
+                                    <span>📅</span> Ngày khám: 10/11/2025
+                                </div>
+                                <div style="font-size: 13px; color: var(--text-secondary); margin-bottom: 4px;">
+                                    <span>🏥</span> Cơ sở y tế: Bệnh viện đa khoa Y học cổ truyền Hà Nội
+                                </div>
+                                <div style="font-size: 13px; color: var(--text-secondary);">
+                                    <span>👨‍⚕️</span> Bác sĩ: Nguyễn Văn Chiến
+                                </div>
+                            </div>
+                            <div style="font-size: 18px; color: var(--text-muted);">›</div>
+                        </div>
+                        <a href="#" class="textlink" style="margin-top: 12px; display: block;"
+                            onclick="event.stopPropagation(); showToast('Xem kết quả phân tích (US-007)')">Xem kết
+                            quả</a>
+                    </div>
+
+                    <!-- Past Checkup Card 2: ⚫ Đã báo cáo (Tim mạch 2) -->
+                    <div class="detail-card" onclick="showToast('Xem kết quả phân tích Tim mạch (US-007)')"
+                        style="cursor: pointer;">
+                        <div style="display: flex; align-items: flex-start; gap: 12px;">
+                            <div style="font-size: 24px; position: relative;">
+                                🩺
+                                <span
+                                    style="position: absolute; bottom: -2px; right: -2px; font-size: 12px; color: var(--success);">✓</span>
+                            </div>
+                            <div style="flex: 1;">
+                                <div
+                                    style="font-size: 15px; font-weight: 600; color: var(--text-primary); margin-bottom: 4px;">
+                                    Tim mạch</div>
+                                <div style="font-size: 13px; color: var(--text-secondary); margin-bottom: 8px;">
+                                    <span>📅</span> Ngày khám: 12/10/2025
+                                </div>
+                                <div style="font-size: 13px; color: var(--text-secondary); margin-bottom: 4px;">
+                                    <span>🏥</span> Cơ sở y tế: Bệnh viện đa khoa Y học cổ truyền Hà Nội
+                                </div>
+                                <div style="font-size: 13px; color: var(--text-secondary);">
+                                    <span>👨‍⚕️</span> Bác sĩ: Nguyễn Văn Chiến
+                                </div>
+                            </div>
+                            <div style="font-size: 18px; color: var(--text-muted);">›</div>
+                        </div>
+                        <a href="#" class="textlink" style="margin-top: 12px; display: block;"
+                            onclick="event.stopPropagation(); showToast('Xem kết quả phân tích (US-007)')">Xem kết
+                            quả</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== SCR-CG-CHECKUP-DETAIL: Chi tiết lịch khám ==================== -->
+        <div id="scr-checkup-detail" class="screen">
+            <div class="header">
+                <span class="header-back" onclick="goToScreen('scr-checkup-list')">←</span>
+                <span class="header-title">Chi tiết lịch khám</span>
+            </div>
+            <div class="context-header">
+                <div class="context-avatar">👵</div>
+                <span class="context-text">Mẹ (Trần Thị D)</span>
+            </div>
+            <div class="content" style="padding-top: 16px;">
+                <div class="detail-card">
+                    <div
+                        style="text-align: center; padding-bottom: 16px; border-bottom: 1px solid var(--border); margin-bottom: 16px;">
+                        <div style="font-size: 48px; margin-bottom: 8px;">🏥</div>
+                        <div style="font-size: 18px; font-weight: 600; color: var(--text-primary);">Khoa Tim mạch</div>
+                        <span class="checkup-status upcoming" style="margin-top: 8px;">Sắp tới</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Ngày khám</span>
+                        <span class="detail-data">Thứ 7, 15/02/2026</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Giờ hẹn</span>
+                        <span class="detail-data">09:00</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Bệnh viện</span>
+                        <span class="detail-data">Bệnh viện Bạch Mai</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Địa chỉ</span>
+                        <span class="detail-data">78 Giải Phóng, Đống Đa, Hà Nội</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Ghi chú</span>
+                        <span class="detail-data">Mang theo kết quả xét nghiệm lần trước</span>
+                    </div>
+                </div>
+
+                <div class="detail-card">
+                    <div style="font-size: 14px; font-weight: 600; color: var(--text-primary); margin-bottom: 12px;">
+                        📋 Chuẩn bị khám
+                    </div>
+                    <div style="font-size: 14px; color: var(--text-secondary); line-height: 1.8;">
+                        • Nhịn ăn trước 8 tiếng nếu có xét nghiệm máu<br>
+                        • Mang theo sổ khám bệnh và CCCD<br>
+                        • Đến trước giờ hẹn 15-30 phút
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== EMPTY STATES (Hidden by default) ==================== -->
+
+        <!-- Empty: HA <2 lần đo -->
+        <div id="block-ha-empty" style="display: none;">
+            <div class="compliance-block" onclick="goToScreen('scr-ha-list')">
+                <div class="block-header">
+                    <div class="block-title-group">
+                        <div class="block-icon gray">❤️</div>
+                        <span class="block-title">Huyết áp hôm nay</span>
+                    </div>
+                    <span class="block-arrow">›</span>
+                </div>
+                <div class="block-content">
+                    <span class="status-tag neutral">--</span>
+                    <div class="block-insight">
+                        Cần tối thiểu 2 lần đo để phân tích huyết áp của Mẹ. Nhờ Mẹ đo thêm nhé.
+                    </div>
+                    <a href="#" class="textlink" onclick="event.stopPropagation(); goToScreen('scr-ha-list')">Xem lịch
+                        sử →</a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Empty: Không có thuốc -->
+        <div id="block-med-empty" style="display: none;">
+            <div class="compliance-block">
+                <div class="block-header">
+                    <div class="block-title-group">
+                        <div class="block-icon gray">💊</div>
+                        <span class="block-title">Tuân thủ thuốc</span>
+                    </div>
+                </div>
+                <div class="empty-state">
+                    <div class="empty-message">
+                        Chưa có thuốc trong tủ thuốc.
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Empty: Không có lịch khám -->
+        <div id="block-checkup-empty" style="display: none;">
+            <div class="compliance-block">
+                <div class="block-header">
+                    <div class="block-title-group">
+                        <div class="block-icon gray">🏥</div>
+                        <span class="block-title">Tái khám</span>
+                    </div>
+                </div>
+                <div class="empty-state">
+                    <div class="empty-message">
+                        Chưa có lịch khám.
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Error State: Network Error -->
+        <div id="scr-error" class="screen">
+            <div class="header">
+                <span class="header-title">Kết nối Người thân</span>
+            </div>
+            <div class="content">
+                <div class="profile-selector" style="opacity: 0.5; pointer-events: none;">
+                    <div class="profile-avatar">👵</div>
+                    <div class="profile-info">
+                        <div class="profile-name">Mẹ (Trần Thị D)</div>
+                        <div class="profile-status">--</div>
+                    </div>
+                </div>
+                <div class="error-state">
+                    <div class="error-icon">📶</div>
+                    <div class="error-title">Không thể tải dữ liệu</div>
+                    <div class="error-subtitle">Kiểm tra kết nối mạng và thử lại</div>
+                    <button class="btn btn-primary" onclick="goToScreen('scr-dashboard')">Thử lại</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Permission OFF State (BR-CG-018: Inline Permission Denied Overlay) -->
+        <div id="scr-permission-off" class="screen">
+            <div class="header">
+                <span class="header-title">Kết nối Người thân</span>
+            </div>
+            <div class="content">
+                <div class="profile-selector" onclick="showToast('Mở danh sách Patients để chọn')">
+                    <div class="profile-avatar">👵</div>
+                    <div class="profile-info">
+                        <div class="profile-name">Mẹ (Trần Thị D)</div>
+                        <div class="profile-status">Hoạt động 5 phút trước</div>
+                    </div>
+                    <span class="profile-chevron">▼</span>
+                </div>
+
+                <!-- Khối 1: Huyết áp với Permission Denied Overlay (BR-CG-018) -->
+                <div class="compliance-block" style="position: relative; overflow: hidden;">
+                    <!-- Title - KHÔNG blur -->
+                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
+                        <span style="font-size: 20px;">❤️</span>
+                        <span style="font-size: 16px; font-weight: 600; color: var(--text-primary);">Huyết áp hôm
+                            nay</span>
+                    </div>
+                    <!-- Empty State Placeholder - bị blur -->
+                    <div style="position: relative;">
+                        <div
+                            style="filter: blur(4px); opacity: 0.4; pointer-events: none; padding: 20px; text-align: center;">
+                            <div style="font-size: 13px; color: var(--text-secondary);">Chưa có dữ liệu</div>
+                        </div>
+                        <!-- Lock Overlay -->
+                        <div
+                            style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+                            <div style="font-size: 28px; margin-bottom: 6px;">🔒</div>
+                            <div
+                                style="font-size: 12px; font-weight: 600; color: var(--text-primary); text-align: center;">
+                                Mẹ đã tắt quyền "Theo dõi kết quả tuân thủ"</div>
+                            <div
+                                style="font-size: 11px; color: var(--text-secondary); text-align: center; margin-top: 2px;">
+                                Liên hệ Mẹ để bật lại quyền này</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Khối 2: Thuốc với Permission Denied Overlay (BR-CG-018) -->
+                <div class="compliance-block" style="position: relative; overflow: hidden;">
+                    <!-- Title - KHÔNG blur -->
+                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
+                        <span style="font-size: 20px;">💊</span>
+                        <span style="font-size: 16px; font-weight: 600; color: var(--text-primary);">Kết quả tuân thủ
+                            thuốc</span>
+                    </div>
+                    <!-- Empty State Placeholder - bị blur -->
+                    <div style="position: relative;">
+                        <div
+                            style="filter: blur(4px); opacity: 0.4; pointer-events: none; padding: 20px; text-align: center;">
+                            <div style="font-size: 13px; color: var(--text-secondary);">Chưa có dữ liệu</div>
+                        </div>
+                        <!-- Lock Overlay -->
+                        <div
+                            style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+                            <div style="font-size: 28px; margin-bottom: 6px;">🔒</div>
+                            <div
+                                style="font-size: 12px; font-weight: 600; color: var(--text-primary); text-align: center;">
+                                Mẹ đã tắt quyền "Theo dõi kết quả tuân thủ"</div>
+                            <div
+                                style="font-size: 11px; color: var(--text-secondary); text-align: center; margin-top: 2px;">
+                                Liên hệ Mẹ để bật lại quyền này</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Khối 3: Tái khám với Permission Denied Overlay (BR-CG-018) -->
+                <div class="compliance-block" style="position: relative; overflow: hidden;">
+                    <!-- Title - KHÔNG blur -->
+                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
+                        <span style="font-size: 20px;">🏥</span>
+                        <span style="font-size: 16px; font-weight: 600; color: var(--text-primary);">Lịch tái
+                            khám</span>
+                    </div>
+                    <!-- Empty State Placeholder - bị blur -->
+                    <div style="position: relative;">
+                        <div
+                            style="filter: blur(4px); opacity: 0.4; pointer-events: none; padding: 20px; text-align: center;">
+                            <div style="font-size: 13px; color: var(--text-secondary);">Chưa có dữ liệu</div>
+                        </div>
+                        <!-- Lock Overlay -->
+                        <div
+                            style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+                            <div style="font-size: 28px; margin-bottom: 6px;">🔒</div>
+                            <div
+                                style="font-size: 12px; font-weight: 600; color: var(--text-primary); text-align: center;">
+                                Mẹ đã tắt quyền "Theo dõi kết quả tuân thủ"</div>
+                            <div
+                                style="font-size: 11px; color: var(--text-secondary); text-align: center; margin-top: 2px;">
+                                Liên hệ Mẹ để bật lại quyền này</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== SCR-EMPTY-STATES: Empty States Showcase ==================== -->
+        <div id="scr-empty-states" class="screen">
+            <div class="header">
+                <span class="header-back" onclick="goToScreen('scr-dashboard')">←</span>
+                <span class="header-title">Empty States Demo</span>
+            </div>
+            <div class="content">
+                <div class="profile-selector" style="opacity: 0.7; pointer-events: none;">
+                    <div class="profile-avatar">👵</div>
+                    <div class="profile-info">
+                        <div class="profile-name">Mẹ (Trần Thị D)</div>
+                        <div class="profile-status">Demo Empty States</div>
+                    </div>
+                </div>
+
+                <!-- Empty: HA <2 lần đo (SRS 2.2.3) -->
+                <div class="compliance-block" onclick="goToScreen('scr-ha-list')">
+                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
+                        <span style="font-size: 20px; filter: grayscale(100%); opacity: 0.6;">❤️</span>
+                        <span style="font-size: 16px; font-weight: 600; color: var(--text-primary);">Huyết áp hôm
+                            nay</span>
+                    </div>
+
+                    <!-- Status Tag -->
+                    <span class="status-tag neutral" style="margin-bottom: 12px;">--</span>
+
+                    <!-- Guiding Message -->
+                    <div style="font-size: 13px; color: var(--text-secondary); line-height: 1.5; margin: 12px 0;">
+                        Cần tối thiểu 2 lần đo để phân tích huyết áp của Mẹ. Nhờ Mẹ đo thêm nhé.
+                    </div>
+
+                    <!-- Textlink -->
+                    <a href="#" class="textlink" onclick="event.stopPropagation(); goToScreen('scr-ha-list')">Xem lịch
+                        sử
+                        →</a>
+                </div>
+
+                <!-- Empty: Không có thuốc (SRS 2.3.3) -->
+                <div class="compliance-block" onclick="goToScreen('scr-med-schedule')">
+                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 16px;">
+                        <span style="font-size: 20px; filter: grayscale(100%); opacity: 0.6;">💊</span>
+                        <span style="font-size: 16px; font-weight: 600; color: var(--text-primary);">Tuân thủ
+                            thuốc</span>
+                    </div>
+
+                    <div style="text-align: center; padding: 16px; background: var(--bg-gray); border-radius: 12px;">
+                        <div style="font-size: 13px; color: var(--text-secondary); line-height: 1.5;">
+                            Chưa có thuốc trong tủ thuốc.
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Empty: Không có lịch khám (SRS 2.4.4) -->
+                <div class="compliance-block" onclick="goToScreen('scr-checkup-list')">
+                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 16px;">
+                        <span style="font-size: 20px; filter: grayscale(100%); opacity: 0.6;">🏥</span>
+                        <span style="font-size: 16px; font-weight: 600; color: var(--text-primary);">Tái khám</span>
+                    </div>
+
+                    <div style="text-align: center; padding: 16px; background: var(--bg-gray); border-radius: 12px;">
+                        <div style="font-size: 13px; color: var(--text-secondary); line-height: 1.5;">
+                            Chưa có lịch khám.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Toast -->
+        <div class="toast" id="toast"></div>
+    </div> <!-- Close phone-frame -->
+
+    <!-- Demo Controls -->
+    <div class="demo-controls">
+        <button class="demo-btn" onclick="goToScreen('scr-dashboard')">🏠 Dashboard</button>
+        <button class="demo-btn" onclick="goToScreen('scr-empty-states')">📭 Empty States</button>
+        <button class="demo-btn" onclick="goToScreen('scr-error')">📶 Network Error</button>
+        <button class="demo-btn" onclick="goToScreen('scr-permission-off')">🔒 Permission OFF</button>
+    </div>
+
+    <script>
+        // ===== Tab Switching (SCR-CG-CHECKUP-LIST) =====
+        function showUpcoming() {
+            document.getElementById('tab-upcoming').classList.add('active');
+            document.getElementById('tab-past').classList.remove('active');
+            document.getElementById('content-upcoming').style.display = 'block';
+            document.getElementById('content-past').style.display = 'none';
+        }
+        function showPast() {
+            document.getElementById('tab-past').classList.add('active');
+            document.getElementById('tab-upcoming').classList.remove('active');
+            document.getElementById('content-past').style.display = 'block';
+            document.getElementById('content-upcoming').style.display = 'none';
+        }
+
+        // ===== Navigation =====
+        function goToScreen(screenId) {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            const screen = document.getElementById(screenId);
+            if (screen) {
+                screen.classList.add('active');
+            } else {
+                console.error('Screen not found:', screenId);
+            }
+        }
+
+        // ===== Toast =====
+        function showToast(message) {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 2500);
+        }
+
+        // ===== Init =====
+        document.addEventListener('DOMContentLoaded', () => {
+            goToScreen('scr-dashboard');
+        });
+    </script>
+</body>
+
+</html>
