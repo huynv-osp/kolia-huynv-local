@@ -1,0 +1,1762 @@
+<!DOCTYPE html>
+<!--
+    PROTOTYPE: US 2.1 - Thiết lập Nhiệm vụ Tuân thủ (Caregiver Task Setup)
+    
+    VERSION: v1.1 (Added VIEW screens for entry points)
+    DATE: 2026-02-05
+    AUTHOR: UX Designer (Sally)
+    
+    SCREENS INCLUDED (14 total):
+    
+    === DASHBOARD ===
+    - SCR-DASH-SETUP: Dashboard với SETUP Block (3 rows)
+    - SCR-SETUP-DENIED: SETUP Block Permission Denied
+    
+    === VIEW SCREENS (Entry from US 1.2 - Scenarios 2.1.3-2.1.5) ===
+    - SCR-VIEW-MED-SCHEDULE: Lịch uống thuốc (with ⚙️ → Tủ thuốc)
+    - SCR-VIEW-BP-MEASURE: Đo huyết áp (with ⚙️ → Thiết lập lịch)
+    - SCR-VIEW-HEALTH-CHECKUP: Lịch khám sức khỏe (with ⚙️ → Thêm lịch)
+    
+    === SETUP SCREENS ===
+    - SCR-MED-CABINET: Tủ thuốc
+    - SCR-MED-CABINET-EMPTY: Tủ thuốc (Empty State)
+    - SCR-MED-ADD-METHOD: Chọn phương thức thêm thuốc
+    - SCR-MED-DETAIL: Chi tiết thuốc
+    - SCR-BP-SETUP: Thiết lập lịch đo HA
+    - SCR-BP-SETUP-EMPTY: Thiết lập lịch đo HA (Empty)
+    - SCR-APPOINTMENT-LIST: Lịch khám sức khỏe
+    - SCR-APPOINTMENT-EMPTY: Lịch khám (Empty)
+    - SCR-APPOINTMENT-ADD-METHOD: Chọn phương thức thêm lịch khám
+    
+    DESIGN DECISIONS:
+    - SETUP Block hiển thị 3 rows trực tiếp (không dùng Bottom Sheet)
+    - Context Header: "{Mối quan hệ} ({Tên Patient})"
+    - Permission Denied: Blur 3 rows + Lock icon overlay
+    - Icon Cài đặt (⚙️) thống nhất cho entry points từ US 1.2
+-->
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>US 2.1 | Thiết lập Nhiệm vụ</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #2BB89A;
+            --primary-dark: #239B82;
+            --primary-light: #E8F8F4;
+            --primary-gradient: linear-gradient(135deg, #2BB89A, #1A9F82);
+            --danger: #E53935;
+            --danger-light: #FFEBEE;
+            --warning: #FF9800;
+            --warning-light: #FFF8E1;
+            --success: #00A86B;
+            --success-light: #E8F5E9;
+            --info: #1976D2;
+            --info-light: #E3F2FD;
+            --text-primary: #2D3748;
+            --text-secondary: #718096;
+            --text-muted: #A0AEC0;
+            --bg-white: #FFFFFF;
+            --bg-gray: #F7FAFC;
+            --border: #E2E8F0;
+            --shadow: 0 4px 15px rgba(43, 184, 154, 0.12);
+            --shadow-lg: 0 8px 25px rgba(43, 184, 154, 0.18);
+            --radius: 16px;
+            --radius-lg: 24px;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(180deg, #E8F8F4 0%, #F7FAFC 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .phone-frame {
+            width: 375px;
+            min-height: 750px;
+            background: var(--bg-white);
+            border-radius: 32px;
+            box-shadow: var(--shadow-lg);
+            overflow: hidden;
+            position: relative;
+        }
+
+        .screen {
+            display: none;
+            flex-direction: column;
+            height: 100%;
+        }
+
+        .screen.active {
+            display: flex;
+        }
+
+        /* ===== Header ===== */
+        .header {
+            background: var(--primary-gradient);
+            color: white;
+            padding: 20px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            position: relative;
+        }
+
+        .header::after {
+            content: '';
+            position: absolute;
+            bottom: -20px;
+            left: 0;
+            right: 0;
+            height: 40px;
+            background: inherit;
+            border-radius: 0 0 24px 24px;
+            z-index: 0;
+        }
+
+        .header-back {
+            font-size: 20px;
+            cursor: pointer;
+            z-index: 1;
+        }
+
+        .header-title {
+            font-size: 18px;
+            font-weight: 700;
+            flex: 1;
+            z-index: 1;
+        }
+
+        .header-action {
+            font-size: 22px;
+            cursor: pointer;
+            z-index: 1;
+        }
+
+        /* ===== Content ===== */
+        .content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
+            padding-top: 24px;
+            background: var(--bg-gray);
+        }
+
+        /* ===== Profile Selector ===== */
+        .profile-selector {
+            background: var(--primary-gradient);
+            color: white;
+            padding: 16px 20px;
+            border-radius: var(--radius-lg);
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            box-shadow: var(--shadow-lg);
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .profile-selector:hover {
+            transform: scale(1.02);
+        }
+
+        .profile-avatar {
+            width: 52px;
+            height: 52px;
+            background: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 26px;
+        }
+
+        .profile-info {
+            flex: 1;
+        }
+
+        .profile-name {
+            font-size: 17px;
+            font-weight: 600;
+        }
+
+        .profile-status {
+            font-size: 13px;
+            opacity: 0.9;
+            margin-top: 3px;
+        }
+
+        .profile-chevron {
+            font-size: 16px;
+            opacity: 0.8;
+        }
+
+        /* ===== Context Header (Drill-down) ===== */
+        .context-header {
+            background: linear-gradient(135deg, var(--primary-light) 0%, #D4F1EB 100%);
+            padding: 14px 20px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            border-bottom: 2px solid var(--primary);
+            box-shadow: 0 2px 8px rgba(43, 184, 154, 0.15);
+        }
+
+        .context-avatar {
+            width: 40px;
+            height: 40px;
+            background: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            box-shadow: 0 2px 10px rgba(43, 184, 154, 0.25);
+            border: 2px solid var(--primary);
+        }
+
+        .context-text {
+            font-size: 15px;
+            color: var(--primary-dark);
+            font-weight: 600;
+        }
+
+        /* ===== SETUP Block ===== */
+        .setup-block {
+            background: white;
+            border-radius: var(--radius-lg);
+            overflow: hidden;
+            box-shadow: var(--shadow);
+            margin-bottom: 16px;
+        }
+
+        .setup-block-header {
+            background: linear-gradient(135deg, #F0F9F7 0%, #E8F8F4 100%);
+            padding: 16px 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .setup-block-title {
+            font-size: 16px;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        .setup-row {
+            padding: 16px 20px;
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            border-bottom: 1px solid var(--border);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .setup-row:last-child {
+            border-bottom: none;
+        }
+
+        .setup-row:hover {
+            background: var(--bg-gray);
+        }
+
+        .setup-row:active {
+            background: var(--primary-light);
+        }
+
+        .setup-row-icon {
+            width: 44px;
+            height: 44px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 22px;
+        }
+
+        .setup-row-icon.med {
+            background: #E3F2FD;
+        }
+
+        .setup-row-icon.bp {
+            background: #FFEBEE;
+        }
+
+        .setup-row-icon.checkup {
+            background: #E8F5E9;
+        }
+
+        .setup-row-content {
+            flex: 1;
+        }
+
+        .setup-row-label {
+            font-size: 15px;
+            font-weight: 500;
+            color: var(--text-primary);
+        }
+
+        .setup-row-desc {
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-top: 2px;
+        }
+
+        .setup-row-chevron {
+            color: var(--text-muted);
+            font-size: 16px;
+        }
+
+        /* ===== Permission Denied Overlay ===== */
+        .permission-denied-container {
+            position: relative;
+        }
+
+        .permission-denied-blur {
+            filter: blur(4px);
+            opacity: 0.6;
+            pointer-events: none;
+        }
+
+        .permission-denied-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            text-align: center;
+            z-index: 10;
+        }
+
+        .lock-icon {
+            width: 48px;
+            height: 48px;
+            background: var(--bg-gray);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            margin-bottom: 12px;
+        }
+
+        .permission-msg-1 {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 4px;
+        }
+
+        .permission-msg-2 {
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+
+        /* ===== Medication Cabinet ===== */
+        .med-list {
+            padding-top: 8px;
+        }
+
+        .med-card {
+            background: white;
+            border-radius: var(--radius);
+            padding: 16px;
+            margin-bottom: 12px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .med-card:hover {
+            transform: translateX(4px);
+            box-shadow: var(--shadow);
+        }
+
+        .med-icon {
+            width: 48px;
+            height: 48px;
+            background: var(--primary-light);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+        }
+
+        .med-info {
+            flex: 1;
+        }
+
+        .med-name {
+            font-size: 15px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 4px;
+        }
+
+        .med-dosage {
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+
+        .med-schedule {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-top: 4px;
+        }
+
+        .med-chevron {
+            color: var(--text-muted);
+            font-size: 18px;
+        }
+
+        /* ===== Med Card Original (matching Tủ thuốc UI reference) ===== */
+        .med-card-original {
+            background: white;
+            border-radius: var(--radius-lg);
+            padding: 20px;
+            margin-bottom: 16px;
+            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .med-card-original:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+        }
+
+        /* ===== Empty State ===== */
+        .empty-state {
+            text-align: center;
+            padding: 48px 24px;
+        }
+
+        .empty-icon {
+            width: 80px;
+            height: 80px;
+            background: var(--bg-gray);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 40px;
+            margin: 0 auto 20px;
+        }
+
+        .empty-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 8px;
+        }
+
+        .empty-desc {
+            font-size: 14px;
+            color: var(--text-secondary);
+            margin-bottom: 24px;
+            line-height: 1.5;
+        }
+
+        /* ===== Buttons ===== */
+        .btn {
+            padding: 14px 24px;
+            border: none;
+            border-radius: var(--radius);
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            transition: all 0.2s;
+        }
+
+        .btn-primary {
+            background: var(--primary-gradient);
+            color: white;
+            box-shadow: 0 4px 12px rgba(43, 184, 154, 0.3);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(43, 184, 154, 0.4);
+        }
+
+        .btn-secondary {
+            background: white;
+            color: var(--primary);
+            border: 2px solid var(--primary);
+        }
+
+        .btn-danger {
+            background: var(--danger-light);
+            color: var(--danger);
+        }
+
+        .btn-full {
+            width: 100%;
+        }
+
+        /* ===== Method Selection ===== */
+        .method-list {
+            padding: 20px 0;
+        }
+
+        .method-card {
+            background: white;
+            border-radius: var(--radius);
+            padding: 20px;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+            border: 2px solid transparent;
+        }
+
+        .method-card:hover {
+            border-color: var(--primary);
+            background: var(--primary-light);
+        }
+
+        .method-icon {
+            width: 56px;
+            height: 56px;
+            background: var(--primary-light);
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+        }
+
+        .method-content {
+            flex: 1;
+        }
+
+        .method-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 4px;
+        }
+
+        .method-desc {
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+
+        /* ===== BP Setup Form ===== */
+        .form-section {
+            background: white;
+            border-radius: var(--radius);
+            padding: 20px;
+            margin-bottom: 16px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+        }
+
+        .form-section-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .option-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+        }
+
+        .option-btn {
+            padding: 12px 8px;
+            background: var(--bg-gray);
+            border: 2px solid transparent;
+            border-radius: 12px;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.2s;
+        }
+
+        .option-btn.selected {
+            background: var(--primary-light);
+            border-color: var(--primary);
+            color: var(--primary-dark);
+        }
+
+        .time-picker {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+
+        .time-input {
+            flex: 1;
+            padding: 14px 16px;
+            background: var(--bg-gray);
+            border: 2px solid var(--border);
+            border-radius: 12px;
+            font-size: 18px;
+            font-weight: 600;
+            text-align: center;
+            color: var(--text-primary);
+        }
+
+        .time-input:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        /* ===== Tabs ===== */
+        .tab-bar {
+            display: flex;
+            gap: 0;
+            background: var(--bg-gray);
+            border-radius: 12px;
+            padding: 4px;
+            margin-bottom: 16px;
+        }
+
+        .tab-item {
+            flex: 1;
+            padding: 10px;
+            text-align: center;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .tab-item.active {
+            background: white;
+            color: var(--primary);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        }
+
+        /* ===== Appointment Cards ===== */
+        .appointment-card {
+            background: white;
+            border-radius: var(--radius);
+            padding: 16px;
+            margin-bottom: 12px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .appointment-card:hover {
+            transform: translateX(4px);
+            box-shadow: var(--shadow);
+        }
+
+        .appointment-date {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 6px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .appointment-info {
+            font-size: 13px;
+            color: var(--text-secondary);
+            line-height: 1.5;
+            margin-bottom: 8px;
+        }
+
+        .appointment-status {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 10px;
+            font-size: 11px;
+            font-weight: 500;
+        }
+
+        .appointment-status.upcoming {
+            background: var(--info-light);
+            color: var(--info);
+        }
+
+        .appointment-status.done {
+            background: var(--success-light);
+            color: var(--success);
+        }
+
+        /* ===== Detail Screen ===== */
+        .detail-card {
+            background: white;
+            border-radius: var(--radius-lg);
+            padding: 20px;
+            margin-bottom: 16px;
+            box-shadow: var(--shadow);
+        }
+
+        .detail-header {
+            text-align: center;
+            padding-bottom: 16px;
+            border-bottom: 1px solid var(--border);
+            margin-bottom: 16px;
+        }
+
+        .detail-icon {
+            width: 64px;
+            height: 64px;
+            background: var(--primary-light);
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 32px;
+            margin: 0 auto 12px;
+        }
+
+        .detail-title {
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        .detail-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 14px 0;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .detail-row:last-child {
+            border-bottom: none;
+        }
+
+        .detail-label {
+            font-size: 14px;
+            color: var(--text-secondary);
+        }
+
+        .detail-value {
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--text-primary);
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 12px;
+            padding: 16px;
+            background: white;
+            border-top: 1px solid var(--border);
+        }
+
+        /* ===== Popup/Modal ===== */
+        .popup-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+            padding: 24px;
+        }
+
+        .popup-overlay.show {
+            display: flex;
+        }
+
+        .popup-content {
+            background: white;
+            border-radius: var(--radius-lg);
+            padding: 24px;
+            width: 100%;
+            max-width: 320px;
+            text-align: center;
+        }
+
+        .popup-icon {
+            width: 56px;
+            height: 56px;
+            background: var(--danger-light);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+            margin: 0 auto 16px;
+        }
+
+        .popup-title {
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: 8px;
+        }
+
+        .popup-message {
+            font-size: 14px;
+            color: var(--text-secondary);
+            margin-bottom: 24px;
+            line-height: 1.5;
+        }
+
+        .popup-actions {
+            display: flex;
+            gap: 12px;
+        }
+
+        .popup-actions .btn {
+            flex: 1;
+        }
+
+        /* ===== Toast ===== */
+        .toast {
+            position: absolute;
+            bottom: 80px;
+            left: 20px;
+            right: 20px;
+            background: var(--text-primary);
+            color: white;
+            padding: 14px 18px;
+            border-radius: var(--radius);
+            font-size: 13px;
+            text-align: center;
+            display: none;
+            z-index: 200;
+        }
+
+        .toast.success {
+            background: var(--success);
+        }
+
+        .toast.show {
+            display: block;
+            animation: slideUp 0.3s ease;
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* ===== Demo Controls ===== */
+        .demo-controls {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            z-index: 1000;
+        }
+
+        .demo-btn {
+            padding: 10px 16px;
+            background: var(--text-primary);
+            color: white;
+            border: none;
+            border-radius: var(--radius);
+            font-size: 12px;
+            cursor: pointer;
+            box-shadow: var(--shadow-lg);
+        }
+
+        .demo-btn:hover {
+            background: #1A202C;
+        }
+
+        .demo-btn.active {
+            background: var(--danger);
+        }
+    </style>
+</head>
+
+<body>
+    <div class="phone-frame">
+        <!-- ==================== SCR-DASH-SETUP: Dashboard với SETUP Block ==================== -->
+        <div id="scr-dashboard" class="screen active">
+            <div class="header">
+                <span class="header-title">Kết nối Người thân</span>
+            </div>
+            <div class="content">
+                <!-- Profile Selector -->
+                <div class="profile-selector" onclick="showToast('Mở danh sách Patients để chọn')">
+                    <div class="profile-avatar">👵</div>
+                    <div class="profile-info">
+                        <div class="profile-name">Mẹ (Trần Thị D)</div>
+                        <div class="profile-status">Hoạt động 5 phút trước</div>
+                    </div>
+                    <span class="profile-chevron">▼</span>
+                </div>
+
+                <!-- SETUP Block: 3 rows -->
+                <div class="setup-block" id="setup-block">
+                    <div class="setup-block-header">
+                        <span>⚙️</span>
+                        <span class="setup-block-title">Thiết lập nhiệm vụ</span>
+                    </div>
+                    <div id="setup-rows">
+                        <div class="setup-row" onclick="goToScreen('scr-med-cabinet-empty')">
+                            <div class="setup-row-icon med">💊</div>
+                            <div class="setup-row-content">
+                                <div class="setup-row-label">Thiết lập thuốc</div>
+                                <div class="setup-row-desc">Chưa thiết lập</div>
+                            </div>
+                            <span class="setup-row-chevron">〉</span>
+                        </div>
+                        <div class="setup-row" onclick="goToScreen('scr-bp-setup-empty')">
+                            <div class="setup-row-icon bp">🩺</div>
+                            <div class="setup-row-content">
+                                <div class="setup-row-label">Thiết lập lịch đo huyết áp</div>
+                                <div class="setup-row-desc">Chưa thiết lập</div>
+                            </div>
+                            <span class="setup-row-chevron">〉</span>
+                        </div>
+                        <div class="setup-row" onclick="goToScreen('scr-appointment-empty')">
+                            <div class="setup-row-icon checkup">🏥</div>
+                            <div class="setup-row-content">
+                                <div class="setup-row-label">Thiết lập lịch tái khám</div>
+                                <div class="setup-row-desc">Chưa có lịch</div>
+                            </div>
+                            <span class="setup-row-chevron">〉</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== SCR-SETUP-DENIED: Permission Denied ==================== -->
+        <div id="scr-setup-denied" class="screen">
+            <div class="header">
+                <span class="header-title">Kết nối Người thân</span>
+            </div>
+            <div class="content">
+                <!-- Profile Selector -->
+                <div class="profile-selector">
+                    <div class="profile-avatar">👵</div>
+                    <div class="profile-info">
+                        <div class="profile-name">Mẹ (Trần Thị D)</div>
+                        <div class="profile-status">Hoạt động 5 phút trước</div>
+                    </div>
+                    <span class="profile-chevron">▼</span>
+                </div>
+
+                <!-- SETUP Block with Permission Denied -->
+                <div class="setup-block permission-denied-container">
+                    <div class="setup-block-header">
+                        <span>⚙️</span>
+                        <span class="setup-block-title">Thiết lập nhiệm vụ</span>
+                    </div>
+                    <!-- Blurred rows -->
+                    <div class="permission-denied-blur">
+                        <div class="setup-row">
+                            <div class="setup-row-icon med">💊</div>
+                            <div class="setup-row-content">
+                                <div class="setup-row-label">Thiết lập thuốc</div>
+                            </div>
+                            <span class="setup-row-chevron">〉</span>
+                        </div>
+                        <div class="setup-row">
+                            <div class="setup-row-icon bp">🩺</div>
+                            <div class="setup-row-content">
+                                <div class="setup-row-label">Thiết lập lịch đo huyết áp</div>
+                            </div>
+                            <span class="setup-row-chevron">〉</span>
+                        </div>
+                        <div class="setup-row">
+                            <div class="setup-row-icon checkup">🏥</div>
+                            <div class="setup-row-content">
+                                <div class="setup-row-label">Thiết lập lịch tái khám</div>
+                            </div>
+                            <span class="setup-row-chevron">〉</span>
+                        </div>
+                    </div>
+                    <!-- Permission Denied Overlay -->
+                    <div class="permission-denied-overlay">
+                        <div class="lock-icon">🔒</div>
+                        <div class="permission-msg-1">Mẹ đã tắt quyền thiết lập nhiệm vụ</div>
+                        <div class="permission-msg-2">Liên hệ Mẹ để bật lại quyền này</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== SCR-MED-CABINET: Tủ thuốc ==================== -->
+        <div id="scr-med-cabinet" class="screen">
+            <div class="header">
+                <span class="header-back" onclick="goToScreen('scr-dashboard')">←</span>
+                <span class="header-title">Tủ thuốc</span>
+                <span class="header-action" style="display: flex; gap: 12px;">
+                    <span>💊</span>
+                    <span onclick="goToScreen('scr-med-add-method')">+</span>
+                </span>
+            </div>
+            <div class="context-header">
+                <div class="context-avatar">👵</div>
+                <span class="context-text">Mẹ (Trần Thị D)</span>
+            </div>
+            <div class="content">
+                <!-- Section: Đang uống -->
+                <div style="font-size: 13px; color: var(--text-secondary); margin-bottom: 12px;">
+                    Số lượng thuốc đang uống: <span style="color: var(--primary); font-weight: 600;">2</span>
+                </div>
+
+                <!-- Med Card 1 -->
+                <div class="med-card-original" onclick="goToScreen('scr-med-detail')">
+                    <div style="display: flex; align-items: flex-start; gap: 12px; margin-bottom: 12px;">
+                        <div style="font-size: 28px;">💊</div>
+                        <div style="flex: 1;">
+                            <div style="font-size: 16px; font-weight: 600; color: var(--text-primary);">Sucralfat 3g
+                            </div>
+                            <span style="color: var(--text-muted); font-size: 14px;">〉</span>
+                        </div>
+                    </div>
+                    <div style="font-size: 13px; color: var(--text-secondary); line-height: 1.8;">
+                        <div><strong>Tên gợi nhớ:</strong> Thuốc huyết áp</div>
+                        <div><strong>Tần suất dùng:</strong> Hằng ngày</div>
+                        <div><strong>Liều dùng:</strong> 08:00 - 1 viên</div>
+                        <div style="padding-left: 70px;">12:00 - 2 viên</div>
+                        <div style="padding-left: 70px;">18:00 - 3 viên</div>
+                    </div>
+                    <div style="display: flex; gap: 12px; margin-top: 16px;">
+                        <button
+                            style="flex: 1; padding: 10px; border: 1px solid var(--primary); background: white; border-radius: 20px; font-size: 13px; color: var(--primary); cursor: pointer;">
+                            ✨ Công dụng thuốc
+                        </button>
+                    </div>
+                    <div style="text-align: center; margin-top: 12px;">
+                        <span style="color: var(--primary); font-size: 13px; cursor: pointer;">Dừng uống</span>
+                    </div>
+                </div>
+
+                <!-- Section: Dừng uống -->
+                <div style="font-size: 13px; color: var(--text-secondary); margin: 20px 0 12px;">
+                    Số lượng thuốc dừng uống: <span style="color: var(--text-muted); font-weight: 600;">1</span>
+                </div>
+
+                <!-- Med Card 2 (Dừng uống) -->
+                <div class="med-card-original" style="opacity: 0.7;" onclick="goToScreen('scr-med-detail')">
+                    <div style="display: flex; align-items: flex-start; gap: 12px; margin-bottom: 12px;">
+                        <div style="font-size: 28px;">💊</div>
+                        <div style="flex: 1;">
+                            <div style="font-size: 16px; font-weight: 600; color: var(--text-primary);">Sucralfat 3g
+                            </div>
+                        </div>
+                    </div>
+                    <div style="font-size: 13px; color: var(--text-secondary); line-height: 1.8;">
+                        <div><strong>Tên gợi nhớ:</strong> Thuốc huyết áp</div>
+                        <div><strong>Tần suất dùng:</strong> Hằng ngày</div>
+                        <div><strong>Liều dùng:</strong> 08:00 - 1 viên</div>
+                    </div>
+                    <div style="display: flex; gap: 12px; margin-top: 16px;">
+                        <button
+                            style="flex: 1; padding: 10px; border: 1px solid var(--primary); background: white; border-radius: 20px; font-size: 13px; color: var(--primary); cursor: pointer;">
+                            ✨ Công dụng thuốc
+                        </button>
+                    </div>
+                    <div style="text-align: center; margin-top: 12px;">
+                        <span style="color: var(--primary); font-size: 13px; cursor: pointer;">Tiếp tục uống</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== SCR-MED-CABINET-EMPTY: Tủ thuốc Empty ==================== -->
+        <div id="scr-med-cabinet-empty" class="screen">
+            <div class="header">
+                <span class="header-back" onclick="goToScreen('scr-dashboard')">←</span>
+                <span class="header-title">Tủ thuốc</span>
+            </div>
+            <div class="context-header">
+                <div class="context-avatar">👵</div>
+                <span class="context-text">Mẹ (Trần Thị D)</span>
+            </div>
+            <div class="content">
+                <div class="empty-state">
+                    <div class="empty-icon">💊</div>
+                    <div class="empty-title">Mẹ chưa có thuốc nào</div>
+                    <div class="empty-desc">Thêm thuốc để thiết lập lịch nhắc uống thuốc cho Mẹ</div>
+                    <button class="btn btn-primary" onclick="goToScreen('scr-med-add-method')">
+                        ➕ Thêm thuốc
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== SCR-MED-ADD-METHOD: Chọn phương thức thêm thuốc ==================== -->
+        <div id="scr-med-add-method" class="screen">
+            <div class="header">
+                <span class="header-back" onclick="goToScreen('scr-med-cabinet')">←</span>
+                <span class="header-title">Thêm thuốc</span>
+            </div>
+            <div class="context-header">
+                <div class="context-avatar">👵</div>
+                <span class="context-text">Mẹ (Trần Thị D)</span>
+            </div>
+            <div class="content" style="display: flex; flex-direction: column; align-items: center; padding-top: 40px;">
+                <!-- Illustration -->
+                <div style="font-size: 64px; margin-bottom: 24px;">💊💊</div>
+
+                <!-- Question -->
+                <div
+                    style="font-size: 18px; font-weight: 600; color: var(--text-primary); text-align: center; margin-bottom: 32px; line-height: 1.5;">
+                    Anh muốn thêm thuốc bằng<br>cách nào?
+                </div>
+
+                <!-- 2 Options Side by Side -->
+                <div style="display: flex; gap: 16px; width: 100%; padding: 0 20px;">
+                    <div class="method-option-card" onclick="showToast('Mở Camera để chụp ảnh thuốc')"
+                        style="flex: 1; padding: 24px 16px; background: white; border-radius: 16px; border: 1px solid var(--border); text-align: center; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,0.06);">
+                        <div style="font-size: 32px; margin-bottom: 12px;">📷</div>
+                        <div style="font-size: 14px; font-weight: 500; color: var(--text-primary);">Chụp ảnh thuốc</div>
+                    </div>
+                    <div class="method-option-card" onclick="showToast('Mở thư viện ảnh')"
+                        style="flex: 1; padding: 24px 16px; background: white; border-radius: 16px; border: 1px solid var(--border); text-align: center; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,0.06);">
+                        <div style="font-size: 32px; margin-bottom: 12px;">🖼️</div>
+                        <div style="font-size: 14px; font-weight: 500; color: var(--text-primary);">Tải ảnh thuốc</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== SCR-MED-DETAIL: Chi tiết thuốc (Reuse Patient UI + Context Header) ==================== -->
+        <div id="scr-med-detail" class="screen">
+            <div class="header">
+                <span class="header-back" onclick="goToScreen('scr-med-cabinet')">←</span>
+                <span class="header-title">Chi tiết thuốc</span>
+            </div>
+            <div class="context-header">
+                <div class="context-avatar">👵</div>
+                <span class="context-text">Mẹ (Trần Thị D)</span>
+            </div>
+            <div class="content">
+                <!-- Drug Info Card -->
+                <div
+                    style="background: white; border-radius: 16px; padding: 24px; margin-top: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.04);">
+                    <!-- Drug Icon and Name -->
+                    <div style="text-align: center; margin-bottom: 24px;">
+                        <div style="font-size: 48px; margin-bottom: 12px;">💊</div>
+                        <div style="font-size: 20px; font-weight: 600; color: var(--text-primary);">Amlodipine 5mg</div>
+                    </div>
+
+                    <!-- Info Rows -->
+                    <div
+                        style="display: flex; justify-content: space-between; padding: 14px 0; border-bottom: 1px solid var(--border);">
+                        <span style="font-size: 14px; color: var(--text-secondary);">Liều dùng</span>
+                        <span style="font-size: 14px; font-weight: 500; color: var(--text-primary);">1 viên/lần</span>
+                    </div>
+                    <div
+                        style="display: flex; justify-content: space-between; padding: 14px 0; border-bottom: 1px solid var(--border);">
+                        <span style="font-size: 14px; color: var(--text-secondary);">Tần suất</span>
+                        <span style="font-size: 14px; font-weight: 500; color: var(--text-primary);">2 lần/ngày</span>
+                    </div>
+                    <div
+                        style="display: flex; justify-content: space-between; padding: 14px 0; border-bottom: 1px solid var(--border);">
+                        <span style="font-size: 14px; color: var(--text-secondary);">Thời điểm</span>
+                        <span style="font-size: 14px; font-weight: 500; color: var(--text-primary);">Sáng 7:00, Tối
+                            19:00</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; padding: 14px 0;">
+                        <span style="font-size: 14px; color: var(--text-secondary);">Ghi chú</span>
+                        <span style="font-size: 14px; font-weight: 500; color: var(--primary);">Uống sau ăn</span>
+                    </div>
+                </div>
+            </div>
+            <div class="action-buttons" style="padding: 16px; display: flex; gap: 12px;">
+                <button class="btn"
+                    style="flex: 1; padding: 14px; border: 2px solid var(--primary); background: white; border-radius: 24px; font-size: 14px; color: var(--primary); display: flex; align-items: center; justify-content: center; gap: 8px;"
+                    onclick="showToast('Mở form chỉnh sửa')">
+                    ✏️ Chỉnh sửa
+                </button>
+                <button class="btn"
+                    style="flex: 1; padding: 14px; background: linear-gradient(135deg, #FF6B6B, #EE5A5A); border: none; border-radius: 24px; font-size: 14px; color: white; display: flex; align-items: center; justify-content: center; gap: 8px;"
+                    onclick="showDeletePopup()">
+                    🗑️ Xóa thuốc
+                </button>
+            </div>
+        </div>
+
+        <!-- ==================== SCR-BP-SETUP: Thiết lập lịch đo HA ==================== -->
+        <div id="scr-bp-setup" class="screen">
+            <div class="header">
+                <span class="header-back" onclick="goToScreen('scr-dashboard')">←</span>
+                <span class="header-title">Thiết lập lịch đo</span>
+            </div>
+            <div class="context-header">
+                <div class="context-avatar">👵</div>
+                <span class="context-text">Mẹ (Trần Thị D)</span>
+            </div>
+            <div class="content">
+                <div class="form-section">
+                    <div class="form-section-title">📅 Tần suất đo</div>
+                    <div class="option-grid">
+                        <button class="option-btn selected">Hằng ngày</button>
+                        <button class="option-btn">3 lần/tuần</button>
+                        <button class="option-btn">Tùy chỉnh</button>
+                    </div>
+                </div>
+
+                <div class="form-section">
+                    <div class="form-section-title">⏰ Thời điểm đo</div>
+                    <div class="option-grid">
+                        <button class="option-btn selected">Sáng</button>
+                        <button class="option-btn selected">Tối</button>
+                        <button class="option-btn">Trưa</button>
+                    </div>
+                </div>
+
+                <div class="form-section">
+                    <div class="form-section-title">🔔 Giờ nhắc sáng</div>
+                    <div class="time-picker">
+                        <input type="text" class="time-input" value="07:00">
+                    </div>
+                </div>
+
+                <div class="form-section">
+                    <div class="form-section-title">🔔 Giờ nhắc tối</div>
+                    <div class="time-picker">
+                        <input type="text" class="time-input" value="19:00">
+                    </div>
+                </div>
+
+                <button class="btn btn-primary btn-full" onclick="showSuccessToast('Đã thiết lập lịch đo cho Mẹ')"
+                    data-msg-template="Đã thiết lập lịch đo cho {Mối quan hệ}">
+                    Lưu thiết lập
+                </button>
+
+                <div style="height: 16px;"></div>
+
+                <button class="btn btn-danger btn-full" onclick="showToast('Đã xóa lịch đo của Mẹ')"
+                    data-msg-template="Đã xóa lịch đo của {Mối quan hệ}">
+                    Xóa lịch đo
+                </button>
+            </div>
+        </div>
+
+        <!-- ==================== SCR-BP-SETUP-EMPTY: Thiết lập lần đầu ==================== -->
+        <div id="scr-bp-setup-empty" class="screen">
+            <div class="header">
+                <span class="header-back" onclick="goToScreen('scr-dashboard')">←</span>
+                <span class="header-title">Đo huyết áp</span>
+            </div>
+            <div class="context-header">
+                <div class="context-avatar">👵</div>
+                <span class="context-text">Mẹ (Trần Thị D)</span>
+            </div>
+            <div class="content" style="display: flex; flex-direction: column; align-items: center; padding-top: 20px;">
+                <!-- Week selector -->
+                <div style="display: flex; gap: 8px; margin-bottom: 24px; width: 100%; justify-content: center;">
+                    <div
+                        style="padding: 8px 12px; background: var(--bg-gray); border-radius: 8px; text-align: center; font-size: 12px;">
+                        <div style="color: var(--text-muted);">T2</div>
+                        <div style="font-weight: 600;">21</div>
+                    </div>
+                    <div
+                        style="padding: 8px 12px; background: var(--bg-gray); border-radius: 8px; text-align: center; font-size: 12px;">
+                        <div style="color: var(--text-muted);">T3</div>
+                        <div style="font-weight: 600;">22</div>
+                    </div>
+                    <div
+                        style="padding: 8px 12px; background: var(--bg-gray); border-radius: 8px; text-align: center; font-size: 12px;">
+                        <div style="color: var(--text-muted);">T4</div>
+                        <div style="font-weight: 600;">23</div>
+                    </div>
+                    <div
+                        style="padding: 8px 12px; background: var(--primary); border-radius: 8px; text-align: center; font-size: 12px; color: white;">
+                        <div>T5</div>
+                        <div style="font-weight: 600;">24</div>
+                    </div>
+                    <div
+                        style="padding: 8px 12px; background: var(--bg-gray); border-radius: 8px; text-align: center; font-size: 12px;">
+                        <div style="color: var(--text-muted);">T6</div>
+                        <div style="font-weight: 600;">25</div>
+                    </div>
+                    <div
+                        style="padding: 8px 12px; background: var(--bg-gray); border-radius: 8px; text-align: center; font-size: 12px;">
+                        <div style="color: var(--text-muted);">T7</div>
+                        <div style="font-weight: 600;">26</div>
+                    </div>
+                </div>
+
+                <!-- Illustration -->
+                <div style="font-size: 80px; margin-bottom: 20px;">📅⏰</div>
+
+                <!-- Title -->
+                <div
+                    style="font-size: 18px; font-weight: 600; color: var(--text-primary); text-align: center; margin-bottom: 12px;">
+                    Bắt đầu theo dõi huyết áp cho Mẹ
+                </div>
+
+                <!-- Description -->
+                <div
+                    style="font-size: 14px; color: var(--text-secondary); text-align: center; line-height: 1.6; margin-bottom: 32px; padding: 0 16px;">
+                    Bạn có thể đặt lịch để nhắc Mẹ đo hàng ngày hoặc thêm ngay kết quả vừa đo để được phân tích.
+                </div>
+
+                <!-- 2 Buttons -->
+                <div style="width: 100%; padding: 0 16px;">
+                    <button class="btn btn-primary btn-full" onclick="goToScreen('scr-bp-setup')"
+                        style="margin-bottom: 12px;">
+                        Đặt lịch ngay
+                    </button>
+                    <button class="btn btn-secondary btn-full" onclick="showToast('Mở form thêm kết quả đo')"
+                        style="border: 2px solid var(--primary); background: white; color: var(--primary);">
+                        Thêm kết quả đo
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== SCR-APPOINTMENT-LIST: Lịch khám sức khỏe ==================== -->
+        <div id="scr-appointment-list" class="screen">
+            <div class="header">
+                <span class="header-back" onclick="goToScreen('scr-dashboard')">←</span>
+                <span class="header-title">Lịch khám sức khỏe</span>
+                <span class="header-action" onclick="goToScreen('scr-appointment-add-method')">+</span>
+            </div>
+            <div class="context-header">
+                <div class="context-avatar">👵</div>
+                <span class="context-text">Mẹ (Trần Thị D)</span>
+            </div>
+            <div class="content">
+                <div class="tab-bar">
+                    <div class="tab-item active">Sắp tới</div>
+                    <div class="tab-item">Đã qua</div>
+                </div>
+
+                <div class="appointment-card" onclick="showToast('Xem chi tiết lịch khám')">
+                    <div class="appointment-date">
+                        <span>📅</span>
+                        <span>Thứ 3, 15/02/2026</span>
+                    </div>
+                    <div class="appointment-info">
+                        Khoa: Tim mạch<br>
+                        Bệnh viện: Bệnh viện Đại học Y Dược
+                    </div>
+                    <span class="appointment-status upcoming">Còn 10 ngày</span>
+                </div>
+
+                <div class="appointment-card" onclick="showToast('Xem chi tiết lịch khám')">
+                    <div class="appointment-date">
+                        <span>📅</span>
+                        <span>Thứ 5, 28/02/2026</span>
+                    </div>
+                    <div class="appointment-info">
+                        Khoa: Nội tiết<br>
+                        Bệnh viện: Bệnh viện Chợ Rẫy
+                    </div>
+                    <span class="appointment-status upcoming">Còn 23 ngày</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== SCR-APPOINTMENT-EMPTY: Lịch khám Empty ==================== -->
+        <div id="scr-appointment-empty" class="screen">
+            <div class="header">
+                <span class="header-back" onclick="goToScreen('scr-dashboard')">←</span>
+                <span class="header-title">Lịch khám sức khỏe</span>
+            </div>
+            <div class="context-header">
+                <div class="context-avatar">👵</div>
+                <span class="context-text">Mẹ (Trần Thị D)</span>
+            </div>
+            <div class="content" style="display: flex; flex-direction: column; align-items: center; padding-top: 60px;">
+                <!-- Illustration -->
+                <div style="font-size: 80px; margin-bottom: 24px;">📋✚</div>
+
+                <!-- Title -->
+                <div
+                    style="font-size: 18px; font-weight: 600; color: var(--text-primary); text-align: center; margin-bottom: 12px; line-height: 1.5;">
+                    Bắt đầu theo dõi lịch khám<br>sức khỏe cho Mẹ
+                </div>
+
+                <!-- Description -->
+                <div
+                    style="font-size: 14px; color: var(--text-secondary); text-align: center; line-height: 1.6; margin-bottom: 32px; padding: 0 16px;">
+                    Bạn có thể đặt lịch hẹn để Kolia nhắc nhở Mẹ tái khám hoặc thêm kết quả khám đã qua.
+                </div>
+
+                <!-- 2 Buttons -->
+                <div style="width: 100%; padding: 0 16px;">
+                    <button class="btn btn-primary btn-full" onclick="goToScreen('scr-appointment-add-method')"
+                        style="margin-bottom: 12px;">
+                        Đặt lịch hẹn
+                    </button>
+                    <button class="btn btn-secondary btn-full" onclick="showToast('Mở form thêm kết quả khám')"
+                        style="border: 2px solid var(--primary); background: white; color: var(--primary);">
+                        Thêm kết quả khám
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== SCR-APPOINTMENT-ADD-METHOD: Chọn phương thức thêm lịch khám ==================== -->
+        <div id="scr-appointment-add-method" class="screen">
+            <div class="header">
+                <span class="header-back" onclick="goToScreen('scr-appointment-list')">←</span>
+                <span class="header-title">Thêm lịch khám</span>
+            </div>
+            <div class="context-header">
+                <div class="context-avatar">👵</div>
+                <span class="context-text">Mẹ (Trần Thị D)</span>
+            </div>
+            <div class="content" style="display: flex; flex-direction: column; align-items: center; padding-top: 40px;">
+                <!-- Illustration -->
+                <div style="font-size: 64px; margin-bottom: 24px;">📅</div>
+
+                <!-- Question -->
+                <div
+                    style="font-size: 18px; font-weight: 600; color: var(--text-primary); text-align: center; margin-bottom: 32px; line-height: 1.5;">
+                    Anh muốn thêm lịch khám<br>bằng cách nào?
+                </div>
+
+                <!-- 2 Options Side by Side -->
+                <div style="display: flex; gap: 16px; width: 100%; padding: 0 20px; margin-bottom: 24px;">
+                    <div class="method-option-card" onclick="showToast('Mở Camera để chụp ảnh giấy hẹn')"
+                        style="flex: 1; padding: 24px 16px; background: white; border-radius: 16px; border: 1px solid var(--border); text-align: center; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,0.06);">
+                        <div style="font-size: 32px; margin-bottom: 12px;">📷</div>
+                        <div style="font-size: 14px; font-weight: 500; color: var(--text-primary);">Chụp ảnh</div>
+                    </div>
+                    <div class="method-option-card" onclick="showToast('Mở thư viện ảnh')"
+                        style="flex: 1; padding: 24px 16px; background: white; border-radius: 16px; border: 1px solid var(--border); text-align: center; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,0.06);">
+                        <div style="font-size: 32px; margin-bottom: 12px;">🖼️</div>
+                        <div style="font-size: 14px; font-weight: 500; color: var(--text-primary);">Tải ảnh</div>
+                    </div>
+                </div>
+
+                <!-- Nhập thủ công row -->
+                <div onclick="showToast('Mở form nhập thủ công')"
+                    style="width: calc(100% - 40px); padding: 16px 20px; background: white; border-radius: 16px; border: 1px solid var(--border); display: flex; align-items: center; gap: 16px; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,0.06);">
+                    <div style="font-size: 24px;">✏️</div>
+                    <div style="font-size: 14px; font-weight: 500; color: var(--text-primary);">Nhập thủ công</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== VIEW SCREENS (Entry from US 1.2) ==================== -->
+
+        <!-- SCR-VIEW-MED-SCHEDULE: Lịch uống thuốc (from US 1.2) -->
+        <div id="scr-view-med-schedule" class="screen">
+            <div class="header">
+                <span class="header-back" onclick="goToScreen('scr-dashboard')">←</span>
+                <span class="header-title">Lịch uống thuốc</span>
+                <span class="header-action" onclick="goToScreen('scr-med-cabinet')" title="Thiết lập">⚙️</span>
+            </div>
+            <div class="context-header">
+                <div class="context-avatar">👵</div>
+                <span class="context-text">Mẹ (Trần Thị D)</span>
+            </div>
+            <div class="content">
+                <!-- Morning Block -->
+                <div style="margin-bottom: 16px;">
+                    <div
+                        style="font-size: 14px; font-weight: 600; color: var(--text-primary); margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
+                        <span>🌅</span> Sáng - 7:00
+                    </div>
+                    <div class="med-card" style="border-left: 4px solid var(--success);">
+                        <div class="med-icon" style="background: var(--success-light);">💊</div>
+                        <div class="med-info">
+                            <div class="med-name">Amlodipine 5mg</div>
+                            <div class="med-dosage">1 viên • Đã uống lúc 7:05</div>
+                        </div>
+                        <span style="color: var(--success); font-size: 20px;">✓</span>
+                    </div>
+                    <div class="med-card" style="border-left: 4px solid var(--success);">
+                        <div class="med-icon" style="background: var(--success-light);">💊</div>
+                        <div class="med-info">
+                            <div class="med-name">Metformin 500mg</div>
+                            <div class="med-dosage">1 viên • Đã uống lúc 7:10</div>
+                        </div>
+                        <span style="color: var(--success); font-size: 20px;">✓</span>
+                    </div>
+                </div>
+
+                <!-- Evening Block -->
+                <div style="margin-bottom: 16px;">
+                    <div
+                        style="font-size: 14px; font-weight: 600; color: var(--text-primary); margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
+                        <span>🌙</span> Tối - 19:00
+                    </div>
+                    <div class="med-card" style="border-left: 4px solid var(--warning);">
+                        <div class="med-icon" style="background: var(--warning-light);">💊</div>
+                        <div class="med-info">
+                            <div class="med-name">Amlodipine 5mg</div>
+                            <div class="med-dosage">1 viên • Chưa uống</div>
+                        </div>
+                        <span style="color: var(--warning); font-size: 18px;">⏱️</span>
+                    </div>
+                </div>
+
+                <!-- Info tip -->
+                <div style="background: var(--info-light); border-radius: 12px; padding: 12px 16px; margin-top: 16px;">
+                    <div style="font-size: 12px; color: var(--info); display: flex; align-items: center; gap: 8px;">
+                        <span>💡</span>
+                        <span>TAP vào <strong>⚙️</strong> để mở Tủ thuốc và chỉnh sửa</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- SCR-VIEW-BP-MEASURE: Đo huyết áp (from US 1.2) -->
+        <div id="scr-view-bp-measure" class="screen">
+            <div class="header">
+                <span class="header-back" onclick="goToScreen('scr-dashboard')">←</span>
+                <span class="header-title">Đo huyết áp</span>
+                <span class="header-action" onclick="goToScreen('scr-bp-setup')" title="Thiết lập">⚙️</span>
+            </div>
+            <div class="context-header">
+                <div class="context-avatar">👵</div>
+                <span class="context-text">Mẹ (Trần Thị D)</span>
+            </div>
+            <div class="content">
+                <!-- Today's measurements -->
+                <div style="margin-bottom: 16px;">
+                    <div style="font-size: 14px; font-weight: 600; color: var(--text-primary); margin-bottom: 12px;">
+                        📅 Hôm nay, 05/02/2026
+                    </div>
+
+                    <div class="detail-card" style="margin-bottom: 12px;">
+                        <div
+                            style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                            <span style="font-size: 13px; color: var(--text-secondary);">🌅 Sáng - 7:15</span>
+                            <span class="appointment-status"
+                                style="background: var(--success-light); color: var(--success);">Bình thường</span>
+                        </div>
+                        <div style="text-align: center;">
+                            <div style="font-size: 32px; font-weight: 700; color: var(--success);">125/82</div>
+                            <div style="font-size: 12px; color: var(--text-muted);">mmHg</div>
+                        </div>
+                        <div
+                            style="text-align: center; margin-top: 8px; font-size: 13px; color: var(--text-secondary);">
+                            Nhịp tim: 72 bpm
+                        </div>
+                    </div>
+
+                    <div class="detail-card" style="border: 2px dashed var(--border); background: var(--bg-gray);">
+                        <div
+                            style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                            <span style="font-size: 13px; color: var(--text-muted);">🌙 Tối - 19:00</span>
+                            <span class="appointment-status"
+                                style="background: var(--warning-light); color: var(--warning);">Chờ đo</span>
+                        </div>
+                        <div style="text-align: center; padding: 16px 0;">
+                            <div style="font-size: 24px;">⏳</div>
+                            <div style="font-size: 13px; color: var(--text-muted); margin-top: 8px;">Chưa có dữ liệu
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Info tip -->
+                <div style="background: var(--info-light); border-radius: 12px; padding: 12px 16px;">
+                    <div style="font-size: 12px; color: var(--info); display: flex; align-items: center; gap: 8px;">
+                        <span>💡</span>
+                        <span>TAP vào <strong>⚙️</strong> để thay đổi lịch đo</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- SCR-VIEW-HEALTH-CHECKUP: Lịch khám sức khỏe (from US 1.2) -->
+        <div id="scr-view-health-checkup" class="screen">
+            <div class="header">
+                <span class="header-back" onclick="goToScreen('scr-dashboard')">←</span>
+                <span class="header-title">Lịch khám sức khỏe</span>
+                <span class="header-action" onclick="goToScreen('scr-appointment-add-method')"
+                    title="Thêm lịch khám">⚙️</span>
+            </div>
+            <div class="context-header">
+                <div class="context-avatar">👵</div>
+                <span class="context-text">Mẹ (Trần Thị D)</span>
+            </div>
+            <div class="content">
+                <div class="tab-bar">
+                    <div class="tab-item active">Sắp tới</div>
+                    <div class="tab-item">Đã qua</div>
+                </div>
+
+                <!-- Upcoming appointments -->
+                <div class="appointment-card" style="border-left: 4px solid var(--info);">
+                    <div class="appointment-date">
+                        <span>📅</span>
+                        <span>Thứ 3, 15/02/2026</span>
+                    </div>
+                    <div class="appointment-info">
+                        Khoa: Tim mạch<br>
+                        Bệnh viện: Bệnh viện Đại học Y Dược<br>
+                        Bác sĩ: BS. Nguyễn Văn A
+                    </div>
+                    <span class="appointment-status upcoming">Còn 10 ngày</span>
+                </div>
+
+                <div class="appointment-card" style="border-left: 4px solid var(--info);">
+                    <div class="appointment-date">
+                        <span>📅</span>
+                        <span>Thứ 5, 28/02/2026</span>
+                    </div>
+                    <div class="appointment-info">
+                        Khoa: Nội tiết<br>
+                        Bệnh viện: Bệnh viện Chợ Rẫy
+                    </div>
+                    <span class="appointment-status upcoming">Còn 23 ngày</span>
+                </div>
+
+                <!-- Info tip -->
+                <div style="background: var(--info-light); border-radius: 12px; padding: 12px 16px; margin-top: 16px;">
+                    <div style="font-size: 12px; color: var(--info); display: flex; align-items: center; gap: 8px;">
+                        <span>💡</span>
+                        <span>TAP vào <strong>⚙️</strong> để thêm lịch khám mới</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== Delete Confirmation Popup ==================== -->
+        <div id="popup-delete" class="popup-overlay">
+            <div class="popup-content">
+                <div class="popup-icon">🗑️</div>
+                <div class="popup-title">Xóa Amlodipine 5mg?</div>
+                <div class="popup-message">Thao tác này sẽ xóa thuốc khỏi lịch uống của Trần Thị D</div>
+                <div class="popup-actions">
+                    <button class="btn btn-secondary" onclick="hideDeletePopup()">Hủy</button>
+                    <button class="btn btn-danger" onclick="confirmDelete()">Xóa</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Toast -->
+        <div id="toast" class="toast"></div>
+    </div>
+
+    <!-- Demo Controls -->
+    <div class="demo-controls">
+        <div style="font-size: 11px; color: var(--text-secondary); margin-bottom: 4px; text-align: center;">Demo
+            Controls</div>
+        <button class="demo-btn" onclick="goToScreen('scr-dashboard')">Dashboard (ON)</button>
+        <button class="demo-btn" onclick="goToScreen('scr-setup-denied')">Dashboard (OFF)</button>
+        <div style="height: 1px; background: var(--border); margin: 8px 0;"></div>
+        <button class="demo-btn" style="background: var(--info);" onclick="goToScreen('scr-view-med-schedule')">📋 Lịch
+            uống thuốc</button>
+        <button class="demo-btn" style="background: var(--info);" onclick="goToScreen('scr-view-bp-measure')">📋 Đo
+            huyết áp</button>
+        <button class="demo-btn" style="background: var(--info);" onclick="goToScreen('scr-view-health-checkup')">📋
+            Lịch khám (View)</button>
+        <div style="height: 1px; background: var(--border); margin: 8px 0;"></div>
+        <button class="demo-btn" onclick="goToScreen('scr-med-cabinet')">⚙️ Tủ thuốc</button>
+        <button class="demo-btn" onclick="goToScreen('scr-med-cabinet-empty')">Tủ thuốc (Empty)</button>
+        <button class="demo-btn" onclick="goToScreen('scr-bp-setup')">⚙️ Thiết lập HA</button>
+        <button class="demo-btn" onclick="goToScreen('scr-bp-setup-empty')">Thiết lập HA (Empty)</button>
+        <button class="demo-btn" onclick="goToScreen('scr-appointment-list')">⚙️ Lịch khám</button>
+        <button class="demo-btn" onclick="goToScreen('scr-appointment-empty')">Lịch khám (Empty)</button>
+    </div>
+
+    <script>
+        // Navigation
+        function goToScreen(screenId) {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.getElementById(screenId).classList.add('active');
+        }
+
+        // Toast
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            toast.textContent = msg;
+            toast.classList.remove('success');
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 2500);
+        }
+
+        function showSuccessToast(msg) {
+            const toast = document.getElementById('toast');
+            toast.textContent = '✓ ' + msg;
+            toast.classList.add('success', 'show');
+            setTimeout(() => {
+                toast.classList.remove('show', 'success');
+                goToScreen('scr-dashboard');
+            }, 2000);
+        }
+
+        // Delete Popup
+        function showDeletePopup() {
+            document.getElementById('popup-delete').classList.add('show');
+        }
+
+        function hideDeletePopup() {
+            document.getElementById('popup-delete').classList.remove('show');
+        }
+
+        function confirmDelete() {
+            hideDeletePopup();
+            showSuccessToast('Đã xóa thuốc khỏi tủ thuốc của Mẹ'); // Template: Đã xóa thuốc khỏi tủ thuốc của {Mối quan hệ}
+        }
+
+        // Option buttons toggle
+        document.querySelectorAll('.option-btn').forEach(btn => {
+            btn.addEventListener('click', function () {
+                // For frequency, only allow one selection
+                if (this.parentElement.classList.contains('option-grid') &&
+                    this.closest('.form-section').querySelector('.form-section-title').textContent.includes('Tần suất')) {
+                    this.parentElement.querySelectorAll('.option-btn').forEach(b => b.classList.remove('selected'));
+                    this.classList.add('selected');
+                } else {
+                    // For time slots, allow multiple
+                    this.classList.toggle('selected');
+                }
+            });
+        });
+
+        // Tab switching
+        document.querySelectorAll('.tab-item').forEach(tab => {
+            tab.addEventListener('click', function () {
+                this.parentElement.querySelectorAll('.tab-item').forEach(t => t.classList.remove('active'));
+                this.classList.add('active');
+            });
+        });
+    </script>
+</body>
+
+</html>
