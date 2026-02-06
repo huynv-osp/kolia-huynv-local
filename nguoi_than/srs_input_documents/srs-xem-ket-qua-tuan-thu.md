@@ -1,7 +1,7 @@
 # SRS: US 1.2 - Xem Kết Quả Tuân Thủ (Caregiver Compliance View)
 
-> **Version:** v2.5  
-> **Date:** 2026-02-04  
+> **Version:** v2.7  
+> **Date:** 2026-02-06  
 > **Author:** BA Team  
 > **Status:** Ready for Dev Review  
 > **Parent SRS:** [KOLIA-1517_srs.md](./srs.md)
@@ -128,7 +128,7 @@ Given Caregiver đang xem Dashboard
 When Patient revoke Permission #4 (OFF) trong khi Caregiver đang xem
 Then Dashboard nhận realtime update (WebSocket/Push)
   And 3 khối VIEW chuyển sang trạng thái Permission Denied Overlay
-  And Animation: fade-in blur + overlay trong 300ms
+  And UI smoothly transitions to Permission Denied state
   Ref: BR-CG-003, BR-CG-018, SEC-CG-001
 ```
 
@@ -215,16 +215,21 @@ Then Khối "Huyết áp hôm nay" hiển thị Insufficient Data State:
   Ref: BR-010, BR-CG-006, BR-CG-015
 ```
 
-#### Kịch bản 2.2.4: Tap kết quả trong list HA → Xem chi tiết 1 lần đo
+#### Kịch bản 2.2.4: Restriction - Không cho phép xem chi tiết từng lần đo
 
 ```gherkin
 Given Caregiver đang ở SCR-CG-HA-LIST (Danh sách kết quả đo HA)
-When Caregiver tap vào 1 kết quả đo cụ thể
-Then Navigate đến màn chi tiết kết quả đo (Reuse từ SRS Đo HA)
-  And Context Header: "[Avatar] {Mối quan hệ} ({Tên Patient})" (GIỮ NGUYÊN từ list)
-  And Nội dung màn detail: {Danh xưng} → OVERRIDE thành {Mối quan hệ}
-  Ref: BR-CG-014, BR-CG-015, SRS Đo HA
+When Caregiver nhìn thấy danh sách các lần đo
+Then Các item trong list HĐ như NON-TAPPABLE (không có chevron, không có tap action)
+  And Mỗi item chỉ hiển thị: Thời gian đo, Chỉ số (Tâm thu/Tâm trương), Nhịp tim
+  And KHÔNG có navigation đến màn chi tiết
+  Ref: BR-CG-021
 ```
+
+> **⚠️ Design Decision:** Caregiver chỉ được xem **danh sách** các lần đo HA (SCR-CG-HA-LIST), KHÔNG thể tap vào từng item để xem chi tiết. Lý do:
+> - Phân tích huyết áp (BR-010) là kết quả tổng hợp từ ≥2 lần đo/ngày, đã hiển thị ở khối Dashboard
+> - Màn chi tiết từng lần đo không cung cấp giá trị bổ sung cho Caregiver
+> - Giảm phửa mức độ phức tạp và giữ focus vào overview
 
 ---
 
@@ -387,6 +392,7 @@ Then Khối "🏥 Tái khám" hiển thị Empty State:
 | **BR-CG-018** | Display | **Permission Denied Overlay:** Khi Permission OFF → Khối hiển thị blur background + overlay có: 🔒 Icon, Message "{Tên Patient} đã tắt quyền {tên quyền}", Guidance "Liên hệ {Mối quan hệ} để bật lại quyền này" | P0 |
 | **BR-CG-019** | Display | **Checkup Card Actions:** Mỗi thẻ lịch khám hiển thị action textlink thay vì status badge (theo UI gốc): (1) Tab "Lịch sắp tới": thẻ chỉ có thông tin lịch + chevron, KHÔNG có status badge, button "Báo cáo kết quả" ẨN trong CG VIEW; (2) Tab "Lịch đã qua": thẻ có "Xem kết quả" textlink (ref US-007). **Note:** UI gốc không có status badges trên cards, chỉ có action buttons/textlinks | P1 |
 | **BR-CG-020** | Display | **CG VIEW Header Icons:** Các màn hình drill-down (SCR-CG-HA-LIST, SCR-CG-MED-SCHEDULE, SCR-CG-CHECKUP-LIST) KHÔNG hiển thị icons trong header (📅, 📊, +). Chỉ có: ← Back arrow + Title. Lý do: Các icons này liên kết đến actions ngoài scope của CG VIEW mode | P1 |
+| **BR-CG-021** | Navigation | **No HA Detail Drill-down:** Caregiver KHÔNG được phép tap vào từng lần đo HA để xem chi tiết. Chỉ xem được danh sách (SCR-CG-HA-LIST). Lý do: Phân tích đã hiển thị ở khối Dashboard, màn chi tiết không cần thiết | P0 |
 
 ---
 
@@ -430,8 +436,7 @@ Then Khối "🏥 Tái khám" hiển thị Empty State:
 | Screen ID | Screen Name | Entry Points | Exit Points |
 |-----------|-------------|--------------|-------------|
 | SCR-CG-DASH | Dashboard Tuân thủ | Chọn Patient từ Profile Selector | Tap any block |
-| SCR-CG-HA-LIST | Danh sách kết quả đo HA | Tap khối HA / textlink | Tap item, Back |
-| SCR-CG-HA-DETAIL | Phân tích kết quả | Tap item trong list | Back (Reuse SRS Đo HA) |
+| SCR-CG-HA-LIST | Danh sách kết quả đo HA | Tap khối HA / textlink | Back (KHÔNG có tap item) |
 | SCR-CG-MED-SCHEDULE | Lịch uống thuốc | Tap khối Thuốc / textlink | Back |
 | SCR-CG-CHECKUP-LIST | Lịch khám sức khỏe | Tap khối Tái khám / textlink | Tap item, Back |
 | SCR-CG-CHECKUP-DETAIL | Chi tiết lịch khám | Tap item trong list | Back (Reuse SRS Tái khám) |
@@ -555,6 +560,9 @@ flowchart TD
 | v2.0 | 2026-02-04 | BA Team | **Detail Drill-down:** (1) Add 2.2.4 HA detail, 2.4.3 Tái khám detail, (2) Enforce Context Header + {Mối quan hệ} override ở màn detail, (3) Update Screen Inventory |
 | v2.1 | 2026-02-04 | BA Team | **Scope Cleanup:** Remove Section 2.5 (Dashboard Empty State) - 3 khối đã có Empty State riêng, TH không có nhiệm vụ nào sẽ ở US 2.1 (SETUP block) |
 | v2.2 | 2026-02-04 | BA Team | **UX Simplify:** Bỏ Context Header ở Dashboard (Profile Selector đã đủ), giữ Context Header chỉ ở màn hình drill-down (list/detail) |
+| v2.3-2.5 | 2026-02-04 | BA Team | **Internal Iterations:** Checkup status, Header icons cleanup, finalization |
+| v2.6 | 2026-02-06 | BA Team | Clarification: Add BR-CG-021 - Caregiver KHÔNG xem được kết quả phân tích từng lần đo HA |
+| v2.7 | 2026-02-06 | BA Team | **BREAKING:** Xóa SCR-CG-HA-DETAIL - Caregiver chỉ xem list, KHÔNG tap được chi tiết từng lần đo HA. Update BR-CG-021 thành "No HA Detail Drill-down" |
 
 ### A.2 Cross-Reference
 

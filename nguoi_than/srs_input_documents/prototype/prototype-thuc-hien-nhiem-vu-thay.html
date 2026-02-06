@@ -1,0 +1,1385 @@
+<!DOCTYPE html>
+<!--
+    PROTOTYPE: US 2.2 - Thực hiện Nhiệm vụ Thay Patient (Caregiver Execute Task)
+    
+    VERSION: v1.0
+    DATE: 2026-02-06
+    AUTHOR: UX Designer (Sally)
+    SRS REF: srs-thuc-hien-nhiem-vu-thay.md v1.4
+    
+    SCOPE (Updated per SRS v1.4):
+    - Thuốc: Báo cáo + nhận xử lý sai liều/quên uống
+    - HA: Thêm kết quả → KẾT THÚC (không có màn phân tích)
+    - Tái khám: Thêm kết quả + xem được phân tích
+    
+    SCREENS INCLUDED (9 total):
+    
+    === ENTRY SCREENS (From Dashboard drill-down) ===
+    - scr-med-schedule: Lịch uống thuốc + Action Buttons (US 2.2 Entry)
+    - scr-bp-list: Danh sách đo HA + FAB Button (US 2.2 Entry)
+    - scr-checkup-list: Lịch khám + "Báo cáo →" textlink (US 2.2 Entry)
+    
+    === EXECUTE SCREENS ===
+    - scr-med-report-popup: Popup Báo cáo chi tiết thuốc
+    - scr-bp-add: Thêm kết quả đo HA (Manual + OCR)
+    - scr-checkup-report: Báo cáo kết quả khám (OCR only)
+    - scr-checkup-analysis: Kết quả phân tích tái khám (Caregiver xem được)
+    
+    === STATES ===
+    - Permission #5 ON/OFF indicators
+    - Toast success messages
+-->
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>US 2.2 | Thực hiện Nhiệm vụ Thay</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #2BB89A;
+            --primary-dark: #239B82;
+            --primary-light: #E8F8F4;
+            --primary-gradient: linear-gradient(135deg, #2BB89A, #1A9F82);
+            --danger: #E53935;
+            --danger-light: #FFEBEE;
+            --warning: #FF9800;
+            --warning-light: #FFF8E1;
+            --success: #00A86B;
+            --success-light: #E8F5E9;
+            --info: #1976D2;
+            --info-light: #E3F2FD;
+            --text-primary: #2D3748;
+            --text-secondary: #718096;
+            --text-muted: #A0AEC0;
+            --bg-white: #FFFFFF;
+            --bg-gray: #F7FAFC;
+            --border: #E2E8F0;
+            --shadow: 0 4px 15px rgba(43, 184, 154, 0.12);
+            --shadow-lg: 0 8px 25px rgba(43, 184, 154, 0.18);
+            --radius: 16px;
+            --radius-lg: 24px;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(180deg, #E8F8F4 0%, #F7FAFC 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .phone-frame {
+            width: 375px;
+            min-height: 750px;
+            background: var(--bg-white);
+            border-radius: 32px;
+            box-shadow: var(--shadow-lg);
+            overflow: hidden;
+            position: relative;
+        }
+
+        .screen {
+            display: none;
+            flex-direction: column;
+            height: 100%;
+        }
+
+        .screen.active {
+            display: flex;
+        }
+
+        /* ===== Header ===== */
+        .header {
+            background: var(--primary-gradient);
+            color: white;
+            padding: 20px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .header-back {
+            font-size: 20px;
+            cursor: pointer;
+        }
+
+        .header-title {
+            font-size: 18px;
+            font-weight: 700;
+            flex: 1;
+        }
+
+        .header-action {
+            font-size: 22px;
+            cursor: pointer;
+        }
+
+        /* ===== Context Header ===== */
+        .context-header {
+            background: linear-gradient(135deg, var(--primary-light) 0%, #D4F1EB 100%);
+            padding: 14px 20px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            border-bottom: 2px solid var(--primary);
+            box-shadow: 0 2px 8px rgba(43, 184, 154, 0.15);
+        }
+
+        .context-avatar {
+            width: 40px;
+            height: 40px;
+            background: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            box-shadow: 0 2px 10px rgba(43, 184, 154, 0.25);
+            border: 2px solid var(--primary);
+        }
+
+        .context-text {
+            font-size: 15px;
+            color: var(--primary-dark);
+            font-weight: 600;
+        }
+
+        /* ===== Content ===== */
+        .content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
+            background: var(--bg-gray);
+        }
+
+        /* ===== Time Block (Medicine Schedule) ===== */
+        .time-block {
+            background: white;
+            border-radius: var(--radius-lg);
+            margin-bottom: 16px;
+            overflow: hidden;
+            box-shadow: var(--shadow);
+        }
+
+        .time-block-header {
+            padding: 16px 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .time-icon {
+            font-size: 20px;
+        }
+
+        .time-label {
+            font-size: 15px;
+            font-weight: 600;
+            color: var(--text-primary);
+            flex: 1;
+        }
+
+        .time-status {
+            font-size: 12px;
+            padding: 4px 10px;
+            border-radius: 10px;
+            font-weight: 500;
+        }
+
+        .time-status.pending {
+            background: var(--warning-light);
+            color: var(--warning);
+        }
+
+        .time-status.done {
+            background: var(--success-light);
+            color: var(--success);
+        }
+
+        /* ===== Medicine Item ===== */
+        .med-item {
+            padding: 16px 20px;
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .med-item:last-child {
+            border-bottom: none;
+        }
+
+        .med-item-icon {
+            width: 44px;
+            height: 44px;
+            background: var(--primary-light);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 22px;
+        }
+
+        .med-item-info {
+            flex: 1;
+        }
+
+        .med-item-name {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .med-item-dose {
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-top: 2px;
+        }
+
+        .med-item-status {
+            font-size: 18px;
+        }
+
+        /* ===== Fixed Action Buttons (Bottom) ===== */
+        .action-buttons-fixed {
+            position: sticky;
+            bottom: 0;
+            background: white;
+            padding: 16px;
+            border-top: 1px solid var(--border);
+            display: flex;
+            gap: 12px;
+            box-shadow: 0 -4px 15px rgba(0, 0, 0, 0.08);
+        }
+
+        .btn {
+            padding: 14px 24px;
+            border: none;
+            border-radius: var(--radius);
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            transition: all 0.2s;
+            flex: 1;
+        }
+
+        .btn-success {
+            background: var(--success);
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #009456;
+        }
+
+        .btn-secondary {
+            background: white;
+            color: var(--primary);
+            border: 2px solid var(--primary);
+        }
+
+        .btn-primary {
+            background: var(--primary-gradient);
+            color: white;
+            box-shadow: 0 4px 12px rgba(43, 184, 154, 0.3);
+        }
+
+        .btn-full {
+            width: 100%;
+        }
+
+        /* ===== FAB Button ===== */
+        .fab {
+            position: absolute;
+            bottom: 24px;
+            right: 24px;
+            width: 56px;
+            height: 56px;
+            background: var(--primary-gradient);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+            color: white;
+            box-shadow: 0 4px 16px rgba(43, 184, 154, 0.4);
+            cursor: pointer;
+            z-index: 50;
+            transition: transform 0.2s;
+        }
+
+        .fab:hover {
+            transform: scale(1.1);
+        }
+
+        /* ===== BP Result Card ===== */
+        .bp-card {
+            background: white;
+            border-radius: var(--radius);
+            padding: 16px;
+            margin-bottom: 12px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+        }
+
+        .bp-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .bp-time {
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+
+        .bp-status {
+            font-size: 11px;
+            padding: 4px 10px;
+            border-radius: 10px;
+            font-weight: 500;
+        }
+
+        .bp-status.normal {
+            background: var(--success-light);
+            color: var(--success);
+        }
+
+        .bp-status.high {
+            background: var(--danger-light);
+            color: var(--danger);
+        }
+
+        .bp-value {
+            text-align: center;
+            font-size: 32px;
+            font-weight: 700;
+            color: var(--success);
+        }
+
+        .bp-unit {
+            text-align: center;
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        .bp-pulse {
+            text-align: center;
+            margin-top: 8px;
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+
+        /* ===== Checkup Card ===== */
+        .checkup-card {
+            background: white;
+            border-radius: var(--radius);
+            padding: 16px;
+            margin-bottom: 12px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+            display: flex;
+            align-items: flex-start;
+            gap: 14px;
+        }
+
+        .checkup-info {
+            flex: 1;
+        }
+
+        .checkup-date {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .checkup-detail {
+            font-size: 13px;
+            color: var(--text-secondary);
+            margin-top: 6px;
+            line-height: 1.5;
+        }
+
+        .checkup-status {
+            font-size: 12px;
+            padding: 4px 10px;
+            border-radius: 10px;
+            margin-top: 8px;
+            display: inline-block;
+        }
+
+        .checkup-status.need-update {
+            background: var(--warning-light);
+            color: var(--warning);
+        }
+
+        .checkup-action {
+            color: var(--primary);
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            white-space: nowrap;
+        }
+
+        /* ===== Popup/Modal ===== */
+        .popup-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            display: none;
+            align-items: flex-end;
+            z-index: 100;
+        }
+
+        .popup-overlay.show {
+            display: flex;
+        }
+
+        .popup-content {
+            background: white;
+            border-radius: 24px 24px 0 0;
+            padding: 20px;
+            width: 100%;
+            max-height: 85%;
+            overflow-y: auto;
+        }
+
+        .popup-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        }
+
+        .popup-title {
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        .popup-close {
+            font-size: 24px;
+            color: var(--text-muted);
+            cursor: pointer;
+        }
+
+        /* ===== Report Item (in Popup) ===== */
+        .report-item {
+            background: var(--bg-gray);
+            border-radius: var(--radius);
+            padding: 16px;
+            margin-bottom: 12px;
+        }
+
+        .report-item-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+
+        .report-item-icon {
+            font-size: 24px;
+        }
+
+        .report-item-name {
+            font-size: 15px;
+            font-weight: 600;
+            color: var(--text-primary);
+            flex: 1;
+        }
+
+        .report-item-dose {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        .report-options {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .report-option {
+            padding: 10px 16px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 2px solid transparent;
+        }
+
+        .report-option.taken {
+            background: var(--success-light);
+            color: var(--success);
+        }
+
+        .report-option.taken.selected {
+            background: var(--success);
+            color: white;
+        }
+
+        .report-option.missed {
+            background: var(--warning-light);
+            color: var(--warning);
+        }
+
+        .report-option.missed.selected {
+            background: var(--warning);
+            color: white;
+        }
+
+        .report-option.wrong {
+            background: var(--danger-light);
+            color: var(--danger);
+        }
+
+        .report-option.wrong.selected {
+            background: var(--danger);
+            color: white;
+        }
+
+        /* ===== Reason Input ===== */
+        .reason-input {
+            margin-top: 12px;
+            display: none;
+        }
+
+        .reason-input.show {
+            display: block;
+        }
+
+        .reason-input textarea {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            font-size: 14px;
+            resize: none;
+            font-family: inherit;
+        }
+
+        .reason-input label {
+            display: block;
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-bottom: 6px;
+        }
+
+        /* ===== Form Section ===== */
+        .form-section {
+            background: white;
+            border-radius: var(--radius);
+            padding: 20px;
+            margin-bottom: 16px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+        }
+
+        .form-section-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .form-row {
+            margin-bottom: 16px;
+        }
+
+        .form-label {
+            font-size: 13px;
+            color: var(--text-secondary);
+            margin-bottom: 8px;
+            display: block;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 14px 16px;
+            border: 2px solid var(--border);
+            border-radius: 12px;
+            font-size: 16px;
+            font-family: inherit;
+            transition: border-color 0.2s;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        .form-input.error {
+            border-color: var(--danger);
+        }
+
+        .form-error {
+            color: var(--danger);
+            font-size: 12px;
+            margin-top: 4px;
+        }
+
+        /* ===== BP Input Row ===== */
+        .bp-input-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .bp-input-group {
+            flex: 1;
+            text-align: center;
+        }
+
+        .bp-input-label {
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-bottom: 6px;
+        }
+
+        .bp-input {
+            width: 100%;
+            padding: 16px;
+            border: 2px solid var(--border);
+            border-radius: 12px;
+            font-size: 24px;
+            font-weight: 700;
+            text-align: center;
+            color: var(--text-primary);
+        }
+
+        .bp-input:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        .bp-separator {
+            font-size: 28px;
+            color: var(--text-muted);
+            padding-top: 20px;
+        }
+
+        /* ===== Photo Options ===== */
+        .photo-options {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .photo-option {
+            flex: 1;
+            padding: 20px;
+            background: var(--bg-gray);
+            border-radius: var(--radius);
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 2px solid transparent;
+        }
+
+        .photo-option:hover {
+            border-color: var(--primary);
+            background: var(--primary-light);
+        }
+
+        .photo-option-icon {
+            font-size: 32px;
+            margin-bottom: 8px;
+        }
+
+        .photo-option-label {
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text-primary);
+        }
+
+        /* ===== Time Selector ===== */
+        .time-selector {
+            display: flex;
+            gap: 10px;
+        }
+
+        .time-option {
+            flex: 1;
+            padding: 12px;
+            background: var(--bg-gray);
+            border-radius: 12px;
+            text-align: center;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            cursor: pointer;
+            border: 2px solid transparent;
+            transition: all 0.2s;
+        }
+
+        .time-option.selected {
+            background: var(--primary-light);
+            border-color: var(--primary);
+            color: var(--primary-dark);
+        }
+
+        /* ===== Analysis Card ===== */
+        .analysis-card {
+            background: var(--success-light);
+            border-radius: var(--radius);
+            padding: 20px;
+            margin-bottom: 16px;
+            border-left: 4px solid var(--success);
+        }
+
+        .analysis-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+
+        .analysis-icon {
+            font-size: 24px;
+        }
+
+        .analysis-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--success);
+        }
+
+        .analysis-content {
+            font-size: 14px;
+            color: var(--text-primary);
+            line-height: 1.6;
+        }
+
+        /* ===== Toast ===== */
+        .toast {
+            position: absolute;
+            bottom: 80px;
+            left: 20px;
+            right: 20px;
+            background: var(--text-primary);
+            color: white;
+            padding: 14px 20px;
+            border-radius: 12px;
+            font-size: 14px;
+            text-align: center;
+            opacity: 0;
+            transform: translateY(20px);
+            transition: all 0.3s;
+            z-index: 200;
+        }
+
+        .toast.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .toast.success {
+            background: var(--success);
+        }
+
+        /* ===== Demo Controls ===== */
+        .demo-controls {
+            position: fixed;
+            right: 20px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: white;
+            padding: 12px;
+            border-radius: 12px;
+            box-shadow: var(--shadow-lg);
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            max-width: 180px;
+            z-index: 1000;
+        }
+
+        .demo-btn {
+            padding: 8px 12px;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 11px;
+            cursor: pointer;
+            text-align: left;
+        }
+
+        .demo-btn:hover {
+            background: var(--primary-dark);
+        }
+
+        @media (max-width: 768px) {
+            .demo-controls {
+                display: none;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="phone-frame">
+
+        <!-- ==================== SCR-MED-SCHEDULE: Lịch uống thuốc (Entry for US 2.2) ==================== -->
+        <div id="scr-med-schedule" class="screen active">
+            <div class="header">
+                <span class="header-back">←</span>
+                <span class="header-title">Lịch uống thuốc</span>
+                <span class="header-action">⚙️</span>
+            </div>
+            <div class="context-header">
+                <div class="context-avatar">👵</div>
+                <span class="context-text">Mẹ (Trần Thị D)</span>
+            </div>
+            <div class="content" style="padding-bottom: 100px;">
+                <!-- Week Calendar Placeholder -->
+                <div
+                    style="background: white; border-radius: 12px; padding: 12px; margin-bottom: 16px; text-align: center; font-size: 13px; color: var(--text-secondary);">
+                    📅 Thứ 5, 05/02/2026
+                </div>
+
+                <!-- Morning Block - Pending -->
+                <div class="time-block">
+                    <div class="time-block-header">
+                        <span class="time-icon">☀️</span>
+                        <span class="time-label">Sáng</span>
+                        <span class="time-status pending">Đến giờ uống</span>
+                    </div>
+                    <div class="med-item">
+                        <div class="med-item-icon">💊</div>
+                        <div class="med-item-info">
+                            <div class="med-item-name">Lisinopril 10mg</div>
+                            <div class="med-item-dose">1 viên • 07:00</div>
+                        </div>
+                        <span class="med-item-status">⏳</span>
+                    </div>
+                    <div class="med-item">
+                        <div class="med-item-icon">💊</div>
+                        <div class="med-item-info">
+                            <div class="med-item-name">Amlodipine 5mg</div>
+                            <div class="med-item-dose">1 viên • 07:00</div>
+                        </div>
+                        <span class="med-item-status">⏳</span>
+                    </div>
+                </div>
+
+                <!-- Afternoon Block - Done -->
+                <div class="time-block">
+                    <div class="time-block-header">
+                        <span class="time-icon">🌤️</span>
+                        <span class="time-label">Trưa</span>
+                        <span class="time-status done">Đã uống</span>
+                    </div>
+                    <div class="med-item">
+                        <div class="med-item-icon">💊</div>
+                        <div class="med-item-info">
+                            <div class="med-item-name">Metformin 500mg</div>
+                            <div class="med-item-dose">1 viên • 12:00</div>
+                        </div>
+                        <span class="med-item-status">✅</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Fixed Action Buttons (US 2.2) - BR-CG-040 -->
+            <div class="action-buttons-fixed">
+                <button class="btn btn-success" onclick="quickReportMeds()">✅ Đã uống tất cả đúng liều</button>
+                <button class="btn btn-secondary" onclick="showMedReportPopup()">📋 Báo cáo chi tiết</button>
+            </div>
+        </div>
+
+        <!-- ==================== SCR-BP-LIST: Danh sách đo HA (Entry for US 2.2) ==================== -->
+        <div id="scr-bp-list" class="screen">
+            <div class="header">
+                <span class="header-back" onclick="goToScreen('scr-med-schedule')">←</span>
+                <span class="header-title">Kết quả đo huyết áp</span>
+                <span class="header-action">⚙️</span>
+            </div>
+            <div class="context-header">
+                <div class="context-avatar">👵</div>
+                <span class="context-text">Mẹ (Trần Thị D)</span>
+            </div>
+            <div class="content">
+                <div style="font-size: 14px; font-weight: 600; color: var(--text-primary); margin-bottom: 12px;">
+                    📅 Hôm nay, 05/02/2026
+                </div>
+
+                <!-- BP Result 1 -->
+                <div class="bp-card">
+                    <div class="bp-card-header">
+                        <span class="bp-time">🌅 Sáng - 7:15</span>
+                        <span class="bp-status normal">Bình thường</span>
+                    </div>
+                    <div class="bp-value" style="color: var(--success);">125/82</div>
+                    <div class="bp-unit">mmHg</div>
+                    <div class="bp-pulse">Nhịp tim: 72 bpm</div>
+                </div>
+
+                <!-- BP Result 2 - Waiting -->
+                <div class="bp-card" style="border: 2px dashed var(--border); background: var(--bg-gray);">
+                    <div class="bp-card-header">
+                        <span class="bp-time" style="color: var(--text-muted);">🌙 Tối - 19:00</span>
+                        <span class="bp-status" style="background: var(--warning-light); color: var(--warning);">Chờ
+                            đo</span>
+                    </div>
+                    <div style="text-align: center; padding: 16px 0;">
+                        <div style="font-size: 24px;">⏳</div>
+                        <div style="font-size: 13px; color: var(--text-muted); margin-top: 8px;">Chưa có dữ liệu</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- FAB Button (US 2.2) - BR-CG-041 -->
+            <div class="fab" onclick="goToScreen('scr-bp-add')">➕</div>
+        </div>
+
+        <!-- ==================== SCR-CHECKUP-LIST: Lịch khám (Entry for US 2.2) ==================== -->
+        <div id="scr-checkup-list" class="screen">
+            <div class="header">
+                <span class="header-back" onclick="goToScreen('scr-med-schedule')">←</span>
+                <span class="header-title">Lịch khám sức khỏe</span>
+                <span class="header-action">⚙️</span>
+            </div>
+            <div class="context-header">
+                <div class="context-avatar">👵</div>
+                <span class="context-text">Mẹ (Trần Thị D)</span>
+            </div>
+            <div class="content">
+                <!-- Tabs -->
+                <div
+                    style="display: flex; gap: 0; background: var(--bg-gray); border-radius: 12px; padding: 4px; margin-bottom: 16px;">
+                    <div
+                        style="flex: 1; padding: 10px; text-align: center; font-size: 13px; font-weight: 500; color: var(--text-secondary); border-radius: 10px; cursor: pointer;">
+                        Sắp tới</div>
+                    <div
+                        style="flex: 1; padding: 10px; text-align: center; font-size: 13px; font-weight: 500; background: white; color: var(--primary); border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.08);">
+                        Đã qua</div>
+                </div>
+
+                <!-- Checkup 1 - Need update (BR-CG-042) -->
+                <div class="checkup-card" style="border-left: 4px solid var(--warning);">
+                    <div class="checkup-info">
+                        <div class="checkup-date">
+                            <span>📅</span>
+                            <span>Thứ 3, 03/02/2026</span>
+                        </div>
+                        <div class="checkup-detail">
+                            Khoa: Tim mạch<br>
+                            BV: Bệnh viện Đại học Y Dược<br>
+                            BS: Nguyễn Văn A
+                        </div>
+                        <span class="checkup-status need-update">🟠 Cần cập nhật kết quả</span>
+                    </div>
+                    <div class="checkup-action" onclick="goToScreen('scr-checkup-report')">
+                        Báo cáo →
+                    </div>
+                </div>
+
+                <!-- Checkup 2 - Done -->
+                <div class="checkup-card" style="border-left: 4px solid var(--success);">
+                    <div class="checkup-info">
+                        <div class="checkup-date">
+                            <span>📅</span>
+                            <span>Thứ 5, 15/01/2026</span>
+                        </div>
+                        <div class="checkup-detail">
+                            Khoa: Nội tiết<br>
+                            BV: Bệnh viện Chợ Rẫy
+                        </div>
+                        <span class="checkup-status" style="background: var(--success-light); color: var(--success);">⚫
+                            Đã qua</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== SCR-BP-ADD: Thêm kết quả đo HA (US 2.2) ==================== -->
+        <div id="scr-bp-add" class="screen">
+            <div class="header">
+                <span class="header-back" onclick="goToScreen('scr-bp-list')">←</span>
+                <span class="header-title">Thêm kết quả đo</span>
+            </div>
+            <div class="context-header">
+                <div class="context-avatar">👵</div>
+                <span class="context-text">Mẹ (Trần Thị D)</span>
+            </div>
+            <div class="content">
+                <!-- Photo Options -->
+                <div class="photo-options">
+                    <div class="photo-option">
+                        <div class="photo-option-icon">📷</div>
+                        <div class="photo-option-label">Chụp ảnh máy đo</div>
+                    </div>
+                    <div class="photo-option">
+                        <div class="photo-option-icon">🖼️</div>
+                        <div class="photo-option-label">Tải ảnh từ thư viện</div>
+                    </div>
+                </div>
+
+                <div style="text-align: center; color: var(--text-muted); font-size: 13px; margin: 16px 0;">hoặc nhập
+                    thủ công</div>
+
+                <!-- Manual Input Form -->
+                <div class="form-section">
+                    <div class="form-section-title">🩺 Kết quả đo</div>
+
+                    <div class="bp-input-row">
+                        <div class="bp-input-group">
+                            <div class="bp-input-label">Tâm thu (SYS)</div>
+                            <input type="number" class="bp-input" placeholder="120" value="125">
+                        </div>
+                        <span class="bp-separator">/</span>
+                        <div class="bp-input-group">
+                            <div class="bp-input-label">Tâm trương (DIA)</div>
+                            <input type="number" class="bp-input" placeholder="80" value="82">
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 20px;">
+                        <div class="form-label">Nhịp tim (tùy chọn)</div>
+                        <input type="number" class="form-input" placeholder="72 bpm" value="72">
+                    </div>
+                </div>
+
+                <div class="form-section">
+                    <div class="form-section-title">⏰ Thời điểm đo</div>
+                    <div class="time-selector">
+                        <div class="time-option selected">🌅 Sáng</div>
+                        <div class="time-option">🌤️ Chiều</div>
+                        <div class="time-option">🌙 Tối</div>
+                    </div>
+                </div>
+
+                <button class="btn btn-primary btn-full" onclick="saveBPResult()">
+                    💾 Lưu kết quả
+                </button>
+
+                <!-- Note: No analysis screen -->
+                <div style="background: var(--info-light); border-radius: 12px; padding: 12px 16px; margin-top: 16px;">
+                    <div style="font-size: 12px; color: var(--info);">
+                        💡 Kết quả sẽ được lưu vào lịch sử đo của Mẹ
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== SCR-CHECKUP-REPORT: Báo cáo kết quả khám (US 2.2) ==================== -->
+        <div id="scr-checkup-report" class="screen">
+            <div class="header">
+                <span class="header-back" onclick="goToScreen('scr-checkup-list')">←</span>
+                <span class="header-title">Báo cáo kết quả khám</span>
+            </div>
+            <div class="context-header">
+                <div class="context-avatar">👵</div>
+                <span class="context-text">Mẹ (Trần Thị D)</span>
+            </div>
+            <div class="content">
+                <!-- Checkup Info -->
+                <div class="form-section">
+                    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 12px;">
+                        <span style="font-size: 20px;">📅</span>
+                        <span style="font-size: 15px; font-weight: 600; color: var(--text-primary);">Thứ 3,
+                            03/02/2026</span>
+                    </div>
+                    <div style="font-size: 13px; color: var(--text-secondary); line-height: 1.6;">
+                        Khoa: Tim mạch<br>
+                        BV: Bệnh viện Đại học Y Dược<br>
+                        BS: Nguyễn Văn A
+                    </div>
+                </div>
+
+                <!-- Photo Upload -->
+                <div class="form-section">
+                    <div class="form-section-title">📸 Chụp/Tải kết quả khám</div>
+
+                    <div class="photo-options">
+                        <div class="photo-option">
+                            <div class="photo-option-icon">📷</div>
+                            <div class="photo-option-label">Chụp ảnh</div>
+                        </div>
+                        <div class="photo-option">
+                            <div class="photo-option-icon">🖼️</div>
+                            <div class="photo-option-label">Tải từ thư viện</div>
+                        </div>
+                    </div>
+
+                    <div style="font-size: 12px; color: var(--text-muted); text-align: center;">
+                        Tối đa 15 ảnh
+                    </div>
+                </div>
+
+                <!-- Follow-up Section -->
+                <div class="form-section">
+                    <div class="form-section-title">📆 Lịch tái khám tiếp (tùy chọn)</div>
+
+                    <div class="form-row">
+                        <div class="form-label">Ngày tái khám</div>
+                        <input type="date" class="form-input" value="2026-03-03">
+                    </div>
+                </div>
+
+                <button class="btn btn-primary btn-full" onclick="saveCheckupReport()">
+                    💾 Lưu kết quả
+                </button>
+            </div>
+        </div>
+
+        <!-- ==================== SCR-CHECKUP-ANALYSIS: Kết quả phân tích tái khám ==================== -->
+        <div id="scr-checkup-analysis" class="screen">
+            <div class="header">
+                <span class="header-back" onclick="goToScreen('scr-checkup-list')">←</span>
+                <span class="header-title">Kết quả phân tích</span>
+            </div>
+            <div class="context-header">
+                <div class="context-avatar">👵</div>
+                <span class="context-text">Mẹ (Trần Thị D)</span>
+            </div>
+            <div class="content">
+                <!-- Analysis Summary -->
+                <div class="analysis-card">
+                    <div class="analysis-header">
+                        <span class="analysis-icon">✅</span>
+                        <span class="analysis-title">Kết quả tổng quan</span>
+                    </div>
+                    <div class="analysis-content">
+                        Các chỉ số sức khỏe của Mẹ ổn định. Huyết áp trong giới hạn bình thường. Bác sĩ khuyến nghị tiếp
+                        tục duy trì chế độ uống thuốc hiện tại.
+                    </div>
+                </div>
+
+                <!-- Key Findings -->
+                <div class="form-section">
+                    <div class="form-section-title">📋 Kết quả chi tiết</div>
+
+                    <div style="margin-bottom: 12px; padding: 12px; background: var(--bg-gray); border-radius: 12px;">
+                        <div style="font-size: 13px; font-weight: 500; color: var(--text-primary); margin-bottom: 4px;">
+                            Chỉ số Cholesterol</div>
+                        <div style="font-size: 14px; color: var(--success); font-weight: 600;">180 mg/dL - Bình thường
+                        </div>
+                    </div>
+
+                    <div style="margin-bottom: 12px; padding: 12px; background: var(--bg-gray); border-radius: 12px;">
+                        <div style="font-size: 13px; font-weight: 500; color: var(--text-primary); margin-bottom: 4px;">
+                            Đường huyết</div>
+                        <div style="font-size: 14px; color: var(--success); font-weight: 600;">95 mg/dL - Bình thường
+                        </div>
+                    </div>
+
+                    <div style="padding: 12px; background: var(--bg-gray); border-radius: 12px;">
+                        <div style="font-size: 13px; font-weight: 500; color: var(--text-primary); margin-bottom: 4px;">
+                            Huyết áp</div>
+                        <div style="font-size: 14px; color: var(--success); font-weight: 600;">120/80 mmHg - Bình thường
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Next Follow-up -->
+                <div class="form-section">
+                    <div class="form-section-title">📆 Lịch tái khám tiếp</div>
+                    <div
+                        style="display: flex; align-items: center; gap: 10px; padding: 12px; background: var(--info-light); border-radius: 12px;">
+                        <span style="font-size: 20px;">📅</span>
+                        <div>
+                            <div style="font-size: 14px; font-weight: 600; color: var(--info);">03/03/2026</div>
+                            <div style="font-size: 12px; color: var(--text-secondary);">Còn 26 ngày</div>
+                        </div>
+                    </div>
+                </div>
+
+                <button class="btn btn-secondary btn-full" onclick="goToScreen('scr-checkup-list')">
+                    ← Quay lại
+                </button>
+            </div>
+        </div>
+
+        <!-- ==================== Medicine Report Popup ==================== -->
+        <div id="popup-med-report" class="popup-overlay">
+            <div class="popup-content">
+                <div class="popup-header">
+                    <span class="popup-title">Báo cáo chi tiết thuốc</span>
+                    <span class="popup-close" onclick="hideMedReportPopup()">✕</span>
+                </div>
+
+                <!-- Med 1 -->
+                <div class="report-item">
+                    <div class="report-item-header">
+                        <span class="report-item-icon">💊</span>
+                        <div>
+                            <div class="report-item-name">Lisinopril 10mg</div>
+                            <div class="report-item-dose">1 viên • 07:00</div>
+                        </div>
+                    </div>
+                    <div class="report-options">
+                        <div class="report-option taken" onclick="selectOption(this, 'taken')">✅ Đã uống</div>
+                        <div class="report-option missed" onclick="selectOption(this, 'missed')">⏭️ Quên uống</div>
+                        <div class="report-option wrong" onclick="selectOption(this, 'wrong')">⚠️ Sai liều</div>
+                    </div>
+                    <div class="reason-input" id="reason-1">
+                        <label>Lý do / Liều thực tế:</label>
+                        <textarea rows="2" placeholder="Nhập lý do hoặc liều thực tế đã uống..."></textarea>
+                    </div>
+                </div>
+
+                <!-- Med 2 -->
+                <div class="report-item">
+                    <div class="report-item-header">
+                        <span class="report-item-icon">💊</span>
+                        <div>
+                            <div class="report-item-name">Amlodipine 5mg</div>
+                            <div class="report-item-dose">1 viên • 07:00</div>
+                        </div>
+                    </div>
+                    <div class="report-options">
+                        <div class="report-option taken" onclick="selectOption(this, 'taken')">✅ Đã uống</div>
+                        <div class="report-option missed" onclick="selectOption(this, 'missed')">⏭️ Quên uống</div>
+                        <div class="report-option wrong" onclick="selectOption(this, 'wrong')">⚠️ Sai liều</div>
+                    </div>
+                    <div class="reason-input" id="reason-2">
+                        <label>Lý do / Liều thực tế:</label>
+                        <textarea rows="2" placeholder="Nhập lý do hoặc liều thực tế đã uống..."></textarea>
+                    </div>
+                </div>
+
+                <button class="btn btn-primary btn-full" onclick="saveMedReport()" style="margin-top: 16px;">
+                    💾 Lưu báo cáo
+                </button>
+            </div>
+        </div>
+
+        <!-- Toast -->
+        <div id="toast" class="toast"></div>
+    </div>
+
+    <!-- Demo Controls -->
+    <div class="demo-controls">
+        <div style="font-size: 11px; color: var(--text-secondary); margin-bottom: 4px; text-align: center;">
+            US 2.2 Demo
+        </div>
+        <button class="demo-btn" onclick="goToScreen('scr-med-schedule')">💊 Lịch uống thuốc</button>
+        <button class="demo-btn" onclick="goToScreen('scr-bp-list')">🩺 Danh sách đo HA</button>
+        <button class="demo-btn" onclick="goToScreen('scr-checkup-list')">🏥 Lịch khám</button>
+        <div style="height: 1px; background: var(--border); margin: 8px 0;"></div>
+        <button class="demo-btn" style="background: var(--info);" onclick="goToScreen('scr-bp-add')">➕ Thêm kết quả
+            HA</button>
+        <button class="demo-btn" style="background: var(--info);" onclick="goToScreen('scr-checkup-report')">📋 Báo cáo
+            tái khám</button>
+        <button class="demo-btn" style="background: var(--success);" onclick="goToScreen('scr-checkup-analysis')">✅ Phân
+            tích tái khám</button>
+        <div style="height: 1px; background: var(--border); margin: 8px 0;"></div>
+        <button class="demo-btn" style="background: var(--warning);" onclick="showMedReportPopup()">📝 Popup báo cáo
+            thuốc</button>
+    </div>
+
+    <script>
+        // Navigation
+        function goToScreen(screenId) {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.getElementById(screenId).classList.add('active');
+            document.getElementById('popup-med-report').classList.remove('show');
+        }
+
+        // Toast
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            toast.textContent = msg;
+            toast.classList.remove('success');
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 2500);
+        }
+
+        function showSuccessToast(msg, redirectScreen) {
+            const toast = document.getElementById('toast');
+            toast.textContent = '✓ ' + msg;
+            toast.classList.add('success', 'show');
+            setTimeout(() => {
+                toast.classList.remove('show', 'success');
+                if (redirectScreen) {
+                    goToScreen(redirectScreen);
+                }
+            }, 2000);
+        }
+
+        // Med Report Popup
+        function showMedReportPopup() {
+            document.getElementById('popup-med-report').classList.add('show');
+        }
+
+        function hideMedReportPopup() {
+            document.getElementById('popup-med-report').classList.remove('show');
+        }
+
+        // Quick Report All Meds
+        function quickReportMeds() {
+            showSuccessToast('Đã cập nhật lịch uống thuốc của Mẹ', 'scr-med-schedule');
+        }
+
+        // Save Med Report
+        function saveMedReport() {
+            hideMedReportPopup();
+            showSuccessToast('Đã báo cáo 2 thuốc của Mẹ', 'scr-med-schedule');
+        }
+
+        // Save BP Result
+        function saveBPResult() {
+            showSuccessToast('Đã lưu kết quả đo của Mẹ', 'scr-bp-list');
+        }
+
+        // Save Checkup Report - Navigate to Analysis (per SRS v1.4)
+        function saveCheckupReport() {
+            showSuccessToast('Đã cập nhật kết quả khám của Mẹ', 'scr-checkup-analysis');
+        }
+
+        // Select Report Option
+        function selectOption(element, type) {
+            const parent = element.closest('.report-item');
+            const options = parent.querySelectorAll('.report-option');
+            const reasonInput = parent.querySelector('.reason-input');
+
+            options.forEach(opt => opt.classList.remove('selected'));
+            element.classList.add('selected');
+
+            // Show reason input for missed/wrong
+            if (type === 'missed' || type === 'wrong') {
+                reasonInput.classList.add('show');
+            } else {
+                reasonInput.classList.remove('show');
+            }
+        }
+
+        // Time slot selection
+        document.querySelectorAll('.time-option').forEach(option => {
+            option.addEventListener('click', function () {
+                document.querySelectorAll('.time-option').forEach(o => o.classList.remove('selected'));
+                this.classList.add('selected');
+            });
+        });
+    </script>
+</body>
+
+</html>
