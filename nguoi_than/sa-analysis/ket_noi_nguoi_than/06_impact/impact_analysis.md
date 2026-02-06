@@ -75,7 +75,6 @@
 | BR-004 | invite_notifications.retry_count | ✅ |
 | BR-006 | chk_no_self_invite | ✅ |
 | BR-007 | idx_unique_pending_invite | ✅ |
-| BR-009 | trigger_create_default_permissions | ✅ |
 | BR-028 | relationship_code FK | ✅ |
 
 ---

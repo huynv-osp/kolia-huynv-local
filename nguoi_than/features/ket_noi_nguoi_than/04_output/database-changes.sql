@@ -324,30 +324,6 @@ CREATE TRIGGER trigger_permissions_updated_at
 
 COMMENT ON TABLE connection_permissions IS 'RBAC permissions for caregiver connections (FK to connection_permission_types)';
 
--- ============================================================================
--- TRIGGER: Auto-create permissions on caregiver contact creation (BR-009)
--- Uses connection_permission_types lookup for dynamic permission codes
--- ============================================================================
-
-CREATE OR REPLACE FUNCTION create_default_connection_permissions()
-RETURNS TRIGGER AS $$
-BEGIN
-    IF NEW.contact_type IN ('caregiver', 'both') AND NEW.linked_user_id IS NOT NULL THEN
-        -- Insert all active permission types from lookup table
-        INSERT INTO connection_permissions (contact_id, permission_code, is_enabled)
-        SELECT NEW.contact_id, cpt.permission_code, TRUE
-        FROM connection_permission_types cpt
-        WHERE cpt.is_active = TRUE
-        ON CONFLICT (contact_id, permission_code) DO NOTHING;
-    END IF;
-    RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
-DROP TRIGGER IF EXISTS trigger_create_default_permissions ON user_emergency_contacts;
-CREATE TRIGGER trigger_create_default_permissions
-    AFTER INSERT ON user_emergency_contacts
-    FOR EACH ROW EXECUTE FUNCTION create_default_connection_permissions();
 
 -- ============================================================================
 -- TABLE 5: invite_notifications (v2.12)
@@ -460,8 +436,6 @@ END $$;
 -- ROLLBACK (if needed)
 -- ============================================================================
 /*
-DROP TRIGGER IF EXISTS trigger_create_default_permissions ON user_emergency_contacts;
-DROP FUNCTION IF EXISTS create_default_connection_permissions();
 DROP TABLE IF EXISTS caregiver_report_views;
 DROP TABLE IF EXISTS invite_notifications;
 DROP TABLE IF EXISTS connection_permissions;
