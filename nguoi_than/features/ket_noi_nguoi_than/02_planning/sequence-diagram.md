@@ -93,11 +93,7 @@ sequenceDiagram
         US->>DB: INSERT user_connections
         Note over US,DB: patient_id, caregiver_id, relationship
         DB-->>US: connection_id = {uuid}
-        
-        US->>DB: Trigger creates 6 permissions (BR-009)
-        Note over DB: create_default_connection_permissions()
-        DB-->>US: 6 permissions created
-        
+                
         Note over US,DB: Transaction Commit
     end
     
