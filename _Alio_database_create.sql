@@ -2924,7 +2924,7 @@ COMMENT ON COLUMN user_emergency_contacts.inverse_relationship_code IS 'v2.13: C
 
 -- v2.7: Only ONE is_viewing=true per user (profile selection)
 CREATE UNIQUE INDEX IF NOT EXISTS idx_unique_viewing_patient
-    ON user_emergency_contacts (user_id) 
+    ON user_emergency_contacts (linked_user_id) 
     WHERE is_viewing = TRUE AND contact_type IN ('caregiver', 'both');
 CREATE INDEX IF NOT EXISTS idx_contacts_viewing 
     ON user_emergency_contacts (user_id, is_viewing) WHERE is_viewing = TRUE;

@@ -273,7 +273,7 @@ COMMENT ON COLUMN user_emergency_contacts.inverse_relationship_code IS 'v2.13: C
 -- Ensures Caregiver can only view one Patient at a time
 -- ============================================================================
 CREATE UNIQUE INDEX IF NOT EXISTS idx_unique_viewing_patient
-    ON user_emergency_contacts (user_id) 
+    ON user_emergency_contacts (linked_user_id) 
     WHERE is_viewing = TRUE 
       AND contact_type IN ('caregiver', 'both');
 

@@ -118,7 +118,7 @@ ADD CONSTRAINT chk_contact_type CHECK (contact_type IN ('emergency','caregiver',
 
 -- Unique constraint: Only ONE is_viewing=true per user
 CREATE UNIQUE INDEX IF NOT EXISTS idx_unique_viewing_patient
-ON user_emergency_contacts (user_id) WHERE is_viewing = TRUE AND contact_type IN ('caregiver','both');
+ON user_emergency_contacts (linked_user_id) WHERE is_viewing = TRUE AND contact_type IN ('caregiver','both');
 
 -- Index for caregiver lookups
 CREATE INDEX IF NOT EXISTS idx_contacts_linked ON user_emergency_contacts (linked_user_id)
