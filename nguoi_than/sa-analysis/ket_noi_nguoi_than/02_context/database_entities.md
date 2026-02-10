@@ -10,7 +10,7 @@
 
 ```
 ┌─────────────────────┐
-│    relationships    │ ← Lookup table (17 types)
+│    relationships    │ ← Lookup table (14 types, v2.22)
 └────────┬────────────┘
          │ FK                    ┌───────────────────────────┐
 ┌────────▼────────────┐          │ relationship_inverse_     │
@@ -43,7 +43,7 @@
 | display_order | SMALLINT | UI ordering |
 | is_active | BOOLEAN | Soft delete |
 
-**Seed Data:** 17 values (14 from SRS + anh_trai, chi_gai, khac)
+**Seed Data:** 14 values (v2.22 — merged ong_noi/ong_ngoai→ong, ba_noi/ba_ngoai→ba, chau_trai/chau_gai→chau)
 
 ---
 
@@ -57,9 +57,9 @@
 | target_gender | SMALLINT PK | 0: Nam, 1: Nữ (gender of other party) |
 | inverse_code | VARCHAR(30) FK | Derived inverse code |
 
-**Example Data:**
-- `('chau_trai', 0, 'ong_noi')` → Cháu trai's sender (Nam) = Ông nội
-- `('chau_trai', 1, 'ba_noi')` → Cháu trai's sender (Nữ) = Bà nội
+**Example Data (v2.22):**
+- `('chau', 0, 'ong')` → Cháu's sender (Nam) = Ông
+- `('chau', 1, 'ba')` → Cháu's sender (Nữ) = Bà
 
 ---
 

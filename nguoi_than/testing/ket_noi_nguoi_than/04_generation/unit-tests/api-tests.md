@@ -559,7 +559,7 @@ class InviteApiIntegrationTest {
 
 | Test ID | Scenario | Expected | BR | Priority |
 |---------|----------|----------|:--:|:--------:|
-| TC-INT-RTY-001 | Get all relationship types | 200, 17 relationship types | - | 🟡 P1 |
+| TC-INT-RTY-001 | Get all relationship types | 200, 14 relationship types (v2.22) | - | 🟡 P1 |
 | TC-INT-RTY-002 | Response includes code field | Each has relationship_code | - | 🟡 P1 |
 | TC-INT-RTY-003 | Response includes name_vi | Each has Vietnamese name | - | 🟡 P1 |
 | TC-INT-RTY-004 | Response includes category | family/other categories | - | 🟢 P2 |
@@ -569,7 +569,7 @@ class InviteApiIntegrationTest {
 ```java
     // TC-INT-RTY-001: Get all relationship types
     @Test
-    void testListRelationshipTypes_Returns17Types() {
+    void testListRelationshipTypes_Returns14Types() {
         // Given
         String token = generateUserToken();
         
@@ -580,7 +580,7 @@ class InviteApiIntegrationTest {
                 .addRelationshipTypes(relationshipType("bo", "Bố", "Bố", "family", 3))
                 .addRelationshipTypes(relationshipType("me", "Mẹ", "Mẹ", "family", 4))
                 // ... other relationship types
-                .addRelationshipTypes(relationshipType("khac", "Khác", "Người thân", "other", 17))
+                .addRelationshipTypes(relationshipType("khac", "Khác", "Người thân", "other", 99))
                 .build()
         );
         
@@ -591,7 +591,7 @@ class InviteApiIntegrationTest {
             .exchange()
             .expectStatus().isOk()
             .expectBody()
-            .jsonPath("$.relationship_types.length()").isEqualTo(17)
+            .jsonPath("$.relationship_types.length()").isEqualTo(14)
             .jsonPath("$.relationship_types[0].code").isEqualTo("con_trai")
             .jsonPath("$.relationship_types[0].name_vi").isEqualTo("Con trai")
             .jsonPath("$.relationship_types[0].category").isEqualTo("family")

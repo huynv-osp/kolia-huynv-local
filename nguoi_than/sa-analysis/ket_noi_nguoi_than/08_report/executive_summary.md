@@ -27,7 +27,7 @@
 **Tables:**
 | Table | Purpose |
 |-------|---------|
-| relationships | 17 types lookup |
+| relationships | 14 types lookup (v2.22) |
 | connection_invites | Invite lifecycle |
 | user_emergency_contacts | EXTEND (unified) |
 | connection_permissions | 6 RBAC |

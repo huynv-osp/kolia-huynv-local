@@ -102,7 +102,7 @@
 
 | Table | Focus Areas |
 |-------|-------------|
-| `relationships` | Seed data (17 types), Lookup |
+| `relationships` | Seed data (14 types, v2.22), Lookup |
 | `connection_invites` | CRUD, Status transitions, Unique constraints |
 | `user_emergency_contacts` | Extended columns, contact_type, is_viewing |
 | `connection_permissions` | 6 types, Enable/Disable |
@@ -211,7 +211,7 @@
 | Data Type | Approach |
 |-----------|----------|
 | Users | Factory pattern with Faker |
-| Relationships | Seed data from SQL (17 types) |
+| Relationships | Seed data from SQL (14 types, v2.22) |
 | Invites | Builder pattern |
 | Connections | Factory + Builder |
 | Permissions | Pre-defined 6 defaults |

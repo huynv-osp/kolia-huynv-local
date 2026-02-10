@@ -42,7 +42,7 @@ CREATE TABLE IF NOT EXISTS relationships (
     display_order SMALLINT DEFAULT 0,
     is_active BOOLEAN DEFAULT TRUE
 );
--- Seed data: 17 relationship types
+-- Seed data: 14 relationship types (v2.22)
 ```
 
 ---
@@ -55,7 +55,7 @@ CREATE TABLE IF NOT EXISTS relationship_inverse_mapping (
     inverse_code VARCHAR(30) NOT NULL REFERENCES relationships(relationship_code),
     PRIMARY KEY (relationship_code, target_gender)
 );
--- Seed data: 34 mappings (17 relationships × 2 genders)
+-- Seed data: 28 mappings (14 relationships × 2 genders, v2.22)
 ```
 
 > **Purpose:** Derive `inverse_relationship_code` at invite creation based on sender's gender.
@@ -455,22 +455,21 @@ mvn verify -Pintegration-test -DskipTests=false
 
 ---
 
-## Appendix: Relationship Types (14 values)
+## Appendix: Relationship Types (14 values, v2.22)
 
 | Code | Vietnamese |
 |------|------------|
 | `con_trai` | Con trai |
 | `con_gai` | Con gái |
-| `chau_trai` | Cháu trai |
-| `chau_gai` | Cháu gái |
-| `em_trai` | Em trai |
-| `em_gai` | Em gái |
-| `bo` | Bố |
-| `me` | Mẹ |
-| `ong_noi` | Ông nội |
-| `ba_noi` | Bà nội |
-| `ong_ngoai` | Ông ngoại |
-| `ba_ngoai` | Bà ngoại |
 | `vo` | Vợ |
 | `chong` | Chồng |
+| `bo` | Bố |
+| `me` | Mẹ |
+| `anh_trai` | Anh trai |
+| `chi_gai` | Chị gái |
+| `em_trai` | Em trai |
+| `em_gai` | Em gái |
+| `ong` | Ông |
+| `ba` | Bà |
+| `chau` | Cháu |
 | `khac` | Khác |

@@ -339,7 +339,7 @@ void clearViewingPatient_returns200() {
 #### API-LOOKUP-001: Get relationship types
 ```java
 @Test
-void getRelationshipTypes_returns17Types() {
+void getRelationshipTypes_returns14Types() {
     webTestClient.get()
         .uri("/api/v1/connection/relationship-types")
         .header("Authorization", "Bearer " + token)
@@ -347,7 +347,7 @@ void getRelationshipTypes_returns17Types() {
         .expectStatus().isOk()
         .expectBody()
             .jsonPath("$.types").isArray()
-            .jsonPath("$.types.length()").isEqualTo(17);
+            .jsonPath("$.types.length()").isEqualTo(14);
 }
 ```
 

@@ -55,7 +55,7 @@ caregivers:
     connections:
       - patient_id: "patient_001"
         permission_emergency_alert: false
-        relationship: "ban_be"
+        relationship: "khac"  # v2.22: ban_be deprecated → khac
 ```
 
 ---

@@ -24,7 +24,7 @@
 
 | Table | Status | Purpose |
 |-------|:------:|---------|
-| relationships | ✅ NEW | Lookup (17 types) |
+| relationships | ✅ NEW | Lookup (14 types, v2.22) |
 | **relationship_inverse_mapping** | ✅ **v2.21** | **Gender-based inverse derivation** |
 | connection_permission_types | ✅ NEW | Permission lookup (6 types) |
 | user_emergency_contacts | 🔄 EXTEND | Add **7 columns** (incl. is_viewing, inverse_relationship_code) |

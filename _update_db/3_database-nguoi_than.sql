@@ -1,11 +1,12 @@
 -- ============================================================================
--- CONNECTION FLOW FEATURE - DATABASE MIGRATION (REVISED v2.21)
--- Version: 2.21
--- Date: 2026-02-04
+-- CONNECTION FLOW FEATURE - DATABASE MIGRATION (REVISED v2.22)
+-- Version: 2.22
+-- Date: 2026-02-10
 -- Purpose: Schema optimized + permission_types + is_viewing + caregiver_report_views
 --          + invite_notifications enhanced (notification_type, cancelled status, idempotency)
 --          + inverse_relationship_code for bidirectional relationship awareness (v2.13)
 --          + relationship_inverse_mapping for gender-based inverse derivation (v2.21)
+--          + relationship enum alignment 17→14 values per SRS (v2.22)
 -- ============================================================================
 
 -- ============================================================================
@@ -23,24 +24,21 @@ CREATE TABLE IF NOT EXISTS relationships (
     is_active BOOLEAN DEFAULT TRUE
 );
 
--- Seed data (17 types)
+-- Seed data (14 types — aligned with SRS prototype v2.22)
 INSERT INTO relationships (relationship_code, name_vi, name_en, category, display_order) VALUES
 ('con_trai', 'Con trai', 'Son', 'family', 1),
 ('con_gai', 'Con gái', 'Daughter', 'family', 2),
-('anh_trai', 'Anh trai', 'Older brother', 'family', 3),
-('chi_gai', 'Chị gái', 'Older sister', 'family', 4),
-('em_trai', 'Em trai', 'Younger brother', 'family', 5),
-('em_gai', 'Em gái', 'Younger sister', 'family', 6),
-('chau_trai', 'Cháu trai', 'Grandson', 'family', 7),
-('chau_gai', 'Cháu gái', 'Granddaughter', 'family', 8),
-('bo', 'Bố', 'Father', 'family', 9),
-('me', 'Mẹ', 'Mother', 'family', 10),
-('ong_noi', 'Ông nội', 'Paternal grandfather', 'family', 11),
-('ba_noi', 'Bà nội', 'Paternal grandmother', 'family', 12),
-('ong_ngoai', 'Ông ngoại', 'Maternal grandfather', 'family', 13),
-('ba_ngoai', 'Bà ngoại', 'Maternal grandmother', 'family', 14),
-('vo', 'Vợ', 'Wife', 'spouse', 15),
-('chong', 'Chồng', 'Husband', 'spouse', 16),
+('vo', 'Vợ', 'Wife', 'spouse', 3),
+('chong', 'Chồng', 'Husband', 'spouse', 4),
+('bo', 'Bố', 'Father', 'family', 5),
+('me', 'Mẹ', 'Mother', 'family', 6),
+('anh_trai', 'Anh trai', 'Older brother', 'family', 7),
+('chi_gai', 'Chị gái', 'Older sister', 'family', 8),
+('em_trai', 'Em trai', 'Younger brother', 'family', 9),
+('em_gai', 'Em gái', 'Younger sister', 'family', 10),
+('ong', 'Ông', 'Grandfather', 'family', 11),
+('ba', 'Bà', 'Grandmother', 'family', 12),
+('chau', 'Cháu', 'Grandchild', 'family', 13),
 ('khac', 'Khác', 'Other', 'other', 99)
 ON CONFLICT DO NOTHING;
 
@@ -59,15 +57,15 @@ CREATE TABLE IF NOT EXISTS relationship_inverse_mapping (
     PRIMARY KEY (relationship_code, target_gender)
 );
 
--- Seed data: Mapping logic for all 17 relationship types × 2 genders
+-- Seed data: Mapping logic for all 14 relationship types × 2 genders (v2.22)
 INSERT INTO relationship_inverse_mapping (relationship_code, target_gender, inverse_code) VALUES
--- Con → Cha/Mẹ (nếu Sender gọi Receiver là "con", thì inverse = "cha/mẹ" tùy gender của Sender)
+-- Con → Bố/Mẹ
 ('con_trai', 0, 'bo'),       -- Receiver (con trai) → Sender là Nam = Bố
 ('con_trai', 1, 'me'),       -- Receiver (con trai) → Sender là Nữ = Mẹ
 ('con_gai', 0, 'bo'),        -- Receiver (con gái) → Sender là Nam = Bố
 ('con_gai', 1, 'me'),        -- Receiver (con gái) → Sender là Nữ = Mẹ
 
--- Cha/Mẹ → Con (nếu gọi người kia là "cha/mẹ", inverse = "con" tùy gender của Sender)
+-- Bố/Mẹ → Con
 ('bo', 0, 'con_trai'),       -- Receiver (bố) → Sender là Nam = Con trai
 ('bo', 1, 'con_gai'),        -- Receiver (bố) → Sender là Nữ = Con gái
 ('me', 0, 'con_trai'),       -- Receiver (mẹ) → Sender là Nam = Con trai
@@ -85,34 +83,28 @@ INSERT INTO relationship_inverse_mapping (relationship_code, target_gender, inve
 ('em_gai', 0, 'anh_trai'),   -- Receiver (em gái) → Sender là Nam = Anh trai
 ('em_gai', 1, 'chi_gai'),    -- Receiver (em gái) → Sender là Nữ = Chị gái
 
--- Vợ/Chồng (gender-matched)
+-- Vợ/Chồng
 ('vo', 0, 'chong'),          -- Receiver (vợ) → Sender là Nam = Chồng
-('vo', 1, 'khac'),           -- Receiver (vợ) → Sender là Nữ = N/A (fallback khác)
-('chong', 0, 'khac'),        -- Receiver (chồng) → Sender là Nam = N/A (fallback khác)
+('vo', 1, 'khac'),           -- Receiver (vợ) → Sender là Nữ = fallback
+('chong', 0, 'khac'),        -- Receiver (chồng) → Sender là Nam = fallback
 ('chong', 1, 'vo'),          -- Receiver (chồng) → Sender là Nữ = Vợ
 
 -- Ông/Bà → Cháu
-('ong_noi', 0, 'chau_trai'), -- Receiver (ông nội) → Sender là Nam = Cháu trai
-('ong_noi', 1, 'chau_gai'),  -- Receiver (ông nội) → Sender là Nữ = Cháu gái
-('ba_noi', 0, 'chau_trai'),
-('ba_noi', 1, 'chau_gai'),
-('ong_ngoai', 0, 'chau_trai'),
-('ong_ngoai', 1, 'chau_gai'),
-('ba_ngoai', 0, 'chau_trai'),
-('ba_ngoai', 1, 'chau_gai'),
+('ong', 0, 'chau'),          -- Receiver (ông) → Sender = Cháu
+('ong', 1, 'chau'),
+('ba', 0, 'chau'),           -- Receiver (bà) → Sender = Cháu
+('ba', 1, 'chau'),
 
--- Cháu → Ông/Bà (default to nội, có thể customize)
-('chau_trai', 0, 'ong_noi'), -- Receiver (cháu trai) → Sender là Nam = Ông nội
-('chau_trai', 1, 'ba_noi'),  -- Receiver (cháu trai) → Sender là Nữ = Bà nội
-('chau_gai', 0, 'ong_noi'),
-('chau_gai', 1, 'ba_noi'),
+-- Cháu → Ông/Bà
+('chau', 0, 'ong'),           -- Receiver (cháu) → Sender là Nam = Ông
+('chau', 1, 'ba'),            -- Receiver (cháu) → Sender là Nữ = Bà
 
--- Khác (fallback to khác)
+-- Khác
 ('khac', 0, 'khac'),
 ('khac', 1, 'khac')
 ON CONFLICT DO NOTHING;
 
-COMMENT ON TABLE relationship_inverse_mapping IS 'v2.21: Gender-based inverse relationship derivation lookup';
+COMMENT ON TABLE relationship_inverse_mapping IS 'v2.22: Gender-based inverse relationship derivation lookup (14 types)';
 COMMENT ON COLUMN relationship_inverse_mapping.target_gender IS '0: Nam, 1: Nữ - giới tính của bên còn lại';
 COMMENT ON COLUMN relationship_inverse_mapping.inverse_code IS 'Mối quan hệ inverse được suy ra';
 
@@ -204,7 +196,7 @@ END $$;
 -- Purpose: Migrate existing SOS contacts to use relationships lookup
 -- ============================================================================
 
--- Step 1: Migrate existing data từ relationship cũ sang relationship_code mới
+-- Step 1: Migrate existing data từ relationship cũ sang relationship_code mới (v2.22 — 14 codes)
 -- (Chỉ chạy nếu cột 'relationship' tồn tại - backward compatible)
 DO $$ 
 BEGIN
@@ -222,14 +214,11 @@ BEGIN
                     WHEN LOWER(TRIM(relationship)) IN (''chị gái'', ''chi_gai'') THEN ''chi_gai''
                     WHEN LOWER(TRIM(relationship)) IN (''em trai'', ''em_trai'') THEN ''em_trai''
                     WHEN LOWER(TRIM(relationship)) IN (''em gái'', ''em_gai'') THEN ''em_gai''
-                    WHEN LOWER(TRIM(relationship)) IN (''cháu trai'', ''chau_trai'') THEN ''chau_trai''
-                    WHEN LOWER(TRIM(relationship)) IN (''cháu gái'', ''chau_gai'') THEN ''chau_gai''
+                    WHEN LOWER(TRIM(relationship)) IN (''cháu'', ''chau'', ''cháu trai'', ''chau_trai'', ''cháu gái'', ''chau_gai'') THEN ''chau''
                     WHEN LOWER(TRIM(relationship)) IN (''bố'', ''bo'', ''cha'') THEN ''bo''
                     WHEN LOWER(TRIM(relationship)) IN (''mẹ'', ''me'', ''má'') THEN ''me''
-                    WHEN LOWER(TRIM(relationship)) IN (''ông nội'', ''ong_noi'') THEN ''ong_noi''
-                    WHEN LOWER(TRIM(relationship)) IN (''bà nội'', ''ba_noi'') THEN ''ba_noi''
-                    WHEN LOWER(TRIM(relationship)) IN (''ông ngoại'', ''ong_ngoai'') THEN ''ong_ngoai''
-                    WHEN LOWER(TRIM(relationship)) IN (''bà ngoại'', ''ba_ngoai'') THEN ''ba_ngoai''
+                    WHEN LOWER(TRIM(relationship)) IN (''ông'', ''ong'', ''ông nội'', ''ong_noi'', ''ông ngoại'', ''ong_ngoai'') THEN ''ong''
+                    WHEN LOWER(TRIM(relationship)) IN (''bà'', ''ba'', ''bà nội'', ''ba_noi'', ''bà ngoại'', ''ba_ngoai'') THEN ''ba''
                     WHEN LOWER(TRIM(relationship)) IN (''vợ'', ''vo'') THEN ''vo''
                     WHEN LOWER(TRIM(relationship)) IN (''chồng'', ''chong'') THEN ''chong''
                     ELSE ''khac''
@@ -237,7 +226,7 @@ BEGIN
             WHERE relationship IS NOT NULL 
               AND relationship_code IS NULL
         ';
-        RAISE NOTICE '✅ Migrated relationship → relationship_code';
+        RAISE NOTICE '✅ Migrated relationship → relationship_code (14 codes v2.22)';
     ELSE
         RAISE NOTICE 'ℹ️ Column "relationship" does not exist, skipping migration.';
     END IF;
@@ -432,12 +421,13 @@ BEGIN
     );
     
     IF table_count = 6 THEN
-        RAISE NOTICE '✅ Connection Flow Migration v2.21 completed successfully.';
+        RAISE NOTICE '✅ Connection Flow Migration v2.22 completed successfully.';
         RAISE NOTICE '   Tables: relationships, relationship_inverse_mapping, connection_permission_types, connection_invites, connection_permissions, invite_notifications, caregiver_report_views';
         RAISE NOTICE '   Extended: user_emergency_contacts (+6 columns incl. is_viewing, inverse_relationship_code)';
         RAISE NOTICE '   v2.12: invite_notifications +notification_type, +cancelled_at, +idempotency constraint';
         RAISE NOTICE '   v2.13: +inverse_relationship_code for bidirectional relationship awareness';
         RAISE NOTICE '   v2.21: +relationship_inverse_mapping for gender-based inverse derivation';
+        RAISE NOTICE '   v2.22: relationship enum aligned 17→14 values per SRS';
     ELSE
         RAISE WARNING '⚠️ Migration incomplete. Only % of 6 new tables found.', table_count;
     END IF;

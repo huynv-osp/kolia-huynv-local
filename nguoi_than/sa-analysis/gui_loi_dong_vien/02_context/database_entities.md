@@ -81,7 +81,7 @@ WHERE uec.contact_id = :contact_id;
 
 ### 4. relationships
 
-**Purpose:** Master lookup for relationship types (17 types)
+**Purpose:** Master lookup for relationship types (14 types, v2.22)
 
 | Column | Type | Description |
 |--------|------|-------------|

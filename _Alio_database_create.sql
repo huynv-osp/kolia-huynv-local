@@ -2790,8 +2790,9 @@ COMMENT ON COLUMN system_app_configs.retry_hours IS 'Số giờ retry khi có l�
 
 -- =============================================================================
 -- PHÂN HỆ: KẾT NỐI NGƯỜI THÂN (CONNECTION FEATURE)
--- Version: 2.21 (KOLIA-1517) - Normalized permission_types + inverse_relationship_code
+-- Version: 2.22 (KOLIA-1517) - Normalized permission_types + inverse_relationship_code
 --          + relationship_inverse_mapping for gender-based inverse derivation (v2.21)
+--          + relationship enum alignment 17→14 values per SRS (v2.22)
 -- =============================================================================
 
 -- TABLE: relationships (LOOKUP)
@@ -2806,9 +2807,27 @@ CREATE TABLE IF NOT EXISTS relationships (
     is_active BOOLEAN DEFAULT TRUE
 );
 
+-- Seed data (14 types — aligned with SRS prototype v2.22)
+INSERT INTO relationships (relationship_code, name_vi, name_en, category, display_order) VALUES
+('con_trai', 'Con trai', 'Son', 'family', 1),
+('con_gai', 'Con gái', 'Daughter', 'family', 2),
+('vo', 'Vợ', 'Wife', 'spouse', 3),
+('chong', 'Chồng', 'Husband', 'spouse', 4),
+('bo', 'Bố', 'Father', 'family', 5),
+('me', 'Mẹ', 'Mother', 'family', 6),
+('anh_trai', 'Anh trai', 'Older brother', 'family', 7),
+('chi_gai', 'Chị gái', 'Older sister', 'family', 8),
+('em_trai', 'Em trai', 'Younger brother', 'family', 9),
+('em_gai', 'Em gái', 'Younger sister', 'family', 10),
+('ong', 'Ông', 'Grandfather', 'family', 11),
+('ba', 'Bà', 'Grandmother', 'family', 12),
+('chau', 'Cháu', 'Grandchild', 'family', 13),
+('khac', 'Khác', 'Other', 'other', 99)
+ON CONFLICT DO NOTHING;
+
 COMMENT ON TABLE relationships IS 'Lookup table for relationship types (SOS + Caregiver)';
 
--- TABLE: relationship_inverse_mapping (v2.21 - Gender-based Inverse Derivation)
+-- TABLE: relationship_inverse_mapping (v2.22 - Gender-based Inverse Derivation)
 -- Purpose: Derive inverse_relationship_code based on original code + target gender
 -- Owner: user-service
 CREATE TABLE IF NOT EXISTS relationship_inverse_mapping (
@@ -2818,7 +2837,47 @@ CREATE TABLE IF NOT EXISTS relationship_inverse_mapping (
     PRIMARY KEY (relationship_code, target_gender)
 );
 
-COMMENT ON TABLE relationship_inverse_mapping IS 'v2.21: Gender-based inverse relationship derivation lookup';
+-- Seed data: Mapping logic for all 14 relationship types × 2 genders (v2.22)
+INSERT INTO relationship_inverse_mapping (relationship_code, target_gender, inverse_code) VALUES
+-- Con → Bố/Mẹ
+('con_trai', 0, 'bo'),
+('con_trai', 1, 'me'),
+('con_gai', 0, 'bo'),
+('con_gai', 1, 'me'),
+-- Bố/Mẹ → Con
+('bo', 0, 'con_trai'),
+('bo', 1, 'con_gai'),
+('me', 0, 'con_trai'),
+('me', 1, 'con_gai'),
+-- Anh/Chị → Em
+('anh_trai', 0, 'em_trai'),
+('anh_trai', 1, 'em_gai'),
+('chi_gai', 0, 'em_trai'),
+('chi_gai', 1, 'em_gai'),
+-- Em → Anh/Chị
+('em_trai', 0, 'anh_trai'),
+('em_trai', 1, 'chi_gai'),
+('em_gai', 0, 'anh_trai'),
+('em_gai', 1, 'chi_gai'),
+-- Vợ/Chồng
+('vo', 0, 'chong'),
+('vo', 1, 'khac'),
+('chong', 0, 'khac'),
+('chong', 1, 'vo'),
+-- Ông/Bà → Cháu
+('ong', 0, 'chau'),
+('ong', 1, 'chau'),
+('ba', 0, 'chau'),
+('ba', 1, 'chau'),
+-- Cháu → Ông/Bà
+('chau', 0, 'ong'),
+('chau', 1, 'ba'),
+-- Khác
+('khac', 0, 'khac'),
+('khac', 1, 'khac')
+ON CONFLICT DO NOTHING;
+
+COMMENT ON TABLE relationship_inverse_mapping IS 'v2.22: Gender-based inverse relationship derivation lookup (14 types)';
 COMMENT ON COLUMN relationship_inverse_mapping.target_gender IS '0: Nam, 1: Nữ - giới tính của bên còn lại';
 COMMENT ON COLUMN relationship_inverse_mapping.inverse_code IS 'Mối quan hệ inverse được suy ra';
 

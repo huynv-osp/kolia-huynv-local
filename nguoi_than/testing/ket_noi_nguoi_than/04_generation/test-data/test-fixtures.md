@@ -174,7 +174,7 @@ class UserFactory:
 
 # 2. Relationship Seed Data
 
-## 2.1 Full Relationship List (17 types)
+## 2.1 Full Relationship List (14 types, v2.22)
 
 ```yaml
 # test-data/relationships.yaml
@@ -189,64 +189,52 @@ relationships:
       name_vi: "Con gái"
       name_en: "Daughter"
       display_order: 2
-    - code: "anh_trai"
-      name_vi: "Anh trai"
-      name_en: "Older brother"
-      display_order: 3
-    - code: "chi_gai"
-      name_vi: "Chị gái"
-      name_en: "Older sister"
-      display_order: 4
-    - code: "em_trai"
-      name_vi: "Em trai"
-      name_en: "Younger brother"
-      display_order: 5
-    - code: "em_gai"
-      name_vi: "Em gái"
-      name_en: "Younger sister"
-      display_order: 6
-    - code: "chau_trai"
-      name_vi: "Cháu trai"
-      name_en: "Grandson"
-      display_order: 7
-    - code: "chau_gai"
-      name_vi: "Cháu gái"
-      name_en: "Granddaughter"
-      display_order: 8
     - code: "bo"
       name_vi: "Bố"
       name_en: "Father"
-      display_order: 9
+      display_order: 5
     - code: "me"
       name_vi: "Mẹ"
       name_en: "Mother"
+      display_order: 6
+    - code: "anh_trai"
+      name_vi: "Anh trai"
+      name_en: "Older brother"
+      display_order: 7
+    - code: "chi_gai"
+      name_vi: "Chị gái"
+      name_en: "Older sister"
+      display_order: 8
+    - code: "em_trai"
+      name_vi: "Em trai"
+      name_en: "Younger brother"
+      display_order: 9
+    - code: "em_gai"
+      name_vi: "Em gái"
+      name_en: "Younger sister"
       display_order: 10
-    - code: "ong_noi"
-      name_vi: "Ông nội"
-      name_en: "Paternal grandfather"
+    - code: "ong"
+      name_vi: "Ông"
+      name_en: "Grandfather"
       display_order: 11
-    - code: "ba_noi"
-      name_vi: "Bà nội"
-      name_en: "Paternal grandmother"
+    - code: "ba"
+      name_vi: "Bà"
+      name_en: "Grandmother"
       display_order: 12
-    - code: "ong_ngoai"
-      name_vi: "Ông ngoại"
-      name_en: "Maternal grandfather"
+    - code: "chau"
+      name_vi: "Cháu"
+      name_en: "Grandchild"
       display_order: 13
-    - code: "ba_ngoai"
-      name_vi: "Bà ngoại"
-      name_en: "Maternal grandmother"
-      display_order: 14
       
   spouse:
     - code: "vo"
       name_vi: "Vợ"
       name_en: "Wife"
-      display_order: 15
+      display_order: 3
     - code: "chong"
       name_vi: "Chồng"
       name_en: "Husband"
-      display_order: 16
+      display_order: 4
       
   other:
     - code: "khac"
@@ -258,26 +246,23 @@ relationships:
 ## 2.2 SQL Seed Data
 
 ```sql
--- test-data/seed_relationships.sql
+-- test-data/seed_relationships.sql (v2.22: 14 types)
 
 INSERT INTO relationships (relationship_code, name_vi, name_en, category, display_order, is_active)
 VALUES
 ('con_trai', 'Con trai', 'Son', 'family', 1, true),
 ('con_gai', 'Con gái', 'Daughter', 'family', 2, true),
-('anh_trai', 'Anh trai', 'Older brother', 'family', 3, true),
-('chi_gai', 'Chị gái', 'Older sister', 'family', 4, true),
-('em_trai', 'Em trai', 'Younger brother', 'family', 5, true),
-('em_gai', 'Em gái', 'Younger sister', 'family', 6, true),
-('chau_trai', 'Cháu trai', 'Grandson', 'family', 7, true),
-('chau_gai', 'Cháu gái', 'Granddaughter', 'family', 8, true),
-('bo', 'Bố', 'Father', 'family', 9, true),
-('me', 'Mẹ', 'Mother', 'family', 10, true),
-('ong_noi', 'Ông nội', 'Paternal grandfather', 'family', 11, true),
-('ba_noi', 'Bà nội', 'Paternal grandmother', 'family', 12, true),
-('ong_ngoai', 'Ông ngoại', 'Maternal grandfather', 'family', 13, true),
-('ba_ngoai', 'Bà ngoại', 'Maternal grandmother', 'family', 14, true),
-('vo', 'Vợ', 'Wife', 'spouse', 15, true),
-('chong', 'Chồng', 'Husband', 'spouse', 16, true),
+('vo', 'Vợ', 'Wife', 'spouse', 3, true),
+('chong', 'Chồng', 'Husband', 'spouse', 4, true),
+('bo', 'Bố', 'Father', 'family', 5, true),
+('me', 'Mẹ', 'Mother', 'family', 6, true),
+('anh_trai', 'Anh trai', 'Older brother', 'family', 7, true),
+('chi_gai', 'Chị gái', 'Older sister', 'family', 8, true),
+('em_trai', 'Em trai', 'Younger brother', 'family', 9, true),
+('em_gai', 'Em gái', 'Younger sister', 'family', 10, true),
+('ong', 'Ông', 'Grandfather', 'family', 11, true),
+('ba', 'Bà', 'Grandmother', 'family', 12, true),
+('chau', 'Cháu', 'Grandchild', 'family', 13, true),
 ('khac', 'Khác', 'Other', 'other', 99, true)
 ON CONFLICT (relationship_code) DO NOTHING;
 ```

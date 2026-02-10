@@ -53,7 +53,7 @@ Existing tables being **EXTENDED**:
 
 | Table | Status | Purpose |
 |-------|:------:|---------|
-| `relationships` | ✅ NEW | Lookup table (17 types) |
+| `relationships` | ✅ NEW | Lookup table (14 types, v2.22) |
 | `connection_permission_types` | ✅ NEW | Permission lookup (6 types) |
 | `connection_invites` | ✅ NEW | Bi-directional invite tracking |
 | `user_emergency_contacts` | 🔄 EXTEND | +4 columns for caregiver support |

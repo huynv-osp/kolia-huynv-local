@@ -55,7 +55,7 @@
 
 | Table | Status | Details |
 |-------|:------:|--------|
-| `relationships` | ✅ NEW | 17 relationship types lookup |
+| `relationships` | ✅ NEW | 14 relationship types lookup (v2.22) |
 | `connection_permission_types` | ✅ NEW | 6 permission types lookup |
 | `connection_invites` | ✅ NEW | 11 columns, 5 indexes |
 | `user_emergency_contacts` | 🔄 EXTEND | +5 columns (linked_user_id, contact_type, relationship_code, invite_id, **is_viewing**) |

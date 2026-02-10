@@ -34,7 +34,7 @@
 
 | Table | Status | Purpose | Storage Estimate |
 |-------|:------:|---------|:----------------:|
-| `relationships` | ✅ NEW | Lookup (17 types) | ~1KB (static) |
+| `relationships` | ✅ NEW | Lookup (14 types, v2.22) | ~1KB (static) |
 | `connection_permission_types` | ✅ NEW | Permission lookup (6 types) | ~1KB (static) |
 | `connection_invites` | ✅ NEW | Invite tracking | ~1MB/month |
 | `user_emergency_contacts` | 🔄 EXTEND | +5 columns for caregiver | Existing table |

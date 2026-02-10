@@ -1,7 +1,7 @@
 -- ============================================================================
 -- CONNECTION FLOW FEATURE - DATABASE MIGRATION (REVISED v2.23)
--- Version: 2.23
--- Date: 2026-02-04
+-- Version: 2.24
+-- Date: 2026-02-10
 -- Purpose: Schema optimized + permission_types + is_viewing + caregiver_report_views
 --          + invite_notifications enhanced (notification_type, cancelled status, idempotency)
 --          + inverse_relationship_code for bidirectional relationship awareness (v2.13)
@@ -24,24 +24,21 @@ CREATE TABLE IF NOT EXISTS relationships (
     is_active BOOLEAN DEFAULT TRUE
 );
 
--- Seed data (17 types)
+-- Seed data (14 types, v2.22: merged ong_noi/ong_ngoai→ong, ba_noi/ba_ngoai→ba, chau_trai/chau_gai→chau)
 INSERT INTO relationships (relationship_code, name_vi, name_en, category, display_order) VALUES
 ('con_trai', 'Con trai', 'Son', 'family', 1),
 ('con_gai', 'Con gái', 'Daughter', 'family', 2),
-('anh_trai', 'Anh trai', 'Older brother', 'family', 3),
-('chi_gai', 'Chị gái', 'Older sister', 'family', 4),
-('em_trai', 'Em trai', 'Younger brother', 'family', 5),
-('em_gai', 'Em gái', 'Younger sister', 'family', 6),
-('chau_trai', 'Cháu trai', 'Grandson', 'family', 7),
-('chau_gai', 'Cháu gái', 'Granddaughter', 'family', 8),
-('bo', 'Bố', 'Father', 'family', 9),
-('me', 'Mẹ', 'Mother', 'family', 10),
-('ong_noi', 'Ông nội', 'Paternal grandfather', 'family', 11),
-('ba_noi', 'Bà nội', 'Paternal grandmother', 'family', 12),
-('ong_ngoai', 'Ông ngoại', 'Maternal grandfather', 'family', 13),
-('ba_ngoai', 'Bà ngoại', 'Maternal grandmother', 'family', 14),
-('vo', 'Vợ', 'Wife', 'spouse', 15),
-('chong', 'Chồng', 'Husband', 'spouse', 16),
+('vo', 'Vợ', 'Wife', 'spouse', 3),
+('chong', 'Chồng', 'Husband', 'spouse', 4),
+('bo', 'Bố', 'Father', 'family', 5),
+('me', 'Mẹ', 'Mother', 'family', 6),
+('anh_trai', 'Anh trai', 'Older brother', 'family', 7),
+('chi_gai', 'Chị gái', 'Older sister', 'family', 8),
+('em_trai', 'Em trai', 'Younger brother', 'family', 9),
+('em_gai', 'Em gái', 'Younger sister', 'family', 10),
+('ong', 'Ông', 'Grandfather', 'family', 11),
+('ba', 'Bà', 'Grandmother', 'family', 12),
+('chau', 'Cháu', 'Grandchild', 'family', 13),
 ('khac', 'Khác', 'Other', 'other', 99)
 ON CONFLICT DO NOTHING;
 
@@ -60,28 +57,22 @@ CREATE TABLE IF NOT EXISTS relationship_inverse_mapping (
     PRIMARY KEY (relationship_code, target_gender)
 );
 
--- Seed data: 34 mappings (17 relationships × 2 genders)
+-- Seed data: 28 mappings (14 relationships × 2 genders, v2.22)
 INSERT INTO relationship_inverse_mapping (relationship_code, target_gender, inverse_code) VALUES
 ('con_trai', 0, 'bo'),
 ('con_trai', 1, 'me'),
 ('con_gai', 0, 'bo'),
 ('con_gai', 1, 'me'),
-('chau_trai', 0, 'ong_noi'),
-('chau_trai', 1, 'ba_noi'),
-('chau_gai', 0, 'ong_noi'),
-('chau_gai', 1, 'ba_noi'),
+('chau', 0, 'ong'),
+('chau', 1, 'ba'),
 ('bo', 0, 'con_trai'),
 ('bo', 1, 'con_gai'),
 ('me', 0, 'con_trai'),
 ('me', 1, 'con_gai'),
-('ong_noi', 0, 'chau_trai'),
-('ong_noi', 1, 'chau_gai'),
-('ba_noi', 0, 'chau_trai'),
-('ba_noi', 1, 'chau_gai'),
-('ong_ngoai', 0, 'chau_trai'),
-('ong_ngoai', 1, 'chau_gai'),
-('ba_ngoai', 0, 'chau_trai'),
-('ba_ngoai', 1, 'chau_gai'),
+('ong', 0, 'chau'),
+('ong', 1, 'chau'),
+('ba', 0, 'chau'),
+('ba', 1, 'chau'),
 ('anh_trai', 0, 'em_trai'),
 ('anh_trai', 1, 'em_gai'),
 ('chi_gai', 0, 'em_trai'),
@@ -208,14 +199,11 @@ BEGIN
                     WHEN LOWER(TRIM(relationship)) IN (''chị gái'', ''chi_gai'') THEN ''chi_gai''
                     WHEN LOWER(TRIM(relationship)) IN (''em trai'', ''em_trai'') THEN ''em_trai''
                     WHEN LOWER(TRIM(relationship)) IN (''em gái'', ''em_gai'') THEN ''em_gai''
-                    WHEN LOWER(TRIM(relationship)) IN (''cháu trai'', ''chau_trai'') THEN ''chau_trai''
-                    WHEN LOWER(TRIM(relationship)) IN (''cháu gái'', ''chau_gai'') THEN ''chau_gai''
+                    WHEN LOWER(TRIM(relationship)) IN (''cháu'', ''chau'', ''cháu trai'', ''chau_trai'', ''cháu gái'', ''chau_gai'') THEN ''chau''
                     WHEN LOWER(TRIM(relationship)) IN (''bố'', ''bo'', ''cha'') THEN ''bo''
                     WHEN LOWER(TRIM(relationship)) IN (''mẹ'', ''me'', ''má'') THEN ''me''
-                    WHEN LOWER(TRIM(relationship)) IN (''ông nội'', ''ong_noi'') THEN ''ong_noi''
-                    WHEN LOWER(TRIM(relationship)) IN (''bà nội'', ''ba_noi'') THEN ''ba_noi''
-                    WHEN LOWER(TRIM(relationship)) IN (''ông ngoại'', ''ong_ngoai'') THEN ''ong_ngoai''
-                    WHEN LOWER(TRIM(relationship)) IN (''bà ngoại'', ''ba_ngoai'') THEN ''ba_ngoai''
+                    WHEN LOWER(TRIM(relationship)) IN (''ông'', ''ong'', ''ông nội'', ''ong_noi'', ''ông ngoại'', ''ong_ngoai'') THEN ''ong''
+                    WHEN LOWER(TRIM(relationship)) IN (''bà'', ''ba'', ''bà nội'', ''ba_noi'', ''bà ngoại'', ''ba_ngoai'') THEN ''ba''
                     WHEN LOWER(TRIM(relationship)) IN (''vợ'', ''vo'') THEN ''vo''
                     WHEN LOWER(TRIM(relationship)) IN (''chồng'', ''chong'') THEN ''chong''
                     ELSE ''khac''

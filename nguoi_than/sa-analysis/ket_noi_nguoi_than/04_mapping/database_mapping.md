@@ -2,7 +2,7 @@
 
 > **Phase:** 4 - Architecture Mapping & Analysis  
 > **Date:** 2026-02-04  
-> **Revision:** v2.23 - Added relationship_inverse_mapping table (v2.21) + perspective display standard (BR-036)
+> **Revision:** v2.24 - Updated to 14 relationship types (v2.22) + inverse_mapping + perspective display standard (BR-036)
 
 ---
 
@@ -46,23 +46,21 @@ CREATE TABLE relationships (
     is_active BOOLEAN DEFAULT TRUE
 );
 
+-- v2.22: 14 relationship types (merged ong_noi/ong_ngoai→ong, ba_noi/ba_ngoai→ba, chau_trai/chau_gai→chau)
 INSERT INTO relationships VALUES
 ('con_trai', 'Con trai', 'Son', 'family', 1, true),
 ('con_gai', 'Con gái', 'Daughter', 'family', 2, true),
-('anh_trai', 'Anh trai', 'Older brother', 'family', 3, true),
-('chi_gai', 'Chị gái', 'Older sister', 'family', 4, true),
-('em_trai', 'Em trai', 'Younger brother', 'family', 5, true),
-('em_gai', 'Em gái', 'Younger sister', 'family', 6, true),
-('chau_trai', 'Cháu trai', 'Grandson', 'family', 7, true),
-('chau_gai', 'Cháu gái', 'Granddaughter', 'family', 8, true),
-('bo', 'Bố', 'Father', 'family', 9, true),
-('me', 'Mẹ', 'Mother', 'family', 10, true),
-('ong_noi', 'Ông nội', 'Paternal grandfather', 'family', 11, true),
-('ba_noi', 'Bà nội', 'Paternal grandmother', 'family', 12, true),
-('ong_ngoai', 'Ông ngoại', 'Maternal grandfather', 'family', 13, true),
-('ba_ngoai', 'Bà ngoại', 'Maternal grandmother', 'family', 14, true),
-('vo', 'Vợ', 'Wife', 'spouse', 15, true),
-('chong', 'Chồng', 'Husband', 'spouse', 16, true),
+('vo', 'Vợ', 'Wife', 'spouse', 3, true),
+('chong', 'Chồng', 'Husband', 'spouse', 4, true),
+('bo', 'Bố', 'Father', 'family', 5, true),
+('me', 'Mẹ', 'Mother', 'family', 6, true),
+('anh_trai', 'Anh trai', 'Older brother', 'family', 7, true),
+('chi_gai', 'Chị gái', 'Older sister', 'family', 8, true),
+('em_trai', 'Em trai', 'Younger brother', 'family', 9, true),
+('em_gai', 'Em gái', 'Younger sister', 'family', 10, true),
+('ong', 'Ông', 'Grandfather', 'family', 11, true),
+('ba', 'Bà', 'Grandmother', 'family', 12, true),
+('chau', 'Cháu', 'Grandchild', 'family', 13, true),
 ('khac', 'Khác', 'Other', 'other', 99, true);
 ```
 
@@ -78,13 +76,13 @@ CREATE TABLE IF NOT EXISTS relationship_inverse_mapping (
     PRIMARY KEY (relationship_code, target_gender)
 );
 
--- Seed data examples:
+-- Seed data examples (v2.22: 28 mappings = 14 relationships × 2 genders):
 INSERT INTO relationship_inverse_mapping VALUES
-('con_trai', 0, 'bo'),       -- Receiver (con trai) → Sender là Nam = Bố
-('con_trai', 1, 'me'),       -- Receiver (con trai) → Sender là Nữ = Mẹ
-('chau_trai', 0, 'ong_noi'), -- Receiver (cháu trai) → Sender là Nam = Ông nội
-('chau_trai', 1, 'ba_noi'),  -- Receiver (cháu trai) → Sender là Nữ = Bà nội
--- ... (full 34 mappings in migration file)
+('con_trai', 0, 'bo'),   -- Receiver (con trai) → Sender là Nam = Bố
+('con_trai', 1, 'me'),   -- Receiver (con trai) → Sender là Nữ = Mẹ
+('chau', 0, 'ong'),      -- Receiver (cháu) → Sender là Nam = Ông
+('chau', 1, 'ba'),       -- Receiver (cháu) → Sender là Nữ = Bà
+-- ... (full 28 mappings in migration file)
 ON CONFLICT DO NOTHING;
 
 COMMENT ON TABLE relationship_inverse_mapping IS 'v2.21: Gender-based inverse relationship derivation lookup';
@@ -94,7 +92,7 @@ COMMENT ON COLUMN relationship_inverse_mapping.target_gender IS '0: Nam, 1: Nữ
 > **Use Case:** Derive `inverse_relationship_code` at invite creation time:
 > ```sql
 > SELECT inverse_code FROM relationship_inverse_mapping 
-> WHERE relationship_code = 'chau_trai' AND target_gender = 0; -- Returns 'ong_noi'
+> WHERE relationship_code = 'chau' AND target_gender = 0; -- Returns 'ong'
 > ```
 
 ### 3.2 Extend user_emergency_contacts
