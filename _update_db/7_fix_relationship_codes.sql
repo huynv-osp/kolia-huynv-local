@@ -158,3 +158,12 @@ BEGIN
         RAISE WARNING '⚠️ Migration check: % total types, % old codes still exist', rel_count, old_count;
     END IF;
 END $$;
+
+
+-- Migration: Fix permission name_vi to match SRS v3.5
+-- Date: 2026-02-11
+
+UPDATE connection_permission_types SET name_vi = 'Thiết lập nhiệm vụ tuân thủ' WHERE permission_code = 'task_config';
+UPDATE connection_permission_types SET name_vi = 'Theo dõi kết quả tuân thủ' WHERE permission_code = 'compliance_tracking';
+UPDATE connection_permission_types SET name_vi = 'Thực hiện nhiệm vụ thay' WHERE permission_code = 'proxy_execution';
+UPDATE connection_permission_types SET name_vi = 'Gửi lời động viên' WHERE permission_code = 'encouragement';

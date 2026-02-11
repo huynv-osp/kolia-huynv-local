@@ -290,10 +290,10 @@ CREATE TABLE IF NOT EXISTS connection_permission_types (
 INSERT INTO connection_permission_types (permission_code, name_vi, name_en, description, icon, display_order) VALUES
 ('health_overview', 'Xem tổng quan sức khỏe', 'View Health Overview', 'Cho phép xem chỉ số huyết áp, tâm trạng và hoạt động gần đây', 'heart', 1),
 ('emergency_alert', 'Nhận cảnh báo khẩn cấp', 'Receive Emergency Alerts', 'Nhận thông báo khi có tình huống khẩn cấp', 'bell', 2),
-('task_config', 'Cấu hình nhiệm vụ', 'Configure Tasks', 'Cho phép tạo và chỉnh sửa lịch nhắc nhở đo huyết áp, uống thuốc', 'settings', 3),
-('compliance_tracking', 'Theo dõi tuân thủ', 'Track Compliance', 'Xem lịch sử hoàn thành nhiệm vụ và mức độ tuân thủ', 'check-circle', 4),
-('proxy_execution', 'Thực hiện thay mặt', 'Proxy Execution', 'Cho phép ghi nhận dữ liệu sức khỏe thay cho bệnh nhân', 'user-check', 5),
-('encouragement', 'Gửi động viên', 'Send Encouragement', 'Cho phép gửi tin nhắn động viên và nhắc nhở', 'message-circle-heart', 6)
+('task_config', 'Thiết lập nhiệm vụ tuân thủ', 'Configure Tasks', 'Cho phép tạo và chỉnh sửa lịch nhắc nhở đo huyết áp, uống thuốc', 'settings', 3),
+('compliance_tracking', 'Theo dõi kết quả tuân thủ', 'Track Compliance', 'Xem lịch sử hoàn thành nhiệm vụ và mức độ tuân thủ', 'check-circle', 4),
+('proxy_execution', 'Thực hiện nhiệm vụ thay', 'Proxy Execution', 'Cho phép ghi nhận dữ liệu sức khỏe thay cho bệnh nhân', 'user-check', 5),
+('encouragement', 'Gửi lời động viên', 'Send Encouragement', 'Cho phép gửi tin nhắn động viên và nhắc nhở', 'message-circle-heart', 6)
 ON CONFLICT DO NOTHING;
 
 COMMENT ON TABLE connection_permission_types IS 'Lookup table for connection permission types';
