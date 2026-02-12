@@ -160,10 +160,12 @@ BEGIN
 END $$;
 
 
--- Migration: Fix permission name_vi to match SRS v3.5
--- Date: 2026-02-11
+-- Migration: Fix permission name_vi + description to match SRS v3.5
+-- Date: 2026-02-12
 
-UPDATE connection_permission_types SET name_vi = 'Thiết lập nhiệm vụ tuân thủ' WHERE permission_code = 'task_config';
-UPDATE connection_permission_types SET name_vi = 'Theo dõi kết quả tuân thủ' WHERE permission_code = 'compliance_tracking';
-UPDATE connection_permission_types SET name_vi = 'Thực hiện nhiệm vụ thay' WHERE permission_code = 'proxy_execution';
-UPDATE connection_permission_types SET name_vi = 'Gửi lời động viên' WHERE permission_code = 'encouragement';
+UPDATE connection_permission_types SET name_vi = 'Xem tổng quan sức khỏe', description = 'Chỉ số HA, báo cáo' WHERE permission_code = 'health_overview';
+UPDATE connection_permission_types SET name_vi = 'Nhận cảnh báo khẩn cấp', description = 'Cảnh báo HA bất thường, SOS' WHERE permission_code = 'emergency_alert';
+UPDATE connection_permission_types SET name_vi = 'Thiết lập nhiệm vụ tuân thủ', description = 'Tạo/sửa nhiệm vụ tuân thủ' WHERE permission_code = 'task_config';
+UPDATE connection_permission_types SET name_vi = 'Theo dõi kết quả tuân thủ', description = 'Xem lịch sử tuân thủ' WHERE permission_code = 'compliance_tracking';
+UPDATE connection_permission_types SET name_vi = 'Thực hiện nhiệm vụ thay', description = 'Đánh dấu hoàn thành' WHERE permission_code = 'proxy_execution';
+UPDATE connection_permission_types SET name_vi = 'Gửi lời động viên', description = 'Gửi tin nhắn' WHERE permission_code = 'encouragement';
