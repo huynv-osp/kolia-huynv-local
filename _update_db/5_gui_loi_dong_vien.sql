@@ -93,6 +93,7 @@ CREATE INDEX IF NOT EXISTS idx_enc_sender
 -- 3. CREATE TRIGGER for updated_at
 -- =============================================================================
 
+DROP TRIGGER IF EXISTS trigger_enc_messages_updated_at ON encouragement_messages;
 CREATE TRIGGER trigger_enc_messages_updated_at
     BEFORE UPDATE ON encouragement_messages
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
