@@ -1,462 +1,334 @@
 # Sequence Diagrams: KOLIA-1517 - Kết nối Người thân
 
-> **Feature:** Connection Flow (Patient ↔ Caregiver)  
-> **Date:** 2026-02-02  
-> **Version:** v2.16 - Added Update Pending Invite Permissions
+> **Phase:** 2 - Architecture Planning  
+> **Date:** 2026-02-13  
+> **SRS Version:** v4.0  
+> **Revision:** v4.0 - Admin-only flows, auto-connect, soft disconnect, leave group
 
 ---
 
-## 1. Send Invite Flow
+## 1. Send Invite (Admin-Only) — v4.0
 
 ```mermaid
 sequenceDiagram
-    autonumber
-    participant User as Patient/Caregiver
-    participant App as Mobile App
+    participant Admin as Admin (Mobile)
     participant GW as api-gateway
     participant US as user-service
-    participant DB as PostgreSQL
-    participant Kafka as Kafka
-    participant SCH as schedule-service
-    participant ZNS as ZNS/SMS
+    participant PS as payment-service
+    participant SS as schedule-service
+    participant R as Recipient
 
-    User->>App: Nhập SĐT + Nhấn "Gửi lời mời"
-    App->>GW: POST /api/v1/invites
-    Note over GW: InviteHandler.createInvite()
+    Admin->>GW: POST /connections/invite {phone, type}
+    GW->>US: gRPC CreateInvite
     
-    GW->>US: gRPC CreateInvite()
-    Note over US: InviteService.createInvite()
+    Note over US: Validate: sender is Admin (BR-041)
+    alt Sender is NOT Admin
+        US-->>GW: Error: NOT_ADMIN
+        GW-->>Admin: 403 Forbidden
+    end
+
+    US->>PS: gRPC GetSubscription
+    PS-->>US: {slots, expiry}
     
-    US->>DB: Check sender != receiver (BR-006)
-    DB-->>US: Validation OK
-    
-    US->>DB: Check no pending invite (BR-007)
-    DB-->>US: Validation OK
-    
-    US->>DB: Check phone exists?
-    alt User exists
-        DB-->>US: receiver_id = {uuid}
-    else User not exists
-        DB-->>US: receiver_id = NULL
+    alt Package expired (BR-037)
+        US-->>GW: Error: PACKAGE_EXPIRED
+        GW-->>Admin: 400 "Gói đã hết hạn"
     end
     
-    US->>DB: INSERT connection_invites
-    DB-->>US: invite_id = {uuid}
+    alt Slot full (BR-059)
+        US-->>GW: Error: SLOT_FULL
+        GW-->>Admin: 400 "Đã đạt giới hạn"
+    end
+
+    Note over US: Check exclusive group (BR-057)
+    alt Recipient in another group
+        US-->>GW: Error: ALREADY_IN_GROUP
+        GW-->>Admin: 400 "Người này đã tham gia nhóm khác"
+    end
+
+    US->>US: Create invite (status=pending, consume slot)
+    US-->>GW: InviteCreated
+    GW-->>Admin: 200 "Đã gửi lời mời"
     
-    US->>Kafka: Publish connection.invite.created
+    US-)SS: Kafka: connection.invite.created
     
-    US-->>GW: InviteResponse
-    GW-->>App: 201 Created
-    App-->>User: "Đã gửi lời mời thành công"
-    
-    Note over Kafka,SCH: Async Processing
-    Kafka-->>SCH: connection.invite.created
-    SCH->>SCH: send_invite_notification task
-    
-    alt ZNS Success
-        SCH->>ZNS: Send ZNS notification
-        ZNS-->>SCH: Success
-        SCH->>DB: UPDATE invite_notifications SET status=2
-    else ZNS Failed
-        SCH->>ZNS: Send SMS (fallback)
-        Note over SCH: Retry up to 3x, 30s interval (BR-004)
+    alt Recipient has Kolia account
+        SS->>R: ZNS + Push Notification
+    else Recipient is new
+        SS->>R: ZNS with Deep Link
     end
 ```
 
 ---
 
-## 2. Accept Invite Flow (Caregiver accepts Patient invite)
+## 2. Accept Invite + Auto-Connect — v4.0
 
 ```mermaid
 sequenceDiagram
-    autonumber
-    participant CG as Caregiver
-    participant App as Mobile App
+    participant User as Recipient (Mobile)
     participant GW as api-gateway
     participant US as user-service
-    participant DB as PostgreSQL
-    participant Kafka as Kafka
+    participant PS as payment-service
+    participant SS as schedule-service
 
-    CG->>App: Tap ✓ Accept on invite
-    App->>GW: POST /api/v1/invites/{id}/accept
-    Note over GW: InviteHandler.acceptInvite()
+    User->>GW: POST /connections/invites/:id/accept
+    GW->>US: gRPC AcceptInvite
+
+    Note over US: Update invite status → accepted
+
+    alt invite_type = add_caregiver (BR-045)
+        US->>US: Find ALL patients in family_group
+        loop Each Patient in group
+            US->>US: Create connection (CG→Patient, ALL ON)
+        end
+        Note over US: Auto-connect: CG follows ALL patients
+    else invite_type = add_patient
+        US->>US: Create connections with ALL existing CGs
+        Note over US: All CGs auto-follow new Patient
+    end
+
+    US->>US: Add to family_group_members
+    US-->>GW: AcceptResult {connections_created: N}
+    GW-->>User: 200 "Đã kết nối"
+
+    US-)SS: Kafka: connection.member.accepted
+    SS->>SS: Push to ALL existing members (BR-052)
+    SS-->>SS: "👋 {Tên} đã vào nhóm"
+```
+
+---
+
+## 3. Reject Invite — v4.0
+
+```mermaid
+sequenceDiagram
+    participant User as Recipient (Mobile)
+    participant GW as api-gateway
+    participant US as user-service
+    participant SS as schedule-service
+
+    User->>GW: POST /connections/invites/:id/reject
+    GW->>US: gRPC RejectInvite
+    US->>US: Update invite status → rejected
+    US->>US: Release slot (BR-036)
+    US-->>GW: RejectResult
+    GW-->>User: 200 "Đã từ chối"
     
-    GW->>US: gRPC AcceptInvite()
-    Note over US: ConnectionService.acceptInvite()
+    US-)SS: Kafka: notify Admin
+    SS-->>SS: Push to Admin: "{Tên} đã từ chối"
+```
+
+---
+
+## 4. Permission Revoke (Tắt quyền theo dõi) — v4.0
+
+```mermaid
+sequenceDiagram
+    participant P as Patient (Mobile)
+    participant GW as api-gateway
+    participant US as user-service
+
+    P->>GW: PUT /connections/:contactId/revoke
+    GW->>US: gRPC RevokePermission
     
-    rect rgb(240, 248, 255)
-        Note over US,DB: Transaction Start
-        
-        US->>DB: UPDATE connection_invites SET status=1
-        DB-->>US: OK
-        
-        US->>DB: INSERT user_connections
-        Note over US,DB: patient_id, caregiver_id, relationship
-        DB-->>US: connection_id = {uuid}
-                
-        Note over US,DB: Transaction Commit
+    US->>US: Set ALL 5 permissions OFF
+    US->>US: Set permission_revoked = true
+    Note over US: Connection status unchanged (active)
+    Note over US: NO notification to CG (BR-056)
+    
+    US-->>GW: RevokeResult
+    GW-->>P: 200 "Đã tắt quyền theo dõi"
+    
+    Note over P: Patient UI: badge "🚫 Bị tắt quyền theo dõi"
+    Note over US: CG UI: Patient disappears from list
+```
+
+---
+
+## 5. Permission Restore (Mở lại quyền) — v4.0
+
+```mermaid
+sequenceDiagram
+    participant P as Patient (Mobile)
+    participant GW as api-gateway
+    participant US as user-service
+
+    P->>GW: PUT /connections/:contactId/restore
+    GW->>US: gRPC RestorePermission
+    
+    Note over P: Patient navigates to SCR-05, toggles permissions ON
+    US->>US: Update individual permissions
+    
+    alt At least 1 permission ON
+        US->>US: Set permission_revoked = false
     end
     
-    US->>Kafka: Publish connection.status.changed
+    Note over US: NO notification to CG (BR-056)
+    US-->>GW: RestoreResult
+    GW-->>P: 200 "Đã mở lại quyền"
     
-    US-->>GW: ConnectionResponse
-    GW-->>App: 200 OK
-    App-->>CG: "Đã kết nối với {Tên}"
-    
-    Note over Kafka: Notify Patient
-    Kafka-->>Kafka: Push to Patient: "{Tên} đã chấp nhận"
+    Note over US: CG UI: Patient reappears in list
 ```
 
 ---
 
-## 3. Accept Invite Flow (Patient accepts Caregiver invite - with permission config)
+## 6. Leave Group (Non-Admin) — v4.0
 
 ```mermaid
 sequenceDiagram
-    autonumber
-    participant PT as Patient
-    participant App as Mobile App
+    participant User as Member (Mobile)
     participant GW as api-gateway
     participant US as user-service
-    participant DB as PostgreSQL
-    participant Kafka as Kafka
+    participant PS as payment-service
+    participant SS as schedule-service
 
-    PT->>App: Tap ✓ Accept on invite
-    App->>App: Navigate to SCR-02B-ACCEPT
-    Note over App: Show 6 permission toggles (default ALL ON)
+    User->>GW: POST /family-groups/leave
+    GW->>US: gRPC LeaveGroup
     
-    PT->>App: Configure permissions + Tap "Xác nhận"
-    App->>GW: POST /api/v1/invites/{id}/accept
-    Note over GW: Body: {permissions: [...]}
+    Note over US: Validate: user is NOT Admin (BR-058)
     
-    GW->>US: gRPC AcceptInvite(permissions)
+    US->>US: Cancel all connections
+    US->>US: Remove from family_group_members
+    US->>PS: Release slot(s) (BR-036)
     
-    rect rgb(240, 248, 255)
-        Note over US,DB: Transaction Start
-        
-        US->>DB: UPDATE connection_invites SET status=1
-        
-        US->>DB: INSERT user_connections
-        DB-->>US: connection_id
-        
-        US->>DB: INSERT 6 connection_permissions
-        Note over DB: Using permissions from request (not default)
-        
-        Note over US,DB: Transaction Commit
-    end
+    US-->>GW: LeaveResult
+    GW-->>User: 200 "Bạn đã rời khỏi nhóm"
     
-    US->>Kafka: Publish connection.status.changed
-    
-    US-->>GW: ConnectionResponse
-    GW-->>App: 200 OK
-    App-->>PT: Navigate back to SCR-01
-    
-    Note over Kafka: Notify Caregiver
-    Kafka-->>Kafka: Push to Caregiver: "{Tên} đã chấp nhận"
+    US-)SS: Kafka: connection.member.removed
+    SS-->>SS: Push to Admin: "{Tên} đã rời khỏi nhóm"
 ```
 
 ---
 
-## 4. Reject Invite Flow
+## 7. Admin Remove Member — v4.0
 
 ```mermaid
 sequenceDiagram
-    autonumber
-    participant User as Patient/Caregiver
-    participant App as Mobile App
+    participant A as Admin (Mobile)
     participant GW as api-gateway
     participant US as user-service
-    participant DB as PostgreSQL
-    participant Kafka as Kafka
+    participant PS as payment-service
+    participant SS as schedule-service
 
-    User->>App: Tap ✗ Reject on invite
-    App->>GW: POST /api/v1/invites/{id}/reject
+    A->>GW: DELETE /family-groups/members/:memberId
+    GW->>US: gRPC RemoveMember
     
-    GW->>US: gRPC RejectInvite()
-    US->>DB: UPDATE connection_invites SET status=2
-    DB-->>US: OK
+    Note over US: Validate: sender is Admin
+    Note over US: Validate: target ≠ Admin (BR-058)
     
-    US->>Kafka: Publish connection.status.changed
+    US->>US: Cancel all connections of target
+    US->>US: Remove from family_group_members
+    US->>PS: Release slot(s) (BR-036)
     
-    US-->>GW: InviteResponse
-    GW-->>App: 200 OK
-    App-->>User: "Đã từ chối lời mời"
+    US-->>GW: RemoveResult
+    GW-->>A: 200 "Đã xoá {Tên} khỏi nhóm"
     
-    Note over Kafka: Notify Sender (BR-010)
-    Kafka-->>Kafka: Push to Sender: "{Tên} đã từ chối"
+    US-)SS: Kafka: connection.member.removed
+    SS-->>SS: Push to removed member: "Bạn đã bị xoá khỏi nhóm"
 ```
 
 ---
 
-## 5. Update Permission Flow
+## 8. Admin Self-Add — v4.0
 
 ```mermaid
 sequenceDiagram
-    autonumber
-    participant PT as Patient
-    participant App as Mobile App
+    participant A as Admin (Mobile)
     participant GW as api-gateway
     participant US as user-service
-    participant DB as PostgreSQL
-    participant Kafka as Kafka
-    participant CG as Caregiver App
 
-    PT->>App: Navigate to Quyền truy cập (SCR-05)
-    App->>GW: GET /api/v1/connections/{id}/permissions
-    GW->>US: gRPC GetPermissions()
-    US->>DB: SELECT FROM connection_permissions
-    DB-->>US: 6 permission flags
-    US-->>GW: PermissionsResponse
-    GW-->>App: Current permissions
+    A->>GW: POST /connections/invite {phone: self, type}
+    GW->>US: gRPC CreateInvite
     
-    PT->>App: Toggle permission OFF
-    App->>App: Show confirmation popup (BR-024)
+    Note over US: Detect self-invite from Admin (BR-049)
     
-    alt Emergency Alert toggle OFF
-        App->>App: Show RED warning popup (BR-018)
-        Note over App: "Nếu tắt, {Tên} sẽ KHÔNG nhận cảnh báo nguy hiểm"
-    end
-    
-    PT->>App: Confirm "Xác nhận"
-    App->>GW: PUT /api/v1/connections/{id}/permissions
-    Note over GW: Body: {permission_type, is_enabled: false}
-    
-    GW->>US: gRPC UpdatePermissions()
-    US->>DB: UPDATE connection_permissions SET is_enabled=false
-    DB-->>US: OK
-    
-    US->>Kafka: Publish connection.permission.changed
-    
-    US-->>GW: PermissionsResponse
-    GW-->>App: Updated permissions
-    App-->>PT: "Đã tắt quyền {Tên quyền}"
-    
-    Note over Kafka,CG: Real-time update (BR-017)
-    Kafka-->>CG: Push: "Quyền của bạn đã thay đổi"
-    CG->>CG: Hide corresponding UI block
-```
-
----
-
-## 6. Disconnect Flow
-
-```mermaid
-sequenceDiagram
-    autonumber
-    participant User as Patient/Caregiver
-    participant App as Mobile App
-    participant GW as api-gateway
-    participant US as user-service
-    participant DB as PostgreSQL
-    participant Kafka as Kafka
-    participant Other as Other Party App
-
-    User->>App: Tap ❌ Hủy kết nối / Ngừng theo dõi
-    App->>App: Show confirmation popup
-    User->>App: Confirm "Hủy kết nối"
-    
-    App->>GW: DELETE /api/v1/connections/{id}
-    
-    GW->>US: gRPC Disconnect()
-    
-    rect rgb(255, 240, 240)
-        Note over US,DB: Soft Delete
-        US->>DB: UPDATE user_connections SET status=0
-        Note over DB: Permissions remain but connection inactive
-        DB-->>US: OK
-    end
-    
-    US->>Kafka: Publish connection.status.changed
-    
-    US-->>GW: ConnectionResponse
-    GW-->>App: 200 OK
-    App-->>User: "Đã hủy kết nối với {Tên}"
-    
-    Note over Kafka,Other: Notify other party (BR-019/BR-020)
-    Kafka-->>Other: Push: "{Tên} đã hủy kết nối"
-    Other->>Other: Remove from connection list
-```
-
----
-
-## 7. List Connections Flow
-
-```mermaid
-sequenceDiagram
-    autonumber
-    participant User as Patient/Caregiver
-    participant App as Mobile App
-    participant GW as api-gateway
-    participant US as user-service
-    participant DB as PostgreSQL
-
-    User->>App: Open "Kết nối Người thân" (SCR-01)
-    
-    par Fetch connections
-        App->>GW: GET /api/v1/connections
-        GW->>US: gRPC ListConnections()
-        US->>DB: SELECT FROM user_connections WHERE status=1
-        Note over DB: Join with users for names, avatars, last_active
-        DB-->>US: List of connections
-        US-->>GW: ListConnectionsResponse
-        GW-->>App: Connections grouped by role
-    and Fetch pending invites
-        App->>GW: GET /api/v1/invites?status=pending
-        GW->>US: gRPC ListInvites()
-        US->>DB: SELECT FROM connection_invites WHERE status=0
-        DB-->>US: List of pending invites
-        US-->>GW: ListInvitesResponse
-        GW-->>App: Pending invites
-    end
-    
-    App->>App: Render UI
-    Note over App: Section 1: Tôi đang theo dõi
-    Note over App: Section 2: Người đang theo dõi tôi
-    Note over App: Block: Lời mời mới (if pending)
-```
-
----
-
-## 8. ZNS Fallback Flow (Async)
-
-```mermaid
-sequenceDiagram
-    autonumber
-    participant Kafka as Kafka
-    participant SCH as schedule-service
-    participant ZNS as Zalo ZNS
-    participant SMS as SMS Gateway
-    participant DB as PostgreSQL
-
-    Kafka->>SCH: connection.invite.created
-    SCH->>SCH: send_invite_notification task
-    
-    SCH->>DB: INSERT invite_notifications (channel=ZNS, status=0)
-    
-    SCH->>ZNS: Send ZNS message
-    
-    alt ZNS Success
-        ZNS-->>SCH: 200 OK
-        SCH->>DB: UPDATE status=2 (delivered)
-    else ZNS Failed (no Zalo account)
-        ZNS-->>SCH: Error
-        SCH->>DB: UPDATE status=3 (failed)
-        
-        loop Retry up to 3 times (BR-004)
-            SCH->>SCH: Wait 30s
-            SCH->>DB: INSERT invite_notifications (channel=SMS)
-            SCH->>SMS: Send SMS with deep link
-            
-            alt SMS Success
-                SMS-->>SCH: Delivered
-                SCH->>DB: UPDATE status=2
-                Note over SCH: Break loop
-            else SMS Failed
-                SMS-->>SCH: Error
-                SCH->>DB: UPDATE status=3, retry_count++
-            end
+    alt Adding as Patient (P-slot)
+        US->>US: Auto-accept, create connection immediately
+        US->>US: Add to family_group_members as PATIENT
+    else Adding as Caregiver (CG-slot)
+        US->>US: Check ≥1 Patient exists in group (BR-048)
+        alt No other Patient
+            US-->>GW: Error: NEED_PATIENT_FIRST
+            GW-->>A: 400 "Cần có ít nhất 1 Người bệnh khác"
+        else Has Patient
+            US->>US: Auto-accept, auto-connect to ALL patients
         end
     end
+    
+    US-->>GW: SelfAddResult
+    GW-->>A: 200 "Đã thêm thành công"
 ```
 
 ---
 
-## State Machine: Invite Lifecycle
-
-```mermaid
-stateDiagram-v2
-    [*] --> Pending: User sends invite
-    
-    Pending --> Accepted: Recipient accepts
-    Pending --> Rejected: Recipient rejects
-    Pending --> Cancelled: Sender cancels
-    
-    Accepted --> [*]: Connection created
-    Rejected --> [*]: Can re-invite later
-    Cancelled --> [*]: Invite removed
-    
-    note right of Pending
-        - Notification sent
-        - Shows in recipient's list
-        - Badge count updated
-    end note
-    
-    note right of Accepted
-        - Connection record created
-        - 6 permissions initialized
-        - Both parties notified
-    end note
-```
-
----
-
-## State Machine: Connection Lifecycle
-
-```mermaid
-stateDiagram-v2
-    [*] --> Active: Invite accepted
-    
-    Active --> Disconnected: Either party disconnects
-    
-    Disconnected --> [*]: Soft delete complete
-    
-    note right of Active
-        - Both can view each other
-        - Permissions can be modified
-        - Real-time data sync
-    end note
-    
-    note right of Disconnected
-        - No longer visible in lists
-        - Historical data preserved
-        - Can create new connection
-    end note
-```
-
----
-
-## 9. Update Pending Invite Permissions Flow (NEW v2.16)
+## 9. Update Relationship (MQH) — v5.2
 
 ```mermaid
 sequenceDiagram
-    autonumber
-    participant Sender as Sender (Patient/Caregiver)
-    participant App as Mobile App
+    participant CG as Caregiver (Mobile)
     participant GW as api-gateway
     participant US as user-service
-    participant DB as PostgreSQL
 
-    Note over Sender: While editing pending invite permissions
+    CG->>GW: PUT /connections/:contactId/relationship {code: "me"}
+    GW->>US: gRPC UpdateRelationship
     
-    Sender->>App: Modify permission toggles
-    App->>App: Store changes locally
+    US->>US: Validate relationship_code in enum
+    US->>US: Update user_emergency_contacts.relationship_code
     
-    Sender->>App: Tap "Lưu thay đổi"
-    App->>GW: PUT /api/v1/connections/invites/{id}/permissions
-    Note over GW: InviteHandler.updatePendingInvitePermissions()
-    
-    GW->>US: gRPC UpdatePendingInvitePermissions()
-    Note over US: InviteService.updatePendingInvitePermissions()
-    
-    US->>DB: SELECT * FROM connection_invites WHERE id=?
-    DB-->>US: Invite record
-    
-    alt Not sender (BR-031)
-        US-->>GW: 403 NOT_AUTHORIZED
-        GW-->>App: 403 Forbidden
-        App-->>Sender: "Bạn không có quyền sửa lời mời này"
-    else Not pending (BR-032)
-        US-->>GW: 409 INVITE_NOT_PENDING
-        GW-->>App: 409 Conflict
-        App-->>Sender: "Lời mời này không còn pending"
-    else Valid
-        US->>DB: UPDATE connection_invites SET initial_permissions=? (BR-033)
-        DB-->>US: OK
-        
-        Note over US: No Kafka event (BR-034)
-        
-        US-->>GW: UpdatePendingInvitePermissionsResponse
-        GW-->>App: 200 OK
-        App-->>Sender: "Đã cập nhật quyền cho lời mời"
-    end
+    US-->>GW: UpdateResult
+    GW-->>CG: 200 "Đã cập nhật mối quan hệ"
 ```
+
+---
+
+## 10. State Machines
+
+### 10.1 Invite Lifecycle
+
+```mermaid
+stateDiagram-v2
+    [*] --> Pending: Admin sends invite
+    Pending --> Accepted: Recipient accepts
+    Pending --> Rejected: Recipient rejects
+    Pending --> Cancelled: Admin/Sender cancels
+    Accepted --> [*]: Connection(s) created + auto-connect
+    Rejected --> [*]: Slot released, can re-invite
+    Cancelled --> [*]: Slot released
+```
+
+### 10.2 Connection Lifecycle — v4.0
+
+```mermaid
+stateDiagram-v2
+    [*] --> Active: Accept invite (auto-connect)
+    Active --> Revoked: Patient tắt quyền (BR-040)
+    Revoked --> Active: Patient mở lại quyền
+    Active --> Removed: Admin remove OR Leave group
+    Revoked --> Removed: Admin remove OR Leave group
+    Removed --> [*]: Slot released
+    
+    note right of Revoked
+        connection.status = active
+        permission_revoked = true
+        ALL permissions OFF
+        CG cannot see Patient
+    end note
+```
+
+### 10.3 Slot Lifecycle — v4.0
+
+```mermaid
+stateDiagram-v2
+    [*] --> Available: Package activated
+    Available --> Pending: Invite sent (BR-033)
+    Pending --> Consumed: Invite accepted
+    Pending --> Available: Invite rejected/cancelled (BR-036)
+    Consumed --> Available: Member removed/left (BR-036)
+```
+
+---
+
+## References
+
+- [SRS v4.0 §6](file:///Users/nguyenvanhuy/Desktop/OSP/Kolia/dev/kolia/docs/nguoi_than/srs_input_documents/srs_nguoi_than_nhom_gia_dinh.md) — Flow Diagrams
+- [SA Service Mapping v4.0](file:///Users/nguyenvanhuy/Desktop/OSP/Kolia/dev/kolia/docs/nguoi_than/sa-analysis/ket_noi_nguoi_than/04_mapping/service_mapping.md)

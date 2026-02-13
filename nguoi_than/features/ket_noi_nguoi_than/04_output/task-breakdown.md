@@ -1,108 +1,191 @@
 # Task Breakdown: KOLIA-1517 - Kết nối Người thân
 
-> **Date:** 2026-01-30  
-> **Total Tasks:** 29 (+1 for v2.14 Mark Report Read)  
-> **Total Effort:** 60.5 hours (v2.14: +4.5h)  
-> **Revision:** v2.14 - Added Mark Report Read API tasks
+> **Phase:** 4 - Output  
+> **Date:** 2026-02-13  
+> **SRS Version:** v4.0  
+> **Revision:** v4.0 - 20 tasks, ~80h, 5 services
 
 ---
 
-## Execution Order
+## Summary
 
-```
-Phase 1 (Week 1-2)
-├── DB-001 ─▶ ENTITY-001~004 ─▶ REPO-001~003 ─▶ SVC-001~003 ─▶ HANDLER-001
-├── PROTO-001 ─▶ PROTO-002 ─▶ CLIENT-001 ─┘
-└── GW-HANDLER-001~002
-
-Phase 2 (Week 3)
-├── KAFKA-001
-└── SCHED-001~002
-
-Phase 3 (Week 4)
-└── TEST-001~004
-```
+| Category | Tasks | Effort | Services |
+|----------|:-----:|:------:|:--------:|
+| Database & Foundation | 3 | 12h | user-service |
+| Core Business Logic | 5 | 18h | user-service |
+| API Layer | 4 | 20h | api-gateway |
+| Cross-Service Integration | 4 | 15h | payment, schedule, auth |
+| Testing & Verification | 4 | 15h | All |
+| **Total** | **20** | **~80h** | **5** |
 
 ---
 
-## Tasks by Service
+## Database & Foundation (3 tasks, ~12h)
 
-### 📦 Database (1 task, 2h)
+### TASK-001: Database Migration
+- **Service:** user-service | **Effort:** 4h | **Priority:** P0
+- **Deliverables:**
+  - CREATE TABLE `family_groups`
+  - CREATE TABLE `family_group_members` (UNIQUE user_id)
+  - ALTER `user_emergency_contacts` (+permission_revoked, +family_group_id)
+  - ALTER `connection_invites` CHECK constraint (invite_type)
+  - Rollback script
+  - Data migration for existing invite_type values
 
-| ID | Task | Priority | Effort | Dependencies |
-|----|------|:--------:|:------:|--------------|
-| DB-001 | Migration script | P0 | 2h | None |
+### TASK-002: Family Group Entities & Repositories
+- **Service:** user-service | **Effort:** 4h | **Priority:** P0
+- **Depends:** TASK-001
+- **Deliverables:**
+  - `FamilyGroup.java`, `FamilyGroupMember.java` entities
+  - `FamilyGroupRepository.java`, `FamilyGroupMemberRepository.java`
+  - `UserEmergencyContact.java` updated (new fields)
+  - `ConnectionInvite.java` updated (invite_type enum)
 
----
-
-### 📦 user-service (16 tasks, 32h)
-
-| ID | Task | Priority | Effort | Dependencies |
-|----|------|:--------:|:------:|--------------|
-| ENTITY-001 | ConnectionInvite entity | P0 | 1h | DB-001 |
-| ENTITY-002 | UserConnection entity | P0 | 1h | DB-001 |
-| ENTITY-003 | ConnectionPermission entity | P0 | 1h | DB-001, ENTITY-002 |
-| ENTITY-004 | InviteNotification entity | P1 | 1h | DB-001, ENTITY-001 |
-| REPO-001 | ConnectionInviteRepository | P0 | 2h | ENTITY-001 |
-| REPO-002 | UserConnectionRepository | P0 | 2h | ENTITY-002 |
-| REPO-003 | ConnectionPermissionRepository | P0 | 1h | ENTITY-003 |
-| PROTO-001 | Proto definition | P0 | 2h | None |
-| PROTO-002 | Proto compilation | P0 | 1h | PROTO-001 |
-| SVC-001 | InviteService | P0 | 4h | REPO-001 |
-| SVC-002 | ConnectionService | P0 | 4h | REPO-002, SVC-001, SVC-003 |
-| SVC-003 | PermissionService | P0 | 3h | REPO-003 |
-| HANDLER-001 | ConnectionHandler (gRPC) | P0 | 3h | SVC-001~003 |
-| KAFKA-001 | Kafka producer | P1 | 2h | SVC-001~003 |
-| CONST-001 | Enums (4 files) | P0 | 1h | None |
-| DTO-001 | DTOs (8 files) | P0 | 2h | None |
+### TASK-003: Family Group Service
+- **Service:** user-service | **Effort:** 4h | **Priority:** P0
+- **Depends:** TASK-002
+- **Deliverables:**
+  - `FamilyGroupService.java` — createGroup, addMember, removeMember, getGroup, leaveGroup
+  - Exclusive group validation (BR-057)
+  - Slot release integration (BR-036)
 
 ---
 
-### 📦 api-gateway-service (5 tasks, 11h)
+## Core Business Logic (5 tasks, ~18h)
 
-| ID | Task | Priority | Effort | Dependencies |
-|----|------|:--------:|:------:|--------------|
-| CLIENT-001 | ConnectionServiceClient | P0 | 2h | PROTO-002 |
-| GW-HANDLER-001 | InviteHandler (REST) | P0 | 3h | CLIENT-001 |
-| GW-HANDLER-002 | ConnectionHandler (REST) | P0 | 3h | CLIENT-001 |
-| GW-DTO-001 | Request DTOs | P0 | 1.5h | None |
-| GW-DTO-002 | Response DTOs | P0 | 1.5h | None |
+### TASK-004: Admin-Only Invite
+- **Service:** user-service | **Effort:** 3h | **Priority:** P0
+- **Depends:** TASK-003
+- **Deliverables:**
+  - Admin role validation in ConnectionService (BR-041)
+  - Admin self-add auto-accept (BR-049)
+  - Phone-only invite (BR-055, no MQH, no permissions config)
+
+### TASK-005: Payment Service Client
+- **Service:** user-service | **Effort:** 3h | **Priority:** P0
+- **Depends:** TASK-002
+- **Deliverables:**
+  - `PaymentServiceClient.java` — gRPC client
+  - `PaymentServiceConfig.java` — channel config
+  - Slot pre-check logic (BR-033, BR-059)
+  - Graceful fallback for payment unavailability
+
+### TASK-006: Auto-Connect
+- **Service:** user-service | **Effort:** 4h | **Priority:** P0
+- **Depends:** TASK-004, TASK-005
+- **Deliverables:**
+  - CG accept → auto-create connections to ALL patients (BR-045)
+  - Patient accept → auto-connect with ALL existing CGs
+  - Transaction-based, rollback on failure
+  - Kafka event: `connection.member.accepted`
+
+### TASK-007: Soft Disconnect
+- **Service:** user-service | **Effort:** 4h | **Priority:** P0
+- **Depends:** TASK-002
+- **Deliverables:**
+  - Revoke: permission_revoked=true, ALL permissions OFF (BR-040)
+  - Restore: ≥1 permission ON → permission_revoked=false
+  - Silent operation, no notification (BR-056)
+  - Connection status unchanged
+
+### TASK-008: Leave & Remove
+- **Service:** user-service | **Effort:** 4h | **Priority:** P0
+- **Depends:** TASK-003, TASK-005
+- **Deliverables:**
+  - Non-Admin leave group (BR-061)
+  - Admin remove member (BR-058, cannot remove self)
+  - Slot release + connection cancellation
+  - Kafka event: `connection.member.removed`
 
 ---
 
-### 📦 schedule-service (2 tasks, 7h)
+## API Layer (4 tasks, ~20h)
 
-| ID | Task | Priority | Effort | Dependencies |
-|----|------|:--------:|:------:|--------------|
-| SCHED-001 | invite_notification task | P1 | 4h | KAFKA-001 |
-| SCHED-002 | connection_notification task | P1 | 3h | KAFKA-001 |
+### TASK-009: Family Group Endpoints
+- **Service:** api-gateway | **Effort:** 6h | **Priority:** P0
+- **Depends:** TASK-003
+- **Deliverables:**
+  - `FamilyGroupHandler.java`
+  - GET /family-groups, DELETE /members/:id, POST /leave
+  - FamilyGroupResponse DTO
+
+### TASK-010: Connection Endpoints Update
+- **Service:** api-gateway | **Effort:** 6h | **Priority:** P0
+- **Depends:** TASK-004, TASK-007
+- **Deliverables:**
+  - Simplified POST /invite (phone only)
+  - PUT /revoke, PUT /restore, PUT /relationship
+  - Updated AcceptResponse with auto-connect info
+
+### TASK-011: Deprecated DELETE Endpoint
+- **Service:** api-gateway | **Effort:** 2h | **Priority:** P1
+- **Depends:** TASK-010
+- **Deliverables:**
+  - DELETE /connections/:id → 410 GONE
+  - Swagger deprecation notice
+  - Feature flag for gradual removal
+
+### TASK-012: DTO & Proto Updates
+- **Service:** api-gateway | **Effort:** 6h | **Priority:** P0
+- **Depends:** TASK-009, TASK-010
+- **Deliverables:**
+  - CreateInviteRequest simplified
+  - RemoveMemberRequest, RevokePermissionRequest, UpdateRelationshipRequest
+  - Proto file updates for all new gRPC methods
 
 ---
 
-### 📦 Testing (5 tasks, 15h)
+## Cross-Service Integration (4 tasks, ~15h)
 
-| ID | Task | Priority | Effort | Dependencies |
-|----|------|:--------:|:------:|--------------|
-| TEST-001 | InviteService tests | P1 | 3h | SVC-001 |
-| TEST-002 | ConnectionService tests | P1 | 3h | SVC-002 |
-| TEST-002B | PermissionService tests | P1 | 3h | SVC-003 |
-| TEST-003 | Gateway handler tests | P1 | 2h | GW-HANDLER-001~002 |
-| TEST-004 | Integration tests | P2 | 4h | All |
+### TASK-013: Member Broadcast (schedule-service)
+- **Effort:** 5h | **Priority:** P0 | **Depends:** TASK-006
+- **Deliverables:**
+  - `member_broadcast_task.py` — push to ALL members (BR-052)
+  - Kafka consumer for `connection.member.accepted/removed`
+  - Exclude new member + Admin from broadcast
+
+### TASK-014: ZNS Templates (schedule-service)
+- **Effort:** 3h | **Priority:** P0 | **Depends:** TASK-004
+- **Deliverables:**
+  - Template `add_patient`: "{Admin} mời bạn... Người bệnh"
+  - Template `add_caregiver`: "{Admin} mời bạn... Người thân"
+  - ZNS → SMS fallback (BR-004)
+
+### TASK-015: Auth Backfill Verification (auth-service)
+- **Effort:** 2h | **Priority:** P1 | **Depends:** TASK-001
+- **Deliverables:**
+  - Verify backfillPendingInviteReceiverIds handles `add_patient`/`add_caregiver`
+  - No regression test
+
+### TASK-016: Payment GetSubscription Verify (payment-service)
+- **Effort:** 5h | **Priority:** P0 | **Depends:** None
+- **Deliverables:**
+  - GetSubscription returns slot info (total, used, expiry)
+  - Pessimistic locking for slot race condition
 
 ---
 
-## Test Commands
+## Testing & Verification (4 tasks, ~15h)
 
-```bash
-# user-service
-cd user-service && mvn test -Dtest=*ConnectionTest
+### TASK-017: Unit Tests
+- **Effort:** 5h | **Priority:** P0
+- Admin invite validation, auto-connect, soft disconnect, exclusive group, slots
 
-# api-gateway-service
-cd api-gateway-service && mvn test -Dtest=*ConnectionTest
+### TASK-018: Integration Tests
+- **Effort:** 5h | **Priority:** P0
+- E2E invite flow, payment integration, notification delivery, leave group
 
-# schedule-service
-cd schedule-service && pytest tests/tasks/connection/
+### TASK-019: Regression Tests
+- **Effort:** 3h | **Priority:** P0
+- SOS contact unchanged, existing connections, profile selector, dashboard permissions
 
-# Integration
-mvn verify -Pintegration-test
-```
+### TASK-020: Data Migration Tests
+- **Effort:** 2h | **Priority:** P0
+- invite_type migration, rollback script, data integrity
+
+---
+
+## References
+
+- [FA Implementation Tasks v4.0](file:///Users/nguyenvanhuy/Desktop/OSP/Kolia/dev/kolia/docs/nguoi_than/features/ket_noi_nguoi_than/02_planning/implementation-tasks.md)
+- [FA Service Decomposition v4.0](file:///Users/nguyenvanhuy/Desktop/OSP/Kolia/dev/kolia/docs/nguoi_than/features/ket_noi_nguoi_than/02_planning/service-decomposition.md)

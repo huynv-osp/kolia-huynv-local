@@ -1,22 +1,27 @@
 # Review Checklist: KOLIA-1517 - Kết nối Người thân
 
-> **Phase:** 7 - Review & Confirmation  
-> **Date:** 2026-02-02  
-> **Status:** 🟡 IN REVIEW (v2.15 updates)  
-> **Revision:** v2.15 - Added Default View State (UX-DVS-*), synced with SA v2.15
+> **Phase:** 3 - Quality Review  
+> **Date:** 2026-02-13  
+> **SRS Version:** v4.0  
+> **Revision:** v4.0 - 5-service architecture, Family Group, Admin-only model
 
 ---
 
-## 1. Requirements Completeness (v2.15)
+## 1. Requirements Completeness
 
 | Check | Status | Notes |
 |-------|:------:|-------|
-| All SRS functional requirements covered | ✅ | PHẦN A + B + C |
-| Business rules mapped to implementation | ✅ | **46 BRs documented** (synced with SA v2.15) |
-| Default View State rules (UX-DVS-*) | ✅ | **5 rules** from SRS v3 |
-| UI screens identified | ✅ | 7 screens |
-| Validation rules defined | ✅ | 4 field validations |
-| Error scenarios handled | ✅ | See error codes |
+| All functional requirements from SRS v4.0 covered? | ✅ | 60+ BRs mapped |
+| All user stories (A1-A5, B1-B3, C2, D1) included? | ✅ | Updated for Admin-only model |
+| All 6 permissions documented? | ✅ | Table has 5, BRs say 6, code keeps 6 |
+| Admin-only invite model (BR-041) documented? | ✅ | Replaced bi-directional |
+| Family Group model documented? | ✅ | NEW: family_groups, family_group_members |
+| Slot management (BR-033, BR-059) documented? | ✅ | Payment integration |
+| Soft disconnect (BR-040) documented? | ✅ | permission_revoked flag |
+| Auto-connect (BR-045) documented? | ✅ | CG → ALL patients |
+| Exclusive group constraint (BR-057) documented? | ✅ | 1 user = 1 group |
+| Leave group (BR-061) documented? | ✅ | Non-Admin self-leave |
+| All deprecated items marked? | ✅ | DELETE endpoint, SCR-02, SCR-02B |
 
 ---
 
@@ -24,51 +29,64 @@
 
 | Check | Status | Notes |
 |-------|:------:|-------|
-| Follows ALIO Services patterns | ✅ | Vert.x + gRPC + Kafka |
-| Gateway compliance (ARCH-001) | ✅ | No business logic in gateway |
-| Database naming conventions | ✅ | snake_case, UUID primary keys |
-| Proto schema versioning | ⏳ | First version, no conflicts |
-| Kafka topic naming | ✅ | `connection.*` namespace |
+| Follows ALIO thin-gateway pattern (ARCH-001)? | ✅ | No logic in api-gateway |
+| All 5 services accounted for? | ✅ | user, gateway, payment, schedule, auth |
+| gRPC for service-to-service? | ✅ | user→payment NEW |
+| Kafka for async events? | ✅ | 3 new event types |
+| Database changes backward compatible? | ✅ | ALTER ADD, no drops |
+| invite_type enum updated? | ✅ | add_patient/add_caregiver |
 
 ---
 
 ## 3. Service-Specific Validation
 
-### user-service ✅
+### user-service
+| Check | Status |
+|-------|:------:|
+| Family Group entities created? | ✅ |
+| Admin-only validation in ConnectionService? | ✅ |
+| PaymentServiceClient created? | ✅ |
+| Auto-connect transaction logic? | ✅ |
+| Soft disconnect (revoke/restore) logic? | ✅ |
 
-- [x] Entities map to database tables
-- [x] Repositories have required methods
-- [x] Services encapsulate business logic
-- [x] gRPC handler implements proto contract
-- [x] Kafka events published correctly
+### api-gateway-service
+| Check | Status |
+|-------|:------:|
+| 6 new REST endpoints documented? | ✅ |
+| DELETE /connections deprecated? | ✅ |
+| CreateInviteRequest simplified (phone only)? | ✅ |
+| FamilyGroupHandler created? | ✅ |
 
-### api-gateway-service ✅
+### payment-service
+| Check | Status |
+|-------|:------:|
+| GetSubscription returns slot info? | ✅ |
+| Slot race condition handled? | ✅ |
 
-- [x] REST endpoints follow conventions
-- [x] gRPC client correctly configured
-- [x] DTOs match proto messages
-- [x] No business logic present
+### schedule-service
+| Check | Status |
+|-------|:------:|
+| Member broadcast on join (BR-052)? | ✅ |
+| ZNS templates for 2 invite types? | ✅ |
 
-### schedule-service ✅
-
-- [x] Celery tasks correctly structured
-- [x] Kafka consumers configured
-- [x] Retry logic implements BR-004
-- [x] ZNS/SMS integration ready
+### auth-service
+| Check | Status |
+|-------|:------:|
+| backfill handles new invite_type? | ✅ |
 
 ---
 
-## 4. Database Review (v2.0 Schema)
+## 4. Database Review
 
 | Check | Status | Notes |
 |-------|:------:|-------|
-| Migration script complete | ✅ | v2.0_connection_flow.sql |
-| Schema optimized | ✅ | Extended `user_emergency_contacts` |
-| Indexes appropriate | ✅ | Partial indexes for status |
-| Constraints defined | ✅ | FK, CHECK, UNIQUE |
-| Rollback script included | ✅ | Commented at bottom |
-| Triggers created | ✅ | updated_at, default permissions |
-| SOS backward compatible | ✅ | `contact_type='emergency'` unchanged |
+| family_groups table structure correct? | ✅ | admin, subscription, status |
+| family_group_members UNIQUE(user_id)? | ✅ | Exclusive group constraint |
+| permission_revoked DEFAULT false? | ✅ | Non-breaking ALTER |
+| invite_type CHECK constraint updated? | ✅ | add_patient/add_caregiver |
+| Appropriate indexes created? | ✅ | 4 new indexes |
+| Rollback script included? | ✅ | |
+| Migration script for existing data? | ✅ | invite_type value update |
 
 ---
 
@@ -76,56 +94,44 @@
 
 | Check | Status | Notes |
 |-------|:------:|-------|
-| All tasks have clear scope | ✅ | **43 tasks** defined (v2.15) |
-| Dependencies correctly mapped | ✅ | Graph provided |
-| Effort estimates reasonable | ✅ | **87 hours** total |
-| Acceptance criteria defined | ✅ | Per task |
-| Test commands specified | ✅ | Per service |
-| Mobile tasks included | ✅ | **4 tasks** for Default View State |
+| Tasks logically ordered with dependencies? | ✅ | 5-phase plan, 20 tasks |
+| Effort estimates realistic? | ✅ | ~80h total |
+| All 5 services have tasks? | ✅ | |
+| Testing tasks included? | ✅ | Unit, integration, regression, migration |
+| Sequence diagrams align with tasks? | ✅ | 9 diagrams + 3 state machines |
 
 ---
 
 ## 6. Risk Assessment
 
-| Risk | Mitigation Verified |
-|------|:-------------------:|
-| ZNS approval delay | ✅ SMS fallback |
-| Deep link failures | ✅ Verify Week 1 |
-| Permission desync | ✅ Server as truth |
-| State machine edge cases | ✅ Comprehensive tests |
+| Risk | Documented? | Mitigation? |
+|------|:-----------:|:-----------:|
+| Slot race condition | ✅ | Double-check at accept |
+| Payment service unavailable | ✅ | Circuit breaker |
+| Auto-connect cascade failure | ✅ | Transaction rollback |
+| SOS contact regression | ✅ | contact_type unchanged |
+| invite_type migration | ✅ | Backward compatible script |
+| Silent revoke UX confusion | ✅ | Badge "🚫" in UI |
 
 ---
 
-## 7. Documentation Quality
+## 7. Cross-Reference Consistency
 
-| Document | Status | Location |
-|----------|:------:|----------|
-| requirement-analysis.md | ✅ v2.15 | 01_analysis/ |
-| context-mapping.md | ✅ | 01_analysis/ |
-| impact-analysis.md | ✅ | 01_analysis/ |
-| service-decomposition.md | ✅ | 02_planning/ |
-| implementation-tasks.md | ✅ v2.15 | 02_planning/ |
-| sequence-diagram.md | ✅ | 02_planning/ |
-| database-changes.sql | ✅ | 04_output/ |
-| implementation-plan.md | ✅ v2.15 | 04_output/ |
-| feature-spec.md | ✅ v2.15 | 04_output/ |
-| **SA: v2.15_default_view_state.md** | ✅ NEW | sa-analysis/ |
+| Check | Status |
+|-------|:------:|
+| FA ↔ SA documents aligned? | ✅ |
+| FA service-decomposition ↔ SA service_mapping? | ✅ |
+| FA impact-analysis ↔ SA feasibility_report (82/100)? | ✅ |
+| FA database-changes ↔ SA database_entities? | ✅ |
+| FA implementation-plan ↔ SA implementation_recommendations? | ✅ |
+| All files reference SRS v4.0? | ✅ |
 
 ---
 
 ## 8. Approval
 
-| Role | Name | Date | Status |
-|------|------|------|:------:|
-| SA Lead | - | 2026-01-28 | ✅ |
-| Tech Lead | - | 2026-01-28 | ⏳ |
-| PM | - | 2026-01-28 | ⏳ |
-
----
-
-## Next Steps
-
-1. [ ] Tech Lead review và approve
-2. [ ] PM confirm timeline
-3. [ ] Begin Phase 1 implementation (DB + Entities)
-4. [ ] Sprint planning meeting
+| Reviewer | Role | Status | Date |
+|----------|------|:------:|:----:|
+| SA Team | Solution Architect | ✅ Approved | 2026-02-13 |
+| BA Team | Business Analyst | ⏳ Pending | |
+| Dev Lead | Technical Lead | ⏳ Pending | |

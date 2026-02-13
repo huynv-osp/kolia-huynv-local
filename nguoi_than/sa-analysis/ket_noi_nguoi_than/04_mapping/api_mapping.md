@@ -1,8 +1,8 @@
 # API Mapping: KOLIA-1517 - Kết nối Người thân
 
 > **Phase:** 4 - Architecture Mapping & Analysis  
-> **Date:** 2026-02-04  
-> **Revision:** v2.23 - Added inverse_relationship_display for perspective display (BR-036)
+> **Date:** 2026-02-13  
+> **Revision:** v4.0 - Updated for Family Group model, Admin-only invites, auto-connect, soft-disconnect. Added 6 new APIs, deprecated DELETE /connections/:id
 
 ---
 
@@ -10,40 +10,61 @@
 
 ### Invite Management
 
-| Method | Path | Description |
-|:------:|------|-------------|
-| POST | `/api/v1/connections/invite` | Create bi-directional invite |
-| GET | `/api/v1/connections/invites` | List sent/received invites |
-| GET | `/api/v1/connections/invites/:inviteId` | Get invite details |
-| DELETE | `/api/v1/connections/invites/:inviteId` | Cancel pending invite |
-| PUT | `/api/v1/connections/invites/:inviteId/permissions` | **NEW (v2.16)** Update pending invite permissions |
-| POST | `/api/v1/connections/invites/:inviteId/accept` | Accept invite |
-| POST | `/api/v1/connections/invites/:inviteId/reject` | Reject invite |
+| Method | Path | Description | v4.0 |
+|:------:|------|-------------|:----:|
+| POST | `/api/v1/connections/invite` | Create invite (**Admin-only**, simplified form) | 🔴 UPDATE |
+| GET | `/api/v1/connections/invites` | List sent/received invites | ✅ KEEP |
+| GET | `/api/v1/connections/invites/:inviteId` | Get invite details | ✅ KEEP |
+| DELETE | `/api/v1/connections/invites/:inviteId` | Cancel pending invite (+slot release) | 🟡 UPDATE |
+| PUT | `/api/v1/connections/invites/:inviteId/permissions` | Update pending invite permissions | ✅ KEEP |
+| POST | `/api/v1/connections/invites/:inviteId/accept` | Accept invite (+auto-connect, +MQH) | 🔴 UPDATE |
+| POST | `/api/v1/connections/invites/:inviteId/reject` | Reject invite | ✅ KEEP |
 
 ### Connection Management
 
-| Method | Path | Description |
-|:------:|------|-------------|
-| GET | `/api/v1/connections` | List active connections |
-| DELETE | `/api/v1/connections/:connectionId` | Disconnect |
-| GET | `/api/v1/connections/:connectionId/permissions` | Get permissions for connection |
-| PUT | `/api/v1/connections/:connectionId/permissions` | Update permissions |
+| Method | Path | Description | v4.0 |
+|:------:|------|-------------|:----:|
+| GET | `/api/v1/connections` | List connections (+permission_revoked badge) | 🟡 UPDATE |
+| ~~DELETE~~ | ~~`/api/v1/connections/:connectionId`~~ | ~~Disconnect~~ | ⛔ **DEPRECATE** |
+| GET | `/api/v1/connections/:connectionId/permissions` | Get permissions | ✅ KEEP |
+| PUT | `/api/v1/connections/:connectionId/permissions` | Update permissions (+revoked check) | 🟡 UPDATE |
 
-### Profile Selection (NEW - v2.7)
+### Family Group Management (NEW - v4.0)
+
+| Method | Path | Description | v4.0 |
+|:------:|------|-------------|:----:|
+| GET | `/api/v1/family-groups` | Get user's family group + members | 🆕 NEW |
+| GET | `/api/v1/family-groups/members` | List all group members | 🆕 NEW |
+| DELETE | `/api/v1/family-groups/members/:uid` | Admin removes member (+slot release) | 🆕 NEW |
+
+### Permission Revoke/Restore (NEW - v4.0)
+
+| Method | Path | Description | v4.0 |
+|:------:|------|-------------|:----:|
+| PUT | `/api/v1/connections/:id/revoke-permissions` | Patient tắt ALL permissions (silent) | 🆕 NEW |
+| PUT | `/api/v1/connections/:id/restore-permissions` | Patient mở lại ALL permissions | 🆕 NEW |
+
+### Connection Update (NEW - v4.0)
+
+| Method | Path | Description | v4.0 |
+|:------:|------|-------------|:----:|
+| PUT | `/api/v1/connections/:id/relationship` | Update relationship type | 🆕 NEW |
+
+### Profile Selection (v2.7)
 
 | Method | Path | Description |
 |:------:|------|-------------|
 | GET | `/api/v1/connections/viewing` | Get currently viewing patient |
 | PUT | `/api/v1/connections/viewing` | Set viewing patient |
 
-### Lookup APIs (NEW - v2.1, v2.8)
+### Lookup APIs (v2.1, v2.8)
 
 | Method | Path | Description |
 |:------:|------|-------------|
 | GET | `/api/v1/connection/permission-types` | List all active permission types |
 | GET | `/api/v1/connection/relationship-types` | List all active relationship types |
 
-### Dashboard APIs (NEW - v2.11, v2.14)
+### Dashboard APIs (v2.11, v2.14)
 
 | Method | Path | Description |
 |:------:|------|-------------|
@@ -55,34 +76,41 @@
 
 ## 2. API Contracts
 
-### POST /api/v1/connections/invite
+### POST /api/v1/connections/invite (v4.0 UPDATED)
 
-**Request:**
+> **v4.0:** Admin-only. Pre-checks: gói hết hạn? slot trống? exclusive group?
+> **v5.0:** Simplified form — chỉ SĐT. Bỏ receiver_name, relationship, permissions.
+
+**Request (v5.0 simplified):**
 ```json
 {
   "receiver_phone": "0912345678",
-  "receiver_name": "Nguyễn Văn A",
-  "relationship": "con_trai",
-  "invite_type": "patient_to_caregiver",
-  "permissions": {
-    "health_overview": true,
-    "emergency_alert": true,
-    "task_config": true,
-    "compliance_tracking": true,
-    "proxy_execution": true,
-    "encouragement": true
-  }
+  "invite_type": "add_caregiver"
 }
 ```
+
+> **Note:** `invite_type` = `add_patient` | `add_caregiver` (determined by slot type Admin clicked)
+> **Note:** `receiver_name`, `relationship`, `permissions` — **REMOVED** from request (v5.0)
+> **Note:** Permissions auto-set to ALL ON (6 types) by server
 
 **Response (201):**
 ```json
 {
   "invite_id": "uuid",
   "status": "pending",
-  "created_at": "2026-01-28T10:00:00Z"
+  "created_at": "2026-02-13T10:00:00Z"
 }
 ```
+
+**Pre-checks (v4.0, in order):**
+| # | Check | Error |
+|:-:|-------|-------|
+| 1 | User is Admin? | 403 NOT_ADMIN |
+| 2 | Gói hết hạn? | 400 PACKAGE_EXPIRED |
+| 3 | Slot trống cho role? | 400 NO_SLOT_AVAILABLE |
+| 4 | Self-invite? | 400 SELF_INVITE |
+| 5 | Duplicate pending? | 400 DUPLICATE_PENDING |
+| 6 | Receiver in another group? | 400 ALREADY_IN_GROUP (BR-057) |
 
 ---
 
@@ -325,25 +353,13 @@
 
 ---
 
-### DELETE /api/v1/connections/{id}
+### ~~DELETE /api/v1/connections/{id}~~ → ⛔ DEPRECATED (v4.0)
 
-> **SRS Reference:** A5.1, B5.1 (BR-019, BR-020)
-
-**Request:** No body required
-
-**Response (200):**
-```json
-{
-  "connection_id": "uuid",
-  "status": "disconnected",
-  "disconnected_at": "2026-01-28T10:00:00Z",
-  "disconnected_by": "patient"
-}
-```
-
-**Side Effects:**
-- **BR-019** (Patient disconnect): Notify Caregiver "{Tên Patient} đã hủy kết nối"
-- **BR-020** (Caregiver exit): Notify Patient "{Tên Caregiver} đã ngừng theo dõi bạn"
+> **v4.0:** Replaced by:
+> - **Patient:** `PUT /connections/:id/revoke-permissions` (silent, BR-056)
+> - **Admin:** `DELETE /family-groups/members/:uid` (remove from group)
+> 
+> See NEW APIs section below for contracts.
 
 ---
 
@@ -1149,3 +1165,225 @@ AND NOT EXISTS (
 );
 ```
 
+---
+
+## 8. NEW APIs (v4.0 — Family Group)
+
+### 8.1 GET /api/v1/family-groups
+
+> **Purpose:** Get user's family group with members and package info
+> **Authorization:** Any authenticated user
+
+**Response (200):**
+```json
+{
+  "group_id": 1,
+  "admin_user_id": 123,
+  "is_admin": true,
+  "package_name": "Gói Gia Đình",
+  "total_patient_slots": 2,
+  "total_caregiver_slots": 3,
+  "used_patient_slots": 1,
+  "used_caregiver_slots": 2,
+  "members": [
+    {
+      "user_id": 123,
+      "name": "Nguyễn Văn A",
+      "avatar": "...",
+      "role": "patient",
+      "joined_at": "2026-02-01T10:00:00Z"
+    }
+  ]
+}
+```
+
+**Response (200 — No Group):**
+```json
+{
+  "group_id": null,
+  "is_admin": false
+}
+```
+
+---
+
+### 8.2 DELETE /api/v1/family-groups/members/:uid
+
+> **Purpose:** Admin removes member from group (releases slot)
+> **Authorization:** Admin only
+
+**Response (200):**
+```json
+{
+  "removed_user_id": 456,
+  "role": "caregiver",
+  "slot_released": true
+}
+```
+
+**Side Effects:**
+- Soft-delete connections (permission_revoked = true)
+- SyncMembers REMOVE to payment-service
+- Notify removed member
+
+---
+
+### 8.3 PUT /api/v1/connections/:id/revoke-permissions
+
+> **Purpose:** Patient tắt ALL permissions cho CG (silent, BR-056)
+> **Authorization:** Patient only
+
+**Request:** No body required
+
+**Response (200):**
+```json
+{
+  "connection_id": "uuid",
+  "permission_revoked": true,
+  "all_permissions_off": true
+}
+```
+
+**Business Rules:**
+- ALL 6 permissions → OFF
+- `permission_revoked` flag = TRUE
+- **KHÔNG gửi notification** cho CG (BR-056: silent)
+- Bypass BR-039 (minimum 1 ON)
+
+---
+
+### 8.4 PUT /api/v1/connections/:id/restore-permissions
+
+> **Purpose:** Patient mở lại quyền cho CG
+> **Authorization:** Patient only
+
+**Request:** No body required
+
+**Response (200):**
+```json
+{
+  "connection_id": "uuid",
+  "permission_revoked": false,
+  "all_permissions_on": true
+}
+```
+
+**Business Rules:**
+- ALL 6 permissions → ON
+- `permission_revoked` flag = FALSE
+- Notify CG that permissions restored
+
+---
+
+### 8.5 PUT /api/v1/connections/:id/relationship
+
+> **Purpose:** Update relationship type for a connection
+> **Authorization:** Either party
+
+**Request:**
+```json
+{
+  "relationship_code": "con_gai"
+}
+```
+
+**Response (200):**
+```json
+{
+  "connection_id": "uuid",
+  "relationship_code": "con_gai",
+  "relationship_name": "Con gái",
+  "inverse_relationship_code": "me",
+  "inverse_relationship_name": "Mẹ"
+}
+```
+
+---
+
+### 8.6 POST /api/v1/connections/invites/:id/accept (v4.0 UPDATED)
+
+> **v4.0 Changes:**
+> - Receiver selects MQH during accept (POP-MQH)
+> - Auto-connect CG → ALL Patients in group
+> - Re-check slot availability (AD-04)
+> - Broadcast notification to ALL existing members (BR-052)
+
+**Request (v4.0):**
+```json
+{
+  "relationship_code": "con_trai"
+}
+```
+
+> Note: `permissions` field REMOVED from accept request (v5.0). Permissions set by server (ALL ON).
+
+**Response (200):**
+```json
+{
+  "connection_id": "uuid",
+  "patient": { "id": "uuid", "name": "..." },
+  "caregiver": { "id": "uuid", "name": "..." },
+  "relationship_code": "con_trai",
+  "status": "active",
+  "auto_connected_patients": 2,
+  "family_group_id": 1
+}
+```
+
+**Side Effects (v4.0):**
+- Create `family_group_member` record
+- Auto-create connections to ALL patients in group
+- Auto-create 6 permissions (ALL ON) per connection  
+- SyncMembers ADD to payment-service
+- Broadcast notification to ALL existing members (BR-052)
+
+---
+
+## 9. v4.0 gRPC Updates
+
+```protobuf
+service ConnectionService {
+  // ... existing RPCs (keep) ...
+  
+  // NEW v4.0
+  rpc GetFamilyGroup(GetFamilyGroupRequest) returns (FamilyGroupResponse);
+  rpc GetFamilyGroupMembers(GetFamilyGroupMembersRequest) returns (FamilyGroupMembersResponse);
+  rpc RemoveFamilyGroupMember(RemoveFamilyGroupMemberRequest) returns (RemoveFamilyGroupMemberResponse);
+  rpc RevokeAllPermissions(RevokeAllPermissionsRequest) returns (PermissionsResponse);
+  rpc RestorePermissions(RestorePermissionsRequest) returns (PermissionsResponse);
+  rpc UpdateRelationship(UpdateRelationshipRequest) returns (ConnectionResponse);
+}
+
+message FamilyGroupResponse {
+  int64 group_id = 1;
+  int64 admin_user_id = 2;
+  bool is_admin = 3;
+  string package_name = 4;
+  int32 total_patient_slots = 5;
+  int32 total_caregiver_slots = 6;
+  int32 used_patient_slots = 7;
+  int32 used_caregiver_slots = 8;
+  repeated FamilyGroupMember members = 9;
+}
+
+message FamilyGroupMember {
+  int64 user_id = 1;
+  string name = 2;
+  string avatar = 3;
+  string role = 4;
+  string joined_at = 5;
+}
+```
+
+---
+
+## 10. v4.0 Additional Error Codes
+
+| Code | HTTP | Description |
+|------|:----:|-------------|
+| NOT_ADMIN | 403 | User is not the Admin of group |
+| PACKAGE_EXPIRED | 400 | Subscription expired |
+| NO_SLOT_AVAILABLE | 400 | No slots left for this role |
+| ALREADY_IN_GROUP | 400 | Receiver already in another group (BR-057) |
+| PERMISSION_REVOKED | 403 | All permissions revoked by Patient |
+| SLOT_RACE_CONDITION | 409 | Slot taken between invite and accept |

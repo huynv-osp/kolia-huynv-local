@@ -1,190 +1,200 @@
 # Impact Analysis: KOLIA-1517 - Kết nối Người thân
 
-> **Phase:** 3 - Impact Analysis  
-> **Date:** 2026-02-02  
-> **Revision:** v2.16 - Added Update Pending Invite Permissions API
+> **Phase:** 1 - Requirement Intake & Classification  
+> **Date:** 2026-02-13  
+> **SRS Version:** v4.0  
+> **Revision:** v4.0 - Impact MEDIUM, 5 services, ~80h, feasibility 82/100
 
 ---
 
-## 1. Impact Summary (v2.0)
+## 1. Impact Summary
 
-| Metric | v1.0 | v2.11 (Current) |
-|--------|:----:|:----------------:|
-| **Impact Level** | 🟡 MEDIUM | 🟢 **LOW** |
-| **Services Affected** | 3 | 3 |
-| **New Tables** | 4 | **6 NEW + 1 ALTER** |
-| **Schema Reuse** | None | `user_emergency_contacts` |
-| **Breaking Changes** | None | None |
-
----
-
-## 2. Service Impact Matrix
-
-| Service | Impact | Changes | Effort |
-|---------|:------:|---------|:------:|
-| **user-service** | 🔴 HIGH | 14 gRPC methods, 5 entities, 4 repos, 4 services | 48h |
-| **api-gateway-service** | 🟡 MEDIUM | 12 REST endpoints, 1 gRPC client, DTOs | 20h |
-| **schedule-service** | 🟡 MEDIUM | 2 Celery tasks, ZNS/SMS integration | 8h |
+| Metric | v2.23 | v4.0 | Δ |
+|--------|:-----:|:----:|:-:|
+| **Impact Level** | 🟢 LOW | **🟡 MEDIUM** | ⬆️ |
+| **Feasibility Score** | 88/100 | **82/100** | ⬇️ |
+| **Services Affected** | 3 | **5** | +2 |
+| **New Tables** | 5 | 5 + **2 NEW** | +2 |
+| **Altered Tables** | 1 | 1 + **1 ALTER** | +1 |
+| **New REST Endpoints** | 8 | 8 + **6 NEW** | +6 |
+| **Deprecated Endpoints** | 0 | **1** (DELETE) | +1 |
+| **Effort Estimate** | ~56h | **~80h** | +24h |
+| **Business Rules** | ~41 | **60+** | +19 |
 
 ---
 
-## 3. Database Impact (v2.0 Optimized)
+## 2. Service Impact Detail
 
-### Schema Changes
+### 2.1 user-service — 🔴 HIGH
 
-| Table | Status | Purpose | Storage Estimate |
-|-------|:------:|---------|:----------------:|
-| `relationships` | ✅ NEW | Lookup (14 types, v2.22) | ~1KB (static) |
-| `connection_permission_types` | ✅ NEW | Permission lookup (6 types) | ~1KB (static) |
-| `connection_invites` | ✅ NEW | Invite tracking | ~1MB/month |
-| `user_emergency_contacts` | 🔄 EXTEND | +5 columns for caregiver | Existing table |
-| `connection_permissions` | ✅ NEW | 6 RBAC flags (FK) | ~300KB |
-| `invite_notifications` | ✅ NEW | Delivery tracking | ~3MB/month |
-| **`caregiver_report_views`** | ✅ **NEW** | Report read tracking | ~500KB |
+| Area | Impact | Details |
+|------|:------:|---------|
+| Entities | HIGH | 2 NEW (FamilyGroup, FamilyGroupMember), 2 MODIFY (UEC, ConnectionInvite) |
+| Service Layer | HIGH | FamilyGroupService (NEW), ConnectionService (major changes) |
+| gRPC | HIGH | New RPCs for group CRUD, revoke/restore, member management |
+| Client | MEDIUM | PaymentServiceClient (NEW) for slot check |
+| **Effort** | | **~30h** |
 
-### Extended Columns (user_emergency_contacts)
+### 2.2 api-gateway-service — 🔴 HIGH
 
-| Column | Type | Purpose |
-|--------|------|---------|
-| `linked_user_id` | UUID FK | Caregiver's user account |
-| `contact_type` | VARCHAR(20) | 'emergency', 'caregiver', 'both', 'disconnected' |
-| `relationship_code` | VARCHAR(30) FK | Normalized relationship |
-| `invite_id` | UUID FK | Created from which invite |
-| `is_viewing` | BOOLEAN | Currently viewing this patient (BR-026) |
+| Area | Impact | Details |
+|------|:------:|---------|
+| Handlers | HIGH | FamilyGroupHandler (NEW), ConnectionHandler (MODIFY) |
+| DTOs | HIGH | 4 NEW request/response DTOs, 1 MODIFY (CreateInviteRequest simplified) |
+| Endpoints | HIGH | 6 NEW, 1 DEPRECATED |
+| **Effort** | | **~20h** |
 
-### SOS Backward Compatibility ✅
+### 2.3 payment-service — 🟡 MEDIUM (NEW v4.0)
 
-- Existing `user_emergency_contacts` contacts with `contact_type='emergency'` unchanged
-- SOS notification flow continues to work
-- Rollback script included in migration
+| Area | Impact | Details |
+|------|:------:|---------|
+| gRPC | LOW | Ensure GetSubscription returns slot info |
+| Service | LOW | Verify slot count/availability queries |
+| **Effort** | | **~10h** |
+
+### 2.4 schedule-service — 🟡 MEDIUM
+
+| Area | Impact | Details |
+|------|:------:|---------|
+| Kafka Consumers | MEDIUM | 3 new event types (member accepted/removed, invite created) |
+| Notifications | MEDIUM | Member broadcast, ZNS templates for 2 invite types |
+| **Effort** | | **~10h** |
+
+### 2.5 auth-service — 🟢 LOW (NEW v4.0)
+
+| Area | Impact | Details |
+|------|:------:|---------|
+| Verification | LOW | Verify backfillPendingInviteReceiverIds handles new invite_type values |
+| **Effort** | | **~5h** |
+
+---
+
+## 3. Database Impact
+
+### 3.1 New Tables
+
+| Table | Columns | Purpose |
+|-------|:-------:|---------|
+| `family_groups` | 6 | Admin, subscription_id, name, status, timestamps |
+| `family_group_members` | 7 | user_id (UNIQUE), role (patient/caregiver), family_group_id FK |
+
+### 3.2 Modified Tables
+
+| Table | Column | Change |
+|-------|--------|--------|
+| `user_emergency_contacts` | `permission_revoked` | ADD BOOLEAN DEFAULT false |
+| `user_emergency_contacts` | `family_group_id` | ADD UUID FK → family_groups |
+| `connection_invites` | `invite_type` CHECK | UPDATE → `add_patient`, `add_caregiver` |
+
+### 3.3 Indexes
+
+| Index | Table | Columns |
+|-------|-------|---------|
+| `idx_fgm_user_id` | family_group_members | user_id (UNIQUE) |
+| `idx_fgm_family_group_id` | family_group_members | family_group_id |
+| `idx_fg_admin_id` | family_groups | admin_user_id |
+| `idx_uec_family_group_id` | user_emergency_contacts | family_group_id |
 
 ---
 
 ## 4. API Impact
 
-### New REST Endpoints (15)
+### 4.1 New Endpoints (6)
 
-| Method | Path | Access |
-|--------|------|--------|
-| POST | `/api/v1/invites` | Authenticated |
-| GET | `/api/v1/invites` | Authenticated |
-| DELETE | `/api/v1/invites/{id}` | Authenticated |
-| POST | `/api/v1/invites/{id}/accept` | Authenticated |
-| POST | `/api/v1/invites/{id}/reject` | Authenticated |
-| GET | `/api/v1/connections` | Authenticated |
-| DELETE | `/api/v1/connections/{id}` | Authenticated |
-| GET | `/api/v1/connections/{id}/permissions` | Authenticated |
-| PUT | `/api/v1/connections/{id}/permissions` | Authenticated |
-| GET | `/api/v1/connection/permission-types` | Authenticated |
-| GET | `/api/v1/connections/viewing` | Authenticated |
-| PUT | `/api/v1/connections/viewing` | Authenticated |
-| **GET** | **`/api/v1/patients/{id}/blood-pressure-chart`** | **Connection+Perm** |
-| **GET** | **`/api/v1/patients/{id}/periodic-reports`** | **Connection+Perm** |
-| **PUT** | **`/api/v1/connections/invites/{id}/permissions`** | **Authenticated (v2.16)** |
-### New gRPC Methods (16)
+| Method | Path | Auth | Purpose |
+|:------:|------|:----:|---------|
+| GET | `/api/v1/family-groups` | User | Get user's family group info + package details |
+| DELETE | `/api/v1/family-groups/members/:memberId` | Admin | Remove member from group |
+| PUT | `/api/v1/connections/:contactId/revoke` | Patient | Tắt quyền theo dõi (soft disconnect) |
+| PUT | `/api/v1/connections/:contactId/restore` | Patient | Mở lại quyền theo dõi |
+| PUT | `/api/v1/connections/:contactId/relationship` | CG | Update MQH at SCR-06 |
+| POST | `/api/v1/family-groups/leave` | Non-Admin | Self-leave group |
 
-```protobuf
-service ConnectionService {
-  // Invite methods
-  CreateInvite, GetInvite, ListInvites,
-  AcceptInvite, RejectInvite, CancelInvite,
-  // Connection methods
-  ListConnections, Disconnect,
-  GetPermissions, UpdatePermissions,
-  ListPermissionTypes, ListRelationshipTypes,
-  // Profile Selection (v2.7)
-  GetViewingPatient, SetViewingPatient,
-  // Dashboard APIs (v2.11)
-  GetBloodPressureChart, GetPatientReports,
-  // Update Pending Invite Permissions (v2.16)
-  UpdatePendingInvitePermissions
-}
-```
+### 4.2 Modified Endpoints
+
+| Endpoint | Change |
+|----------|--------|
+| `POST /connections/invite` | Simplified: phone only, Admin-only auth check |
+| `POST /connections/invites/:id/accept` | Auto-connect CG → ALL patients |
+
+### 4.3 Deprecated Endpoints
+
+| Endpoint | Replacement |
+|----------|-------------|
+| ~~`DELETE /api/v1/connections/:id`~~ | Use `/revoke` (Patient) or `/family-groups/members/:id` (Admin) |
 
 ---
 
-## 5. Notification Impact
+## 5. Breaking Changes
 
-### New Notification Scenarios (5)
-
-| Scenario | Channel | Priority |
-|----------|---------|:--------:|
-| Nhận lời mời | ZNS + Push | HIGH |
-| Được chấp nhận | Push | MEDIUM |
-| Bị từ chối | Push | LOW |
-| Quyền thay đổi | Push | MEDIUM |
-| Kết nối bị hủy | Push | HIGH |
-
-### ZNS Template Requirements
-
-| Template | Content |
-|----------|---------|
-| `invite_to_monitor` | "{Tên} mời bạn theo dõi sức khỏe của họ" |
-| `request_to_monitor` | "{Tên} muốn theo dõi sức khỏe của bạn" |
+| # | Change | Impact | Migration |
+|:-:|--------|--------|-----------|
+| 1 | `invite_type` enum values | Data migration needed | SQL ALTER CHECK + UPDATE existing records |
+| 2 | `DELETE /connections` deprecated | Mobile app must stop using | Feature flag + gradual removal |
+| 3 | Admin-only invite | UI flow restructured | Mobile app update required |
+| 4 | `permission_revoked` column | New column with DEFAULT false | Non-breaking ALTER ADD |
 
 ---
 
-## 6. Integration Impact
+## 6. Cross-Feature Impact
 
-### Bản tin Hành động
+### 6.1 Payment SRS Integration (🔴 HIGH)
 
-- Add `INVITE_CONNECTION` action type to BR-004
-- Position: Đầu danh sách Ưu tiên
-- Trigger: User có ≥1 lời mời pending
-- Action: Navigate to SCR-01
+| Integration | Direction | Details |
+|-------------|:---------:|---------|
+| Slot check | KCNT → Payment | Before send invite, call GetSubscription |
+| Slot consume | KCNT → Payment | On accept, slot status changes |
+| Expiry block | Payment → KCNT | Expired package → block new invites (BR-037) |
+| Paywall | KCNT → Payment | Slot full → redirect to upgrade (BR-047) |
 
-### Notification Subsystem
+### 6.2 Bản tin Hành động (🟡 MEDIUM)
 
-- Add 5 notification scenarios
-- Reuse existing `notifications` table structure
-- Add new `schedule_type` values
+| Change | Detail |
+|--------|--------|
+| CR_001 | Add `INVITE_CONNECTION` action type |
+| Display | Pending invite → action item in Bản tin |
+| Navigation | Tap → SCR-01 |
 
----
+### 6.3 Notification System (🟡 MEDIUM)
 
-## 7. Performance Impact
-
-### Expected Load
-
-| Metric | Value |
-|--------|-------|
-| Invites/day | ~100-500 |
-| Active connections | ~50K |
-| Permission updates/day | ~50-100 |
-
-### Mitigation Strategies
-
-- Indexes on frequently queried columns
-- Partial indexes for status filters
-- Kafka for async notification processing
+| Change | Detail |
+|--------|--------|
+| CR_002 | 5 notification scenarios for KCNT |
+| CR_003 | Health report notification for Caregiver |
+| New (v4.0) | Member broadcast on join/leave (BR-052) |
 
 ---
 
-## 8. Risk Assessment
+## 7. Risk Assessment
 
 | Risk | Probability | Impact | Mitigation |
 |------|:-----------:|:------:|------------|
-| ZNS approval delay | Medium | Medium | SMS fallback ready |
-| Deep link failures | Low | High | Verify infra Week 1 |
-| Permission desync | Low | Medium | Server as truth |
-| State machine bugs | Medium | Medium | Comprehensive tests |
+| Slot race condition | Medium | High | Double-check at accept time (AD-04) |
+| Payment service unavailable | Low | Medium | Circuit breaker, graceful fallback |
+| Auto-connect cascade failure | Medium | Medium | Transaction-based, rollback on failure |
+| Data migration for invite_type | Low | Medium | Backward compatible migration script |
+| Silent revoke UX confusion | Low | Low | Clear badge "🚫" in UI |
+| SOS contact regression | Low | Critical | contact_type='emergency' unchanged |
 
 ---
 
-## 9. Feasibility Score (v2.0)
+## 8. Feasibility Score Breakdown
 
-| Criteria | Weight | Score | Notes |
-|----------|:------:|:-----:|-------|
-| Architecture Fit | 25% | 5/5 | Reuses existing infrastructure |
-| Database Compatibility | 20% | 5/5 | EXTEND user_emergency_contacts |
-| API/gRPC Compatibility | 15% | 4/5 | Standard patterns |
-| Service Boundary Clarity | 15% | 4/5 | Clear ownership |
-| Technology Stack Match | 10% | 5/5 | Vert.x/Java/Postgres |
-| Team Expertise | 10% | 4/5 | Similar to SOS |
-| Time/Resource | 5% | 4/5 | 70h estimated |
-| **Total** | | **88/100** ✅ | Improved from v1.0 (84) |
+| Criteria | Weight | Score | v2.23 | Notes |
+|----------|:------:|:-----:|:-----:|-------|
+| Architecture Fit | 25% | 4 | 5 | New Family Group concept, cross-service payment |
+| Database Compatibility | 20% | 5 | 5 | 2 NEW tables, backward compatible |
+| API/gRPC Compatibility | 15% | 4 | 4 | +6 new endpoints, strong pattern reuse |
+| Service Boundary Clarity | 15% | 3 | 4 | user→payment gRPC dependency added |
+| Technology Stack Match | 10% | 5 | 5 | All existing tech |
+| Team Expertise | 10% | 4 | 4 | Similar to existing KCNT |
+| Time/Resource | 5% | 3 | 4 | ~80h (up from ~56h) |
+| **Total** | | **82/100** | **88/100** | |
 
 ---
 
-## Conclusion
+## References
 
-Feature is **FEASIBLE** with **MEDIUM** impact. No breaking changes to existing functionality. Main risks are external (ZNS approval, deep links) which have mitigation strategies.
+- [SA Impact Analysis v4.0](file:///Users/nguyenvanhuy/Desktop/OSP/Kolia/dev/kolia/docs/nguoi_than/sa-analysis/ket_noi_nguoi_than/06_impact/impact_analysis.md)
+- [SA Feasibility Report v4.0](file:///Users/nguyenvanhuy/Desktop/OSP/Kolia/dev/kolia/docs/nguoi_than/sa-analysis/ket_noi_nguoi_than/05_feasibility/feasibility_report.md)
+- [SA Service Mapping v4.0](file:///Users/nguyenvanhuy/Desktop/OSP/Kolia/dev/kolia/docs/nguoi_than/sa-analysis/ket_noi_nguoi_than/04_mapping/service_mapping.md)

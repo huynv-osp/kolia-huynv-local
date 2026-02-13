@@ -1,475 +1,135 @@
 # Implementation Plan: KOLIA-1517 - Kết nối Người thân
 
-> **SRS Version:** v3.0 + Update Pending Invite Permissions + Inverse Relationship + Perspective Display  
-> **Date:** 2026-02-04  
-> **Feasibility Score:** **88/100** ✅ FEASIBLE (improved from 84)  
-> **Impact Level:** 🟢 **LOW** (reduced from MEDIUM)  
-> **Estimated Duration:** 4 weeks (3 phases)  
-> **Schema:** v2.23 (notification_type, cancel flow, idempotency, inverse_relationship_code, relationship_inverse_mapping, perspective display)
+> **Phase:** 4 - Output  
+> **Date:** 2026-02-13  
+> **SRS Version:** v4.0  
+> **Revision:** v4.0 - 5-phase, 20 tasks, ~80h, 5 services
 
 ---
 
-## 1. Executive Summary
+## 1. Architecture Overview
 
-Tính năng **Kết nối Người thân** cho phép Patient và Caregiver thiết lập mối quan hệ bi-directional để giám sát sức khỏe từ xa với 6-permission RBAC system.
-
-### Key Metrics
-| Metric | Value |
-|--------|-------|
-| Services Affected | 3 (user-service, api-gateway, schedule-service) |
-| New Database Tables | **7 NEW + 1 ALTER** |
-| New REST Endpoints | **18** (v2.16: +Update Pending Invite Permissions) |
-| New gRPC Methods | **17** |
-| New Celery Tasks | 3 |
-
----
-
-## 2. Proposed Changes
-
-### 2.1 Database Schema (v2.0 Optimized)
-
-> **Key Change:** Reuse `user_emergency_contacts` instead of creating separate `user_connections` table
-
----
-
-#### [NEW] relationships (Lookup Table)
-```sql
-CREATE TABLE IF NOT EXISTS relationships (
-    relationship_code VARCHAR(30) PRIMARY KEY,
-    name_vi VARCHAR(100) NOT NULL,
-    name_en VARCHAR(100),
-    category VARCHAR(30) DEFAULT 'family',
-    display_order SMALLINT DEFAULT 0,
-    is_active BOOLEAN DEFAULT TRUE
-);
--- Seed data: 14 relationship types (v2.22)
+```
+┌──────────────┐  REST   ┌────────────────┐  gRPC  ┌───────────────┐
+│   Mobile App │ ──────→ │ api-gateway    │ ─────→ │ user-service  │
+└──────────────┘         └────────────────┘        └───────┬───────┘
+                                                           │ gRPC
+                                                    ┌──────▼───────┐
+                                                    │payment-service│
+                                                    └──────────────┘
+                                                           │ Kafka
+                         ┌────────────────┐        ┌──────▼───────┐
+                         │ auth-service   │ ─gRPC→ │schedule-service│
+                         │ (backfill)     │        │ (notifications)│
+                         └────────────────┘        └──────────────┘
 ```
 
 ---
 
-#### [NEW] relationship_inverse_mapping (v2.21 - Gender-based Inverse)
-```sql
-CREATE TABLE IF NOT EXISTS relationship_inverse_mapping (
-    relationship_code VARCHAR(30) NOT NULL REFERENCES relationships(relationship_code),
-    target_gender SMALLINT NOT NULL,  -- 0: Nam, 1: Nữ
-    inverse_code VARCHAR(30) NOT NULL REFERENCES relationships(relationship_code),
-    PRIMARY KEY (relationship_code, target_gender)
-);
--- Seed data: 28 mappings (14 relationships × 2 genders, v2.22)
-```
+## 2. Service Responsibilities (5)
 
-> **Purpose:** Derive `inverse_relationship_code` at invite creation based on sender's gender.
+| Service | Impact | Effort | Key Responsibility |
+|---------|:------:|:------:|-------------------|
+| user-service | 🔴 HIGH | ~30h | Family Group, connections, permissions, auto-connect, soft disconnect |
+| api-gateway-service | 🔴 HIGH | ~20h | REST endpoints (14), DTO routing |
+| payment-service | 🟡 MEDIUM | ~10h | Slot check, GetSubscription |
+| schedule-service | 🟡 MEDIUM | ~10h | Member broadcast, ZNS/Push |
+| auth-service | 🟢 LOW | ~5h | Backfill receiver_id |
 
 ---
 
-#### [NEW] connection_permission_types (v2.1)
-```sql
-CREATE TABLE IF NOT EXISTS connection_permission_types (
-    permission_code VARCHAR(30) PRIMARY KEY,
-    name_vi VARCHAR(100) NOT NULL,
-    name_en VARCHAR(100),
-    description TEXT,
-    icon VARCHAR(50),
-    is_active BOOLEAN DEFAULT TRUE,
-    display_order SMALLINT DEFAULT 0,
-    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
-);
--- Seed data: 6 permission types (health_overview, emergency_alert, task_config, compliance_tracking, proxy_execution, encouragement)
-```
+## 3. Implementation Phases
 
-#### [NEW] connection_invites
-```sql
-CREATE TABLE IF NOT EXISTS connection_invites (
-    invite_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    sender_id UUID NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
-    receiver_phone VARCHAR(20) NOT NULL,
-    receiver_id UUID REFERENCES users(user_id) ON DELETE SET NULL,
-    receiver_name VARCHAR(100),
-    invite_type VARCHAR(30) NOT NULL, -- 'patient_to_caregiver', 'caregiver_to_patient'
-    relationship_code VARCHAR(30) REFERENCES relationships(relationship_code),
-    inverse_relationship_code VARCHAR(30) REFERENCES relationships(relationship_code),  -- v2.13
-    initial_permissions JSONB DEFAULT '{...}'::jsonb,
-    status SMALLINT DEFAULT 0, -- 0:pending, 1:accepted, 2:rejected, 3:cancelled
-    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT chk_no_self_invite CHECK (sender_id != receiver_id)
-);
--- relationship_code = Sender mô tả Receiver là [X]
--- inverse_relationship_code = Receiver mô tả Sender là [X]
--- Create new constraint với invite_type
-CREATE UNIQUE INDEX idx_unique_pending_invite 
-    ON connection_invites (sender_id, receiver_phone, invite_type) 
-    WHERE status = 0;
-```
+### Phase 0: Database & Foundation (~12h)
 
----
+| Task | Description | Service | Effort |
+|------|-------------|---------|:------:|
+| TASK-001 | DB migration (family_groups, family_group_members, ALTER UEC, invite_type) | user-service | 4h |
+| TASK-002 | FamilyGroup, FamilyGroupMember entities + repositories | user-service | 4h |
+| TASK-003 | FamilyGroupService (group lifecycle management) | user-service | 4h |
 
-```sql
--- Add columns to existing table (v2.13: +inverse_relationship_code)
-ALTER TABLE user_emergency_contacts 
-ADD COLUMN IF NOT EXISTS linked_user_id UUID REFERENCES users(user_id);
+### Phase 1: Core Business Logic (~18h)
 
-ALTER TABLE user_emergency_contacts 
-ADD COLUMN IF NOT EXISTS contact_type VARCHAR(20) DEFAULT 'emergency';
--- Values: 'emergency' (SOS), 'caregiver' (connection), 'both'
+| Task | Description | Service | Effort | Depends |
+|------|-------------|---------|:------:|:-------:|
+| TASK-004 | Admin-only invite validation + self-add | user-service | 3h | TASK-003 |
+| TASK-005 | PaymentServiceClient (slot check gRPC) | user-service | 3h | TASK-002 |
+| TASK-006 | Auto-connect on CG accept (→ ALL patients) | user-service | 4h | TASK-004,005 |
+| TASK-007 | Soft disconnect (permission_revoked revoke/restore) | user-service | 4h | TASK-002 |
+| TASK-008 | Leave group + Admin remove member | user-service | 4h | TASK-003,005 |
 
-ALTER TABLE user_emergency_contacts 
-ADD COLUMN IF NOT EXISTS relationship_code VARCHAR(30) REFERENCES relationships(relationship_code);
+### Phase 2: API Layer (~20h)
 
-ALTER TABLE user_emergency_contacts 
-ADD COLUMN IF NOT EXISTS inverse_relationship_code VARCHAR(30) REFERENCES relationships(relationship_code);  -- v2.13
--- relationship_code = Patient mô tả Caregiver là [X]
--- inverse_relationship_code = Caregiver mô tả Patient là [X]
+| Task | Description | Service | Effort | Depends |
+|------|-------------|---------|:------:|:-------:|
+| TASK-009 | Family Group REST endpoints (3) | api-gateway | 6h | TASK-003 |
+| TASK-010 | Connection endpoints update (5) | api-gateway | 6h | TASK-004,007 |
+| TASK-011 | Deprecated DELETE endpoint migration | api-gateway | 2h | TASK-010 |
+| TASK-012 | DTO/Proto definitions update | api-gateway | 6h | TASK-009,010 |
 
-ALTER TABLE user_emergency_contacts 
-ADD COLUMN IF NOT EXISTS invite_id UUID REFERENCES connection_invites(invite_id);
-```
+### Phase 3: Cross-Service (~15h)
 
-> **SOS Backward Compatibility:** Existing contacts with `contact_type='emergency'` remain unchanged
+| Task | Description | Service | Effort | Depends |
+|------|-------------|---------|:------:|:-------:|
+| TASK-013 | Member broadcast notifications | schedule-service | 5h | TASK-006 |
+| TASK-014 | ZNS templates (add_patient, add_caregiver) | schedule-service | 3h | TASK-004 |
+| TASK-015 | Auth backfill verification | auth-service | 2h | TASK-001 |
+| TASK-016 | Payment GetSubscription verification | payment-service | 5h | — |
+
+### Phase 4: Testing (~15h)
+
+| Task | Description | Scope | Effort |
+|------|-------------|-------|:------:|
+| TASK-017 | Unit tests | user + gateway | 5h |
+| TASK-018 | Integration tests | Cross-service | 5h |
+| TASK-019 | Regression tests | All | 3h |
+| TASK-020 | Data migration tests | Database | 2h |
 
 ---
 
-#### [NEW] connection_permissions (RBAC)
-```sql
-CREATE TABLE IF NOT EXISTS connection_permissions (
-    permission_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    contact_id UUID NOT NULL REFERENCES user_emergency_contacts(contact_id) ON DELETE CASCADE,
-    permission_code VARCHAR(30) NOT NULL REFERENCES connection_permission_types(permission_code),
-    is_enabled BOOLEAN DEFAULT TRUE,
-    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
-    updated_by UUID REFERENCES users(user_id),
-    CONSTRAINT uq_permission_per_contact UNIQUE (contact_id, permission_code)
-);
-```
+## 4. Key API Changes
+
+### New Endpoints (6)
+1. `GET /api/v1/family-groups`
+2. `DELETE /api/v1/family-groups/members/:memberId`
+3. `PUT /api/v1/connections/:contactId/revoke`
+4. `PUT /api/v1/connections/:contactId/restore`
+5. `PUT /api/v1/connections/:contactId/relationship`
+6. `POST /api/v1/family-groups/leave`
+
+### Modified Endpoints (2)
+1. `POST /connections/invite` — phone only, Admin auth
+2. `POST /connections/invites/:id/accept` — auto-connect response
+
+### Deprecated (1)
+1. ~~`DELETE /connections/:id`~~ → use revoke or remove
 
 ---
 
-#### [NEW] invite_notifications (v2.12)
-```sql
-CREATE TABLE invite_notifications (
-    notification_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    invite_id UUID NOT NULL REFERENCES connection_invites(invite_id) ON DELETE CASCADE,
-    notification_type VARCHAR(30) NOT NULL DEFAULT 'INVITE_CREATED',  -- v2.12
-    channel VARCHAR(10) NOT NULL, -- 'ZNS', 'SMS', 'PUSH'
-    status SMALLINT DEFAULT 0, -- 0:pending, 1:sent, 2:delivered, 3:failed, 4:cancelled
-    retry_count SMALLINT DEFAULT 0,
-    sent_at TIMESTAMPTZ,
-    delivered_at TIMESTAMPTZ,
-    cancelled_at TIMESTAMPTZ,  -- v2.12
-    error_message TEXT,
-    external_message_id VARCHAR(100),
-    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT chk_channel CHECK (channel IN ('ZNS', 'SMS', 'PUSH')),
-    CONSTRAINT chk_notif_status CHECK (status IN (0, 1, 2, 3, 4)),  -- v2.12: +4=cancelled
-    CONSTRAINT chk_notif_type CHECK (notification_type IN (
-        'INVITE_CREATED', 'INVITE_ACCEPTED', 'INVITE_REJECTED', 'CONNECTION_DISCONNECTED'
-    )),
-    CONSTRAINT chk_retry_count CHECK (retry_count <= 3)
-);
+## 5. Database Changes Summary
 
-CREATE INDEX idx_invite_notifications_invite ON invite_notifications(invite_id);
-CREATE INDEX idx_invite_notifications_pending ON invite_notifications(status) WHERE status = 0;
-CREATE INDEX idx_invite_notif_type ON invite_notifications (notification_type);
-
--- v2.12: Idempotency constraint (prevent duplicate notifications)
-CREATE UNIQUE INDEX idx_unique_invite_notification 
-    ON invite_notifications (invite_id, notification_type, channel) 
-    WHERE status IN (0, 1, 2);
-```
-
-> **v2.12 Changes:** notification_type, cancelled status (4), cancelled_at, idempotency constraint
+| Table | Operation | Key Changes |
+|-------|:---------:|-------------|
+| `family_groups` | CREATE | admin_user_id, subscription_id, name, status |
+| `family_group_members` | CREATE | user_id UNIQUE, role, family_group_id FK |
+| `user_emergency_contacts` | ALTER | +permission_revoked, +family_group_id |
+| `connection_invites` | ALTER | invite_type CHECK update |
 
 ---
 
-#### [NEW] caregiver_report_views (v2.11)
-```sql
-CREATE TABLE caregiver_report_views (
-    id BIGSERIAL PRIMARY KEY,
-    caregiver_id UUID NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
-    report_id BIGINT NOT NULL REFERENCES report_periodic(report_id) ON DELETE CASCADE,
-    viewed_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT idx_unique_caregiver_report UNIQUE (caregiver_id, report_id)
-);
+## 6. Risk Mitigation
 
--- Indexes for efficient lookup
-CREATE INDEX idx_crv_caregiver_id ON caregiver_report_views(caregiver_id);
-CREATE INDEX idx_crv_report_id ON caregiver_report_views(report_id);
-```
+| Risk | Mitigation | Priority |
+|------|------------|:--------:|
+| Slot race condition | Pessimistic lock + double-check at accept | P0 |
+| Payment unavailable | Circuit breaker, graceful fallback | P0 |
+| Auto-connect failure | Transaction rollback | P0 |
+| SOS regression | contact_type='emergency' unchanged | P0 |
+| Silent revoke confusion | Badge "🚫" in CG UI | P1 |
 
 ---
 
-### 2.2 Service: user-service (Impact: 🔴 HIGH)
+## References
 
-| Layer | File | Type | Description |
-|-------|------|------|-------------|
-| **Proto** | `proto/connection_service.proto` | NEW | gRPC contract: 9 methods |
-| **Entity** | `entity/ConnectionInvite.java` | NEW | JPA Entity for invites |
-| **Entity** | `entity/UserConnection.java` | NEW | JPA Entity for connections |
-| **Entity** | `entity/ConnectionPermission.java` | NEW | JPA Entity for permissions |
-| **Entity** | `entity/ConnectionPermissionType.java` | NEW | JPA Entity for permission types lookup |
-| **Entity** | `entity/InviteNotification.java` | NEW | JPA Entity for notification log |
-| **Repository** | `repository/ConnectionInviteRepository.java` | NEW | Data access for invites |
-| **Repository** | `repository/UserConnectionRepository.java` | NEW | Data access for connections |
-| **Repository** | `repository/ConnectionPermissionRepository.java` | NEW | Data access for permissions |
-| **Repository** | `repository/ConnectionPermissionTypeRepository.java` | NEW | Data access for permission types |
-| **Service** | `service/InviteService.java` | NEW | Invite lifecycle logic |
-| **Service** | `service/ConnectionService.java` | NEW | Connection management logic |
-| **Service** | `service/PermissionService.java` | NEW | RBAC permission logic |
-| **Handler** | `handler/ConnectionHandler.java` | NEW | gRPC handler implementation |
-| **DTO** | `dto/request/*.java` | NEW | 8 request DTOs |
-| **DTO** | `dto/response/*.java` | NEW | 6 response DTOs |
-| **Constant** | `constant/RelationshipType.java` | NEW | 14-value enum |
-| **Constant** | `constant/PermissionType.java` | NEW | 6-value enum |
-| **Constant** | `constant/InviteStatus.java` | NEW | 4-value enum |
-| **Constant** | `constant/ConnectionStatus.java` | NEW | 2-value enum |
-| **Config** | `config/KafkaProducerConfig.java` | MODIFY | Add connection topics |
-
-**Estimated Effort:** 40 hours
-
----
-
-### 2.3 Service: api-gateway-service (Impact: 🟡 MEDIUM)
-
-| Layer | File | Type | Description |
-|-------|------|------|-------------|
-| **Handler** | `handler/InviteHandler.java` | NEW | REST → gRPC forwarding |
-| **Handler** | `handler/ConnectionHandler.java` | NEW | REST → gRPC forwarding |
-| **DTO** | `dto/request/CreateInviteRequest.java` | NEW | Create invite request |
-| **DTO** | `dto/request/AcceptInviteRequest.java` | NEW | Accept invite with permissions |
-| **DTO** | `dto/request/UpdatePermissionsRequest.java` | NEW | Update RBAC flags |
-| **DTO** | `dto/response/InviteResponse.java` | NEW | Invite details |
-| **DTO** | `dto/response/ConnectionResponse.java` | NEW | Connection details |
-| **DTO** | `dto/response/PermissionsResponse.java` | NEW | Permission flags |
-| **Client** | `client/ConnectionServiceClient.java` | NEW | gRPC client to user-service |
-| **Config** | `config/RouteConfig.java` | MODIFY | Add 8 new routes |
-| **Swagger** | Annotations | MODIFY | Document new APIs |
-
-**Estimated Effort:** 16 hours
-
----
-
-### 2.4 Service: schedule-service (Impact: 🟡 MEDIUM)
-
-| Layer | File | Type | Description |
-|-------|------|------|-------------|
-| **Task** | `tasks/connection/invite_notification.py` | NEW | ZNS/SMS dispatch |
-| **Task** | `tasks/connection/connection_notification.py` | NEW | State change notifications |
-| **Config** | `config.py` | MODIFY | Add ZNS templates |
-| **Constant** | `constants/zns_templates.py` | NEW | ZNS template IDs |
-
-**Estimated Effort:** 8 hours
-
----
-
-## 3. REST API Endpoints
-
-| Method | Path | Description |
-|--------|------|-------------|
-| POST | `/api/v1/connections/invite` | Create bi-directional invite |
-| GET | `/api/v1/connections/invites` | List sent/received invites |
-| GET | `/api/v1/connections/invites/:inviteId` | Get invite details |
-| DELETE | `/api/v1/connections/invites/:inviteId` | Cancel pending invite |
-| **PUT** | **`/api/v1/connections/invites/:inviteId/permissions`** | **Update pending invite permissions (v2.16)** |
-| POST | `/api/v1/connections/invites/:inviteId/accept` | Accept invite with permissions |
-| POST | `/api/v1/connections/invites/:inviteId/reject` | Reject invite |
-| GET | `/api/v1/connections` | List active connections |
-| DELETE | `/api/v1/connections/:connectionId` | Disconnect |
-| GET | `/api/v1/connections/:connectionId/permissions` | Get RBAC flags |
-| PUT | `/api/v1/connections/:connectionId/permissions` | Update RBAC flags |
-| GET | `/api/v1/connection/permission-types` | List all permission types |
-| GET | `/api/v1/connection/relationship-types` | List all relationship types (v2.8) |
-| GET | `/api/v1/connections/viewing` | Get viewing patient (v2.7) |
-| PUT | `/api/v1/connections/viewing` | Set viewing patient (v2.7) |
-| **GET** | **`/api/v1/patients/:patientId/blood-pressure-chart`** | Blood pressure chart (v2.11) |
-| **GET** | **`/api/v1/patients/:patientId/periodic-reports`** | Patient reports (v2.11) |
-| **POST** | **`/api/v1/patients/:patientId/periodic-reports/:reportId/mark-read`** | Mark report as read (v2.14) |
-
----
-
-## 4. gRPC Methods (user-service)
-
-```protobuf
-service ConnectionService {
-  // Invites
-  rpc CreateInvite(CreateInviteRequest) returns (InviteResponse);
-  rpc GetInvite(GetInviteRequest) returns (InviteResponse);
-  rpc ListInvites(ListInvitesRequest) returns (ListInvitesResponse);
-  rpc AcceptInvite(AcceptInviteRequest) returns (ConnectionResponse);
-  rpc RejectInvite(RejectInviteRequest) returns (InviteResponse);
-  rpc CancelInvite(CancelInviteRequest) returns (InviteResponse);
-  rpc UpdatePendingInvitePermissions(UpdatePendingInvitePermissionsRequest) returns (UpdatePendingInvitePermissionsResponse);  // NEW v2.16
-  
-  // Connections
-  rpc ListConnections(ListConnectionsRequest) returns (ListConnectionsResponse);
-  rpc Disconnect(DisconnectRequest) returns (ConnectionResponse);
-  
-  // Permissions
-  rpc GetPermissions(GetPermissionsRequest) returns (PermissionsResponse);
-  rpc UpdatePermissions(UpdatePermissionsRequest) returns (PermissionsResponse);
-  rpc ListPermissionTypes(ListPermissionTypesRequest) returns (PermissionTypesResponse);
-  
-  // Discovery API (v2.8)
-  rpc ListRelationshipTypes(ListRelationshipTypesRequest) returns (RelationshipTypesResponse);
-  
-  // Profile Selection (v2.7)
-  rpc GetViewingPatient(GetViewingPatientRequest) returns (ViewingPatientResponse);
-  rpc SetViewingPatient(SetViewingPatientRequest) returns (ViewingPatientResponse);
-  
-  // Dashboard APIs (v2.13, v2.14)
-  rpc GetBloodPressureChart(GetBloodPressureChartRequest) returns (BloodPressureChartResponse);
-  // Response includes: patient_id, mode, measurements[], patient_target_thresholds (v2.13)
-  rpc GetPatientReports(GetPatientReportsRequest) returns (PatientReportsResponse);
-  rpc MarkReportAsRead(MarkReportAsReadRequest) returns (MarkReportAsReadResponse); // v2.14
-}
-```
-
----
-
-## 4.1 Authorization Flow (SEC-DB-001)
-
-> **All patient APIs require 3-step authorization**
-
-```sql
--- Step 1: Check connection exists
-SELECT id FROM user_emergency_contacts 
-WHERE user_id = {patient_id} 
-AND linked_user_id = {caregiver_id} 
-AND is_active = TRUE
-
--- Step 2: Check permission enabled
-SELECT is_enabled FROM connection_permissions 
-WHERE contact_id = {contact_id} 
-AND permission_code = 'health_overview'
-
--- Step 3: Fetch data for patient_id only
--- Any step FAIL → 403 Forbidden
-```
-
----
-
-## 5. Kafka Topics
-
-| Topic | Publisher | Consumer | Purpose |
-|-------|-----------|----------|---------|
-| `connection.invite.created` | user-service | schedule-service | Trigger ZNS/Push |
-| `connection.status.changed` | user-service | schedule-service | Notify participants |
-| `connection.permission.changed` | user-service | schedule-service | Notify Caregiver |
-
----
-
-## 6. Implementation Roadmap (4 Weeks)
-
-### Phase 1: Core Foundation (Weeks 1-2)
-- [ ] DB-001: Database migration script
-- [ ] ENTITY-001~004: JPA Entities
-- [ ] REPO-001~003: Repositories
-- [ ] PROTO-001: Proto file definition
-- [ ] SVC-001~003: user-service logic
-- [ ] HANDLER-001: user-service gRPC handler
-- [ ] CLIENT-001: api-gateway gRPC client
-- [ ] GW-HANDLER-001~002: api-gateway REST handlers
-
-### Phase 2: Permissions & Async (Week 3)
-- [ ] PERM-001: Permission service logic
-- [ ] KAFKA-001: Kafka producer setup
-- [ ] SCHED-001~002: schedule-service tasks
-- [ ] ZNS-001: ZNS template registration
-
-### Phase 3: Advanced UX & Testing (Week 4)
-- [ ] TEST-001~003: Unit tests
-- [ ] TEST-004: Integration tests
-- [ ] DOC-001: API documentation
-- [ ] UAT: User acceptance testing
-
----
-
-## 7. Verification Plan
-
-### 7.1 Unit Tests
-
-| Service | Command | Coverage Target |
-|---------|---------|-----------------|
-| user-service | `mvn test -Dtest=*ConnectionTest` | >80% |
-| api-gateway-service | `mvn test -Dtest=*ConnectionTest` | >70% |
-| schedule-service | `pytest tests/tasks/connection/` | >70% |
-
-### 7.2 Integration Tests
-
-```bash
-# Run integration tests after deploying to dev environment
-mvn verify -Pintegration-test -DskipTests=false
-```
-
-### 7.3 Manual Testing
-
-1. **Invite Flow**: Patient gửi invite → Caregiver nhận notification → Accept/Reject
-2. **Permission Toggle**: Patient toggle permission → Verify notification đến Caregiver
-3. **Disconnect**: Verify cascade delete và notification
-
----
-
-## 8. Technical Risks & Mitigation
-
-| Risk | Severity | Mitigation |
-|------|----------|------------|
-| ZNS Approval Delay | 🟡 Med | SMS fallback ready from Day 1 |
-| Deep Link Infrastructure | 🔴 High | Verify availability in Week 1 |
-| Permission Desync | 🟡 Med | Server as Source of Truth |
-
----
-
-## 9. Business Rules Reference
-
-| BR-ID | Description | Implementation |
-|-------|-------------|----------------|
-| BR-001 | Bi-directional invites | `invite_type` field |
-| BR-004 | ZNS → SMS fallback (3x) | schedule-service retry logic |
-| BR-006 | No self-invite | DB constraint + service validation |
-| BR-007 | No duplicate pending | Unique partial index |
-| BR-008 | Accept → Create connection | Transaction in AcceptInvite |
-| BR-017 | Permission OFF → Hide UI | Real-time permission check |
-| BR-018 | Red warning for emergency | Frontend validation |
-| **BR-035** | **Inverse Relationship Code** | **v2.18: Bidirectional awareness** |
-| **BR-036** | **Perspective Display Standard** | **v2.23: inverse_relationship_display for UI** |
-
-### Default View State Rules (NEW v2.15)
-
-> **SA Reference:** `v2.15_default_view_state.md`
-
-| Rule-ID | Description | Impact |
-|---------|-------------|--------|
-| UX-DVS-001 | First load (no localStorage) → Default View Prompt | Mobile: State init |
-| UX-DVS-002 | CTA button → toggleBottomSheet() | Mobile: UI action |
-| UX-DVS-003 | Close Bottom Sheet → updateStopFollowUI() | Mobile: Callback |
-| UX-DVS-004 | "Ngừng theo dõi" visible only when selectedPatient != null | Mobile: Conditional UI |
-| UX-DVS-005 | Modal validation before show | Mobile: Guard logic |
-
-### Disconnect Side Effects (v2.15)
-
-> When `DELETE /api/v1/connections/{id}` is called:
-
-1. Set `is_viewing = FALSE` for the disconnected row
-2. Clear client `localStorage.selectedPatient`
-3. Navigate to SCR-01 with Default View Prompt
-4. Notify the other party via Kafka event
-
----
-
-## Appendix: Relationship Types (14 values, v2.22)
-
-| Code | Vietnamese |
-|------|------------|
-| `con_trai` | Con trai |
-| `con_gai` | Con gái |
-| `vo` | Vợ |
-| `chong` | Chồng |
-| `bo` | Bố |
-| `me` | Mẹ |
-| `anh_trai` | Anh trai |
-| `chi_gai` | Chị gái |
-| `em_trai` | Em trai |
-| `em_gai` | Em gái |
-| `ong` | Ông |
-| `ba` | Bà |
-| `chau` | Cháu |
-| `khac` | Khác |
+- [FA Implementation Tasks v4.0](file:///Users/nguyenvanhuy/Desktop/OSP/Kolia/dev/kolia/docs/nguoi_than/features/ket_noi_nguoi_than/02_planning/implementation-tasks.md)
+- [SA Implementation Recommendations v4.0](file:///Users/nguyenvanhuy/Desktop/OSP/Kolia/dev/kolia/docs/nguoi_than/sa-analysis/ket_noi_nguoi_than/07_risks/implementation_recommendations.md)

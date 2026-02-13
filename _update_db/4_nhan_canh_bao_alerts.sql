@@ -151,37 +151,3 @@ COMMENT ON COLUMN caregiver_alerts.status IS '0=unread, 1=read';
 COMMENT ON COLUMN caregiver_alerts.push_status IS '0=pending, 1=sent, 2=delivered, 3=failed';
 COMMENT ON COLUMN caregiver_alerts.expires_at IS '90-day retention per BR-ALT-009';
 
--- =============================================================================
--- 5. REGISTER BATCH JOB (Celery Beat)
--- =============================================================================
-
-INSERT INTO schedule_jobs (key, name, task, schedule, pattern, queue, enabled, app, description, options, created_at, updated_at) VALUES
-(
-    'caregiver_alerts_batch_21h',
-    'Job cảnh báo Caregiver batch 21:00',
-    'schedule_service.tasks.alerts.run_batch_alerts',
-    '{"type": "crontab", "minute": "0", "hour": "21"}',
-    '0 21 * * *',
-    'alerts',
-    true,
-    'schedule_service',
-    'US 1.2: Daily batch evaluation for compliance alerts (tuân thủ thuốc/đo HA kém, bỏ lỡ 3 liều liên tiếp) at 21:00',
-    '{"max_retries": 3}',
-    NOW(),
-    NOW()
-)
-ON CONFLICT (key) DO UPDATE SET
-    name = EXCLUDED.name,
-    task = EXCLUDED.task,
-    schedule = EXCLUDED.schedule,
-    pattern = EXCLUDED.pattern,
-    queue = EXCLUDED.queue,
-    enabled = EXCLUDED.enabled,
-    app = EXCLUDED.app,
-    description = EXCLUDED.description,
-    options = EXCLUDED.options,
-    updated_at = NOW();
-
--- =============================================================================
--- END OF MIGRATION
--- =============================================================================

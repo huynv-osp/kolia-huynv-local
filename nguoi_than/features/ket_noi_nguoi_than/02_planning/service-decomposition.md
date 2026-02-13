@@ -1,240 +1,216 @@
 # Service Decomposition: KOLIA-1517 - Kết nối Người thân
 
-> **Phase:** 4 - Service Decomposition  
-> **Date:** 2026-02-02  
-> **Applies Rule:** FA-002 (Service-Specific Change Documentation)  
-> **Revision:** v2.16 - Added Update Pending Invite Permissions API
+> **Phase:** 2 - Architecture Planning  
+> **Date:** 2026-02-13  
+> **SRS Version:** v4.0  
+> **Revision:** v4.0 - 5-service architecture (was 3)
 
 ---
 
-## Service: user-service
+## Overview
 
-### Impact Level: 🔴 HIGH
+| Service | Impact | Effort | v4.0 Δ |
+|---------|:------:|:------:|:------:|
+| user-service | 🔴 HIGH | ~30h | Major: Family Group, auto-connect, soft disconnect |
+| api-gateway-service | 🔴 HIGH | ~20h | +6 new endpoints, deprecated DELETE |
+| payment-service | 🟡 MEDIUM | ~10h | ⚠️ NEW: Slot check, GetSubscription |
+| schedule-service | 🟡 MEDIUM | ~10h | Member broadcast, new Kafka events |
+| auth-service | 🟢 LOW | ~5h | ⚠️ NEW: Verify backfill for new invite types |
+| **Total Backend** | | **~75-80h** | |
 
-### Detailed Changes
+---
 
-| Layer | File Path | Type | Description |
+## 1. user-service (🔴 HIGH)
+
+### 1.1 Code Changes
+
+| Layer | File/Path | Type | Description |
 |-------|-----------|:----:|-------------|
-| **Proto** | `proto/connection_service.proto` | NEW | 14 gRPC methods definition (+UpdatePendingInvitePermissions) |
-| **Entity** | `entity/ConnectionInvite.java` | NEW | Invite record entity |
-| **Entity** | `entity/UserConnection.java` | NEW | Connection entity |
-| **Entity** | `entity/ConnectionPermission.java` | NEW | Permission flag entity |
-| **Entity** | `entity/ConnectionPermissionType.java` | NEW | Permission type lookup entity |
-| **Entity** | `entity/InviteNotification.java` | NEW | Notification tracking |
-| **Repository** | `repository/ConnectionInviteRepository.java` | NEW | Invite data access |
-| **Repository** | `repository/UserConnectionRepository.java` | NEW | Connection data access |
-| **Repository** | `repository/ConnectionPermissionRepository.java` | NEW | Permission data access |
-| **Repository** | `repository/ConnectionPermissionTypeRepository.java` | NEW | Permission type lookup |
-| **Entity** | `entity/RelationshipType.java` | NEW | Relationship type lookup entity |
-| **Repository** | `repository/RelationshipTypeRepository.java` | NEW | Relationship type lookup |
-| **Service** | `service/InviteService.java` | NEW | Invite lifecycle logic |
-| **Service** | `service/ConnectionService.java` | NEW | Connection management |
-| **Service** | `service/PermissionService.java` | NEW | RBAC logic |
-| **Handler** | `handler/ConnectionHandler.java` | NEW | gRPC handler |
-| **DTO** | `dto/request/CreateInviteRequest.java` | NEW | Create invite request |
-| **DTO** | `dto/request/AcceptInviteRequest.java` | NEW | Accept with permissions |
-| **DTO** | `dto/request/UpdatePermissionsRequest.java` | NEW | Update RBAC flags |
-| **DTO** | `dto/response/InviteResponse.java` | NEW | Invite details |
-| **DTO** | `dto/response/ConnectionResponse.java` | NEW | Connection details + `relationship_display`, `last_active` |
-| **DTO** | `dto/response/PermissionsResponse.java` | NEW | Permission flags |
-| **Constant** | `constant/InviteType.java` | NEW | Enum (2 values) |
-| **Constant** | `constant/InviteStatus.java` | NEW | Enum (4 values) |
-| **Constant** | `constant/ConnectionStatus.java` | NEW | Enum (2 values) |
-| **Constant** | `constant/RelationshipType.java` | NEW | Enum (14 values) |
-| **Constant** | `constant/PermissionType.java` | NEW | Enum (6 values) |
-| **Config** | `config/KafkaProducerConfig.java` | MODIFY | Add 3 topics |
-| **Service** | `service/ViewingPatientService.java` | NEW | Get/Set viewing patient logic |
-| **Repository** | `repository/ViewingPatientRepository.java` | NEW | is_viewing queries |
-| **DTO** | `dto/request/SetViewingPatientRequest.java` | NEW | Set viewing patient |
-| **DTO** | `dto/response/ViewingPatientResponse.java` | NEW | Viewing patient info |
-| **Service** | `service/PatientReportService.java` | NEW | Dashboard data + read tracking |
-| **Repository** | `repository/CaregiverReportViewRepository.java` | NEW | Report read status |
-| **Entity** | `entity/CaregiverReportView.java` | NEW | Report view tracking entity |
+| Entity | `entity/FamilyGroup.java` | NEW | Family group entity: admin_user_id, subscription_id, name, status |
+| Entity | `entity/FamilyGroupMember.java` | NEW | Group membership: user_id (UNIQUE), role, status |
+| Entity | `entity/UserEmergencyContact.java` | MODIFY | +permission_revoked BOOLEAN, +family_group_id UUID FK |
+| Entity | `entity/ConnectionInvite.java` | MODIFY | invite_type enum: `add_patient`/`add_caregiver` |
+| Repository | `repository/FamilyGroupRepository.java` | NEW | findByAdminUserId, findBySubscriptionId |
+| Repository | `repository/FamilyGroupMemberRepository.java` | NEW | findByUserId, findByFamilyGroupId, existsByUserId |
+| Service | `service/FamilyGroupService.java` | NEW | Group lifecycle: create, addMember, removeMember, getGroup |
+| Service | `service/ConnectionService.java` | MODIFY | Admin-only invite, auto-connect, slot pre-check, soft disconnect |
+| gRPC | `grpc/ConnectionServiceGrpcImpl.java` | MODIFY | New RPCs: CreateFamilyGroup, GetFamilyGroup, RemoveMember, RevokePermission, RestorePermission, UpdateRelationship, LeaveGroup |
+| Client | `client/PaymentServiceClient.java` | NEW | gRPC client → payment-service GetSubscription |
+| Config | `config/PaymentServiceConfig.java` | NEW | gRPC channel config for payment-service |
 
-### Database Changes (v2.1 Optimized Schema)
+### 1.2 Database Changes
 
-| Table | Status | Details |
-|-------|:------:|--------|
-| `relationships` | ✅ NEW | 14 relationship types lookup (v2.22) |
-| `connection_permission_types` | ✅ NEW | 6 permission types lookup |
-| `connection_invites` | ✅ NEW | 11 columns, 5 indexes |
-| `user_emergency_contacts` | 🔄 EXTEND | +5 columns (linked_user_id, contact_type, relationship_code, invite_id, **is_viewing**) |
-| `connection_permissions` | ✅ NEW | 6 columns, 2 indexes (FK to connection_permission_types) |
-| `invite_notifications` | ✅ NEW | 10 columns, 3 indexes |
-| **`caregiver_report_views`** | ✅ **NEW** | 4 columns, 3 indexes - Report read tracking |
+| Table | Change | SQL |
+|-------|--------|-----|
+| `family_groups` | CREATE | id, admin_user_id, subscription_id, name, status, created_at, updated_at |
+| `family_group_members` | CREATE | id, family_group_id, user_id, role, status, joined_at, created_at |
+| `user_emergency_contacts` | ALTER ADD | permission_revoked BOOLEAN DEFAULT false |
+| `user_emergency_contacts` | ALTER ADD | family_group_id UUID REFERENCES family_groups(id) |
+| `connection_invites` | ALTER CHECK | invite_type IN ('add_patient', 'add_caregiver') |
 
-> **Note:** `user_connections` từ v1.0 đã được merge vào `user_emergency_contacts` với `contact_type='caregiver'`
+### 1.3 Key Business Logic
 
-### gRPC Methods
+| Logic | BR Reference | Complexity |
+|-------|:-------------|:----------:|
+| Admin-only invite validation | BR-041 | Medium |
+| Slot pre-check via payment gRPC | BR-033 | High |
+| Auto-connect on CG accept | BR-045 | High |
+| Soft disconnect (permission_revoked) | BR-040 | Medium |
+| Exclusive group constraint | BR-057 | Medium |
+| Leave group with slot release | BR-061 | Medium |
+| Admin self-add auto-accept | BR-049 | Low |
+| Dual-role support | BR-048 | Medium |
 
-| Method | Request | Response |
-|--------|---------|----------|
-| `CreateInvite` | CreateInviteRequest | InviteResponse |
-| `GetInvite` | GetInviteRequest | InviteResponse |
-| `ListInvites` | ListInvitesRequest | ListInvitesResponse |
-| `AcceptInvite` | AcceptInviteRequest | ConnectionResponse |
-| `RejectInvite` | RejectInviteRequest | InviteResponse |
-| `CancelInvite` | CancelInviteRequest | InviteResponse |
-| `ListConnections` | ListConnectionsRequest | ListConnectionsResponse |
-| `Disconnect` | DisconnectRequest | ConnectionResponse |
-| `GetPermissions` | GetPermissionsRequest | PermissionsResponse |
-| `UpdatePermissions` | UpdatePermissionsRequest | PermissionsResponse |
-| `ListPermissionTypes` | Empty | PermissionTypesResponse |
-| `ListRelationshipTypes` | Empty | RelationshipTypesResponse |
-| `GetViewingPatient` | GetViewingPatientRequest | ViewingPatientResponse |
-| `SetViewingPatient` | SetViewingPatientRequest | ViewingPatientResponse |
-| **`UpdatePendingInvitePermissions`** | UpdatePendingInvitePermissionsRequest | UpdatePendingInvitePermissionsResponse | (v2.16)
-| **`GetBloodPressureChart`** | GetBloodPressureChartRequest | BloodPressureChartResponse |
-| **`GetPatientReports`** | GetPatientReportsRequest | PatientReportsResponse |
-| **`MarkReportAsRead`** | MarkReportAsReadRequest | MarkReportAsReadResponse | (v2.14)
+### 1.4 Integration Points
 
-### Integration Points
-
-| Service | Protocol | Method | Purpose |
-|---------|----------|--------|---------|
-| schedule-service | Kafka | connection.invite.created | Trigger notifications |
-| schedule-service | Kafka | connection.status.changed | Status updates |
-| schedule-service | Kafka | connection.permission.changed | Permission changes |
-
-### Estimated Effort: 52 hours
-
-### Authorization Flow (SEC-DB-001)
-
-```
-Step 1: Check connection → user_emergency_contacts (is_active=TRUE, linked_user_id=caregiver)
-Step 2: Check permission → connection_permissions (permission_code='health_overview', is_enabled=TRUE)
-Step 3: Fetch data → patient_id only
-Any step FAIL → 403 Forbidden
-```
+| Target | Protocol | Direction | Purpose |
+|--------|----------|:---------:|---------|
+| payment-service | gRPC | Outbound | GetSubscription, slot validation |
+| schedule-service | Kafka | Outbound | member.accepted, member.removed, invite.created |
+| auth-service | gRPC | Inbound | Backfill receiver_id |
+| api-gateway-service | gRPC | Inbound | All REST→gRPC routing |
 
 ---
 
-## Service: api-gateway-service
+## 2. api-gateway-service (🔴 HIGH)
 
-### Impact Level: 🟡 MEDIUM
+### 2.1 Code Changes
 
-### Detailed Changes
-
-| Layer | File Path | Type | Description |
+| Layer | File/Path | Type | Description |
 |-------|-----------|:----:|-------------|
-| **Handler** | `handler/InviteHandler.java` | NEW | 5 REST endpoints (+updatePendingInvitePermissions) |
-| **Handler** | `handler/ConnectionHandler.java` | NEW | 7 REST endpoints (incl. viewing) |
-| **Client** | `client/ConnectionServiceClient.java` | NEW | gRPC client |
-| **DTO** | `dto/request/CreateInviteRequest.java` | NEW | REST request |
-| **DTO** | `dto/request/AcceptInviteRequest.java` | NEW | REST request |
-| **DTO** | `dto/request/UpdatePermissionsRequest.java` | NEW | REST request |
-| **DTO** | `dto/response/InviteResponse.java` | NEW | REST response |
-| **DTO** | `dto/response/ConnectionResponse.java` | NEW | REST response |
-| **DTO** | `dto/response/PermissionsResponse.java` | NEW | REST response |
-| **DTO** | `dto/response/PermissionTypesResponse.java` | NEW | Permission types list |
-| **DTO** | `dto/response/RelationshipTypesResponse.java` | NEW | Relationship types list |
-| **DTO** | `dto/request/SetViewingPatientRequest.java` | NEW | Set viewing patient |
-| **DTO** | `dto/response/ViewingPatientResponse.java` | NEW | Viewing patient info |
-| **Config** | `config/RouteConfig.java` | MODIFY | Add 12 routes |
-| **Swagger** | Handler annotations | MODIFY | API documentation |
+| Handler | `handler/FamilyGroupHandler.java` | NEW | REST handlers for /family-groups |
+| Handler | `handler/ConnectionHandler.java` | MODIFY | Simplified invite, revoke/restore, relationship |
+| DTO | `dto/request/CreateInviteRequest.java` | MODIFY | Simplified: phone only (removed name, relationship, permissions) |
+| DTO | `dto/request/RemoveMemberRequest.java` | NEW | memberId |
+| DTO | `dto/request/RevokePermissionRequest.java` | NEW | contactId |
+| DTO | `dto/request/UpdateRelationshipRequest.java` | NEW | contactId, relationship_code |
+| DTO | `dto/response/FamilyGroupResponse.java` | NEW | Group info + package + slots |
+| Client | `client/ConnectionServiceClient.java` | MODIFY | Add new gRPC method stubs |
 
-### REST Endpoints
+### 2.2 REST Endpoints
 
-| Method | Path | Handler Method |
-|:------:|------|----------------|
-| POST | `/api/v1/invites` | InviteHandler.create |
-| GET | `/api/v1/invites` | InviteHandler.list |
-| DELETE | `/api/v1/invites/{id}` | InviteHandler.cancel |
-| POST | `/api/v1/invites/{id}/accept` | InviteHandler.accept |
-| POST | `/api/v1/invites/{id}/reject` | InviteHandler.reject |
-| **PUT** | **`/api/v1/invites/{id}/permissions`** | **InviteHandler.updatePendingInvitePermissions** | (v2.16)
-| GET | `/api/v1/connections` | ConnectionHandler.list |
-| DELETE | `/api/v1/connections/{id}` | ConnectionHandler.disconnect |
-| GET | `/api/v1/connections/{id}/permissions` | ConnectionHandler.getPermissions |
-| PUT | `/api/v1/connections/{id}/permissions` | ConnectionHandler.updatePermissions |
-| GET | `/api/v1/connection/permission-types` | ConnectionHandler.listPermissionTypes |
-| GET | `/api/v1/connection/relationship-types` | ConnectionHandler.listRelationshipTypes |
-| GET | `/api/v1/connections/viewing` | ConnectionHandler.getViewingPatient |
-| PUT | `/api/v1/connections/viewing` | ConnectionHandler.setViewingPatient |
-| **GET** | **`/api/v1/patients/{id}/blood-pressure-chart`** | PatientHandler.getBloodPressureChart |
-| **GET** | **`/api/v1/patients/{id}/periodic-reports`** | PatientHandler.getPeriodicReports |
-| **POST** | **`/api/v1/patients/{id}/periodic-reports/{reportId}/mark-read`** | PatientHandler.markReportAsRead | (v2.14)
+#### New Endpoints (6)
 
-### Integration Points
+| Method | Path | Auth | Handler |
+|:------:|------|:----:|---------|
+| GET | `/api/v1/family-groups` | User | FamilyGroupHandler |
+| DELETE | `/api/v1/family-groups/members/:memberId` | Admin | FamilyGroupHandler |
+| PUT | `/api/v1/connections/:contactId/revoke` | Patient | ConnectionHandler |
+| PUT | `/api/v1/connections/:contactId/restore` | Patient | ConnectionHandler |
+| PUT | `/api/v1/connections/:contactId/relationship` | CG | ConnectionHandler |
+| POST | `/api/v1/family-groups/leave` | Non-Admin | FamilyGroupHandler |
 
-| Service | Protocol | Purpose |
-|---------|----------|---------|
-| user-service | gRPC | All connection operations |
+#### Modified Endpoints
 
-### ⚠️ Gateway Compliance (ARCH-001)
+| Method | Path | Change |
+|:------:|------|--------|
+| POST | `/api/v1/connections/invite` | Simplified body (phone only), Admin-only auth |
+| POST | `/api/v1/connections/invites/:id/accept` | Auto-connect response shape |
 
-```
-✅ ALLOWED:
-- Handler (REST → gRPC forwarding)
-- DTO (Request/Response classes)
-- Client (gRPC client)
+#### Deprecated Endpoints
 
-❌ NOT ALLOWED:
-- Service layer logic
-- Repository/database access
-- Entity definitions
-```
+| Method | Path | Replacement |
+|:------:|------|-------------|
+| ~~DELETE~~ | ~~`/api/v1/connections/:id`~~ | Use revoke (Patient) or remove (Admin) |
 
-### Estimated Effort: 24 hours
+> ⚠️ **ARCH-001:** api-gateway-service is THIN — no business logic. All logic delegated to user-service via gRPC.
 
 ---
 
-## Service: schedule-service
+## 3. payment-service (🟡 MEDIUM) — NEW v4.0
 
-### Impact Level: 🟡 MEDIUM
+### 3.1 Code Changes
 
-### Detailed Changes
-
-| Layer | File Path | Type | Description |
+| Layer | File/Path | Type | Description |
 |-------|-----------|:----:|-------------|
-| **Task** | `tasks/connection/invite_notification.py` | NEW | ZNS/SMS dispatch |
-| **Task** | `tasks/connection/connection_notification.py` | NEW | Push dispatch |
-| **Consumer** | `consumers/connection_consumer.py` | NEW | Kafka consumer |
-| **Config** | `config.py` | MODIFY | Add ZNS templates |
-| **Constant** | `constants/zns_templates.py` | NEW | Template IDs |
+| gRPC | `grpc/PaymentServiceGrpcImpl.java` | VERIFY | GetSubscription returns slot info |
+| Service | `service/SubscriptionService.java` | VERIFY | Slot count/availability queries |
 
-### Celery Tasks
+### 3.2 gRPC Interface
 
-| Task | Trigger | Action |
-|------|---------|--------|
-| `send_invite_notification` | `connection.invite.created` | ZNS → SMS fallback |
-| `notify_connection_change` | `connection.status.changed` | Push notification |
-| `notify_permission_change` | `connection.permission.changed` | Push notification |
+**GetSubscription Response must include:**
+- `package_name` — Tên gói
+- `total_patient_slots` — Tổng slot người bệnh
+- `total_caregiver_slots` — Tổng slot người thân
+- `used_patient_slots` — Slot đã dùng
+- `used_caregiver_slots` — Slot đã dùng
+- `expiry_date` — Ngày hết hạn
+- `is_expired` — Boolean
 
-### Kafka Consumers
+### 3.3 Key Requirements
 
-| Topic | Consumer | Handler |
-|-------|----------|---------|
-| `connection.invite.created` | ConnectionConsumer | handle_invite_created |
-| `connection.status.changed` | ConnectionConsumer | handle_status_changed |
-| `connection.permission.changed` | ConnectionConsumer | handle_permission_changed |
-
-### Integration Points
-
-| Service | Protocol | Purpose |
-|---------|----------|---------|
-| Zalo ZNS | HTTP | Send invitation messages |
-| SMS Gateway | HTTP | Fallback messaging |
-| FCM | HTTP | Push notifications |
-
-### Retry Logic (BR-004)
-
-```python
-MAX_RETRIES = 3
-RETRY_INTERVAL = 30  # seconds
-
-# If ZNS fails → try SMS with same retry logic
-```
-
-### Estimated Effort: 8 hours
+| Requirement | BR | Priority |
+|-------------|:--:|:--------:|
+| Slot race condition prevention | BR-033 | P0 |
+| Subscription expiry → block invites | BR-037 | P0 |
+| Slot release on disconnect/leave | BR-036 | P0 |
 
 ---
 
-## Summary
+## 4. schedule-service (🟡 MEDIUM)
 
-| Service | Impact | Files | Effort |
-|---------|:------:|:-----:|:------:|
-| user-service | 🔴 HIGH | ~36 | 52h |
-| api-gateway-service | 🟡 MEDIUM | ~19 | 24h |
-| schedule-service | 🟡 MEDIUM | ~5 | 8h |
-| **Total** | | **~60** | **84h** |
+### 4.1 Code Changes
+
+| Layer | File/Path | Type | Description |
+|-------|-----------|:----:|-------------|
+| Task | `tasks/member_broadcast_task.py` | NEW | Push to all group members |
+| Consumer | `consumers/connection_events.py` | MODIFY | Handle new Kafka events |
+| Template | `templates/invite_zns.py` | MODIFY | ZNS for `add_patient`, `add_caregiver` |
+
+### 4.2 Kafka Events Consumed
+
+| Topic | Event | Action |
+|-------|-------|--------|
+| `connection.invite.created` | New invite sent | ZNS + Push to invitee |
+| `connection.member.accepted` | New member joined | Push to ALL existing members (BR-052) |
+| `connection.member.removed` | Member removed/left | Push to removed member |
+
+### 4.3 Notification Templates
+
+| invite_type | ZNS Content |
+|-------------|-------------|
+| `add_patient` | "{Tên Admin} mời bạn vào nhóm gia đình với vai trò Người bệnh" |
+| `add_caregiver` | "{Tên Admin} mời bạn vào nhóm gia đình với vai trò Người thân" |
+
+---
+
+## 5. auth-service (🟢 LOW) — NEW v4.0
+
+### 5.1 Code Changes
+
+| Layer | File/Path | Type | Description |
+|-------|-----------|:----:|-------------|
+| UseCase | `usecase/AuthUseCase.java` | VERIFY | backfillPendingInviteReceiverIds |
+
+### 5.2 Key Verification
+
+- Existing `backfillPendingInviteReceiverIds` runs after OTP verify
+- Must handle both `add_patient` and `add_caregiver` invite_type values
+- Fire-and-forget pattern with warning logging (existing)
+- No new code expected — only verification needed
+
+---
+
+## 6. Cross-Service Communication
+
+```
+┌──────────────┐  REST   ┌────────────────┐  gRPC  ┌───────────────┐
+│   Mobile App │ ──────→ │ api-gateway    │ ─────→ │ user-service  │
+└──────────────┘         └────────────────┘        └───────┬───────┘
+                                                           │ gRPC
+                                                    ┌──────▼───────┐
+                                                    │payment-service│
+                                                    └──────────────┘
+                                                           │ Kafka
+                         ┌────────────────┐        ┌──────▼───────┐
+                         │ auth-service   │ ─gRPC→ │schedule-service│
+                         │ (backfill)     │        │ (notifications)│
+                         └────────────────┘        └──────────────┘
+```
+
+---
+
+## References
+
+- [SA Service Mapping v4.0](file:///Users/nguyenvanhuy/Desktop/OSP/Kolia/dev/kolia/docs/nguoi_than/sa-analysis/ket_noi_nguoi_than/04_mapping/service_mapping.md)
+- [FA Context Mapping v4.0](file:///Users/nguyenvanhuy/Desktop/OSP/Kolia/dev/kolia/docs/nguoi_than/features/ket_noi_nguoi_than/01_analysis/context-mapping.md)

@@ -1,137 +1,153 @@
-# Impact Analysis: KOLIA-1517 (REVISED v2.23)
+# Impact Analysis: Kết nối Người thân (v4.0)
 
 > **Phase:** 6 - Impact Analysis  
-> **Date:** 2026-02-04  
-> **Revision:** v2.23 - Perspective Display Standard + relationship_inverse_mapping
-> **Impact Level:** 🟢 LOW (reduced from MEDIUM)
+> **Date:** 2026-02-13  
+> **Overall Impact:** 🟡 MEDIUM (5 services, 8 tables, minor breaking changes)
 
 ---
 
 ## 1. Impact Summary
 
-| Factor | Before | After (Optimized) |
-|--------|:------:|:-----------------:|
-| **New Tables** | 4 | **6 + 1 ALTER** |
-| **Schema Reuse** | None | `user_emergency_contacts` |
-| **Code Duplication** | Yes | Minimized |
-| **Impact Level** | 🟡 MEDIUM | 🟢 **LOW** |
+| Dimension | Value | Level |
+|-----------|-------|:-----:|
+| Services Affected | 5 backend + 1 mobile | 🟡 |
+| Database Tables | 2 NEW + 1 ALTER + existing | 🟡 |
+| New REST APIs | 6 | 🟡 |
+| Deprecated APIs | 1 (DELETE /connections/:id) | 🟢 |
+| Breaking Changes | invite_type enum values | 🟡 |
+| Data Migration | Required (invite_type + new tables) | 🟡 |
+| Cross-feature Impact | 3 CRs (Bản tin, Notifications, Reports) | 🟡 |
 
 ---
 
-## 2. Database Impact
+## 2. Breaking Changes Detail
 
-### Tables
+### 2.1 invite_type Enum Migration
 
-| Table | Status | Purpose |
-|-------|:------:|---------|
-| relationships | ✅ NEW | Lookup (14 types, v2.22) |
-| **relationship_inverse_mapping** | ✅ **v2.21** | **Gender-based inverse derivation** |
-| connection_permission_types | ✅ NEW | Permission lookup (6 types) |
-| user_emergency_contacts | 🔄 EXTEND | Add **7 columns** (incl. is_viewing, inverse_relationship_code) |
-| connection_invites | ✅ NEW | Invite tracking (+ inverse_relationship_code) |
-| connection_permissions | ✅ NEW | RBAC (FK to permission_types) |
-| invite_notifications | ✅ NEW | Delivery tracking |
+| Old Value | New Value | Action |
+|-----------|-----------|--------|
+| `patient_to_caregiver` | `add_caregiver` | UPDATE existing records |
+| `caregiver_to_patient` | `add_patient` | UPDATE existing records |
 
-### Storage Estimate
+**Migration Strategy:** SQL migration script `8_kcnt_invite_type_migration.sql`
+- UPDATE existing pending invites
+- ALTER CHECK constraint
 
-| Table | Records/Month | Impact |
-|-------|:-------------:|:------:|
-| relationships | 17 (static) | ~1KB |
-| connection_permission_types | 6 (static) | ~1KB |
-| connection_invites | ~10K | ~1MB |
-| connection_permissions | 6 per connection | ~300KB |
-| invite_notifications | ~30K | ~3MB |
+### 2.2 Deprecated Endpoint
+
+| Endpoint | Replacement | Timeline |
+|----------|-------------|----------|
+| `DELETE /connections/:id` | `PUT /connections/:contactId/revoke` (soft disconnect) | Removed in v4.0 |
+| | `DELETE /family-groups/members/:memberId` (Admin hard remove) | |
 
 ---
 
 ## 3. Service Impact Matrix
 
-| Service | Impact | Reason |
-|---------|:------:|--------|
-| user-service | 🟡 MEDIUM | Entities, repos, services |
-| api-gateway-service | 🟢 LOW | REST handlers only |
-| schedule-service | 🟢 LOW | Notification tasks |
+| Service | New Code | Modified Code | Impact |
+|---------|:--------:|:-------------:|:------:|
+| user-service | 6 files | 4 files | 🔴 |
+| api-gateway-service | 6 files | 3 files | 🔴 |
+| payment-service | 0 files | 1 file (verify) | 🟡 |
+| schedule-service | 1 file | 1 file | 🟡 |
+| auth-service | 0 files | 0 files (verify only) | 🟢 |
 
 ---
 
-## 4. SOS Feature Compatibility
+## 4. Database Migration Impact
 
-| SOS Function | Status | Notes |
-|--------------|:------:|-------|
-| Create contact | ✅ | contact_type='emergency' |
-| List contacts | ✅ | WHERE is_active=TRUE |
-| SOS notification | ✅ | Uses sos_notifications |
-| Escalation | ✅ | No change |
+### 4.1 New Tables
 
-**Zero breaking changes to SOS!**
+| Table | Rows (estimate) | Impact on Existing |
+|-------|:---------------:|---|
+| `family_groups` | 1 per Admin | None — new table |
+| `family_group_members` | N per group | None — new table |
 
----
+### 4.2 Altered Tables
 
-## 5. Business Rules Coverage
+| Table | Column | Migration Risk |
+|-------|--------|:-------------:|
+| `user_emergency_contacts` | +`permission_revoked` BOOLEAN DEFAULT false | 🟢 LOW — additive, default value |
+| `user_emergency_contacts` | +`family_group_id` UUID nullable | 🟢 LOW — additive, nullable |
+| `connection_invites` | invite_type CHECK constraint | 🟡 MEDIUM — requires data migration |
 
-| BR | Implementation | ✅ |
-|----|----------------|:--:|
-| BR-001 | invite_type column | ✅ |
-| BR-004 | invite_notifications.retry_count | ✅ |
-| BR-006 | chk_no_self_invite | ✅ |
-| BR-007 | idx_unique_pending_invite | ✅ |
-| BR-028 | relationship_code FK | ✅ |
+### 4.3 Migration Order
 
----
-
-## 6. Risk Reduction
-
-| Risk | Before | After |
-|------|:------:|:-----:|
-| Schema duplication | 🔴 HIGH | 🟢 LOW |
-| SOS regression | 🟡 MEDIUM | 🟢 NONE |
-| Maintenance cost | 🟡 MEDIUM | 🟢 LOW |
-
----
-
-## 7. v2.13 Changes: Patient BP Thresholds in Chart API
-
-> **Added:** 2026-01-30  
-> **Feature:** Include patient's BP target thresholds in Blood Pressure Chart API response
-
-### 7.1 Impact Level: 🟢 LOW
-
-| Factor | Impact |
-|--------|:------:|
-| Services affected | 2 (user-service, api-gateway) |
-| Database changes | 0 (READ from existing `health_profile`) |
-| Proto changes | 1 message added |
-| API breaking changes | 0 (additive only) |
-
-### 7.2 Changes Made
-
-| Layer | File | Change |
-|-------|------|--------|
-| **Proto** | `connection_service.proto` | Added `PatientTargetThresholds` message |
-| **Service** | `DashboardServiceImpl.java` | Query thresholds from `health_profile` |
-| **gRPC** | `ConnectionServiceGrpcImpl.java` | Map thresholds to response |
-| **Swagger** | `connection-management.yaml` | Added `PatientTargetThresholds` schema |
-| **Frontend** | `BloodPressureChartBlock.tsx` | Use API thresholds instead of props |
-
-### 7.3 Database Query (READ-only)
-
-```sql
-SELECT systolic_threshold_lower, systolic_threshold_upper,
-       diastolic_threshold_lower, diastolic_threshold_upper
-FROM health_profile 
-WHERE user_id = {patient_id}
+```
+1. Create family_groups table
+2. Create family_group_members table
+3. ALTER user_emergency_contacts (add columns)
+4. Migrate invite_type values
+5. ALTER connection_invites CHECK constraint
 ```
 
-### 7.4 Business Rule
+---
 
-| Rule | Description |
-|------|-------------|
-| BR-CHART-001 | Display patient's own thresholds, not caregiver's |
+## 5. Cross-Feature Impact
 
-### 7.5 Risk Assessment
+### 5.1 CR_001: Bản tin Hành động
 
-| Risk | Level | Mitigation |
-|------|:-----:|------------|
-| Null thresholds | 🟢 LOW | Frontend handles nullable field |
-| Performance | 🟢 LOW | Parallel query with measurements |
-| Cross-context bug | ✅ FIXED | Thresholds from API, not Redux |
+| Change | Detail |
+|--------|--------|
+| New action type | `INVITE_CONNECTION` |
+| Priority | Đầu danh sách |
+| Trigger | User có pending invite |
+| Impact | 🟢 LOW — additive |
+
+### 5.2 CR_002: Phân hệ Notification
+
+| # | Kịch bản | Thay đổi v4.0 |
+|:-:|----------|---------------|
+| 1 | Nhận lời mời | Content updated: "{Tên Admin} mời..." |
+| 2 | Được chấp nhận | Unchanged |
+| 3 | Bị từ chối | Unchanged |
+| 4 | Quyền thay đổi | **REMOVED** — silent revoke (BR-056) |
+| 5 | Kết nối bị hủy | Changed: "Bạn đã bị xoá khỏi nhóm..." |
+| **6** | **Thành viên mới vào nhóm** | **NEW (BR-052):** broadcast to ALL members |
+| **7** | **Rời nhóm** | **NEW (BR-061):** Admin nhận push |
+
+### 5.3 CR_003: Báo cáo Sức khỏe Notifications
+
+| Impact | Detail |
+|--------|--------|
+| Change | None — existing logic applies |
+| Note | CG push notification for reports still uses permission #1 check |
+
+---
+
+## 6. Payment Integration Impact
+
+| Integration Point | Direction | Impact |
+|--------------------|:---------:|:-----:|
+| Slot check before invite | KCNT → Payment | 🟡 NEW dependency |
+| Slot consume on invite sent | KCNT → Payment | 🟡 NEW dependency |
+| Slot free on reject/cancel/remove | KCNT → Payment | 🟡 NEW dependency |
+| Package expiry → block invite | Payment → KCNT | 🟡 NEW dependency |
+| Admin validation | KCNT → Payment | 🟡 NEW dependency |
+
+**Risk:** payment-service downtime blocks ALL invite operations.  
+**Mitigation:** Circuit breaker + clear UX error message.
+
+---
+
+## 7. Backward Compatibility
+
+| Area | Compatible? | Notes |
+|------|:-----------:|-------|
+| SOS features | ✅ | user_emergency_contacts extensions are additive |
+| Existing connections | ✅ | permission_revoked defaults to false |
+| Mobile app (old version) | ⚠️ | Old app won't see Family Group screens |
+| REST API consumers | ⚠️ | DELETE /connections/:id deprecated |
+| gRPC consumers | ✅ | New RPCs are additive |
+
+---
+
+## 8. Stakeholder Impact
+
+| Stakeholder | Impact | Action Required |
+|-------------|:------:|-----------------|
+| Backend Team | HIGH | Implement 5 service changes |
+| Mobile Team | HIGH | New screens, state management |
+| DevOps | LOW | Kafka topics, DB migration |
+| QA | MEDIUM | Cross-service test scenarios |
+| Product | LOW | Review UX changes |

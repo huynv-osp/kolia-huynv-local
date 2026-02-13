@@ -1,9 +1,23 @@
-# Service Mapping: KOLIA-1517 - Kết nối Người thân
+# Service Mapping: Kết nối Người thân (v4.0)
 
 > **Phase:** 4 - Architecture Mapping & Analysis  
-> **Date:** 2026-02-04  
-> **Revision:** v2.23 - Added inverse_relationship_display for perspective display (BR-036)
-> **Applies Rule:** SA-002 (Service-Level Impact Detailing)
+> **Date:** 2026-02-13  
+> **Standard:** SA-002 (Service-Level Impact Detailing)
+
+---
+
+## Overview
+
+| Service | Impact | Effort | Role in KCNT v4.0 |
+|---------|:------:|:------:|-------------------|
+| user-service | 🔴 HIGH | ~30h | Core: Family Group, connections, permissions |
+| api-gateway-service | 🔴 HIGH | ~20h | REST endpoints, request routing |
+| payment-service | 🟡 MEDIUM | ~10h | Slot check, subscription info |
+| schedule-service | 🟡 MEDIUM | ~10h | Member broadcast notifications |
+| auth-service | 🟢 LOW | ~5h | Backfill receiver_id |
+| **Mobile App** | 🔴 HIGH | ~25h | UI screens, state management |
+
+**Total Backend Effort:** ~75-80h
 
 ---
 
@@ -14,102 +28,108 @@
 ### Code Changes Required
 
 | Layer | File | Type | Description |
-|-------|------|:----:|-------------|
-| Proto | `proto/connection_service.proto` | NEW | 13 gRPC methods (incl. viewing, relationships) |
-| Entity | `entity/ConnectionInvite.java` | NEW | Invite entity |
-| Entity | `entity/UserConnection.java` | NEW | Connection entity |
-| Entity | `entity/ConnectionPermission.java` | NEW | Permission entity |
-| Entity | `entity/ConnectionPermissionType.java` | NEW | Permission type lookup |
-| Entity | `entity/InviteNotification.java` | NEW | Notification tracking |
-| Repository | `repository/ConnectionInviteRepository.java` | NEW | Invite data access |
-| Repository | `repository/UserConnectionRepository.java` | NEW | Connection access |
-| Repository | `repository/ConnectionPermissionRepository.java` | NEW | Permission access |
-| Repository | `repository/ConnectionPermissionTypeRepository.java` | NEW | Permission type lookup |
-| Entity | `entity/RelationshipType.java` | NEW | Relationship lookup entity |
-| Repository | `repository/RelationshipTypeRepository.java` | NEW | Relationship type lookup |
-| Service | `service/InviteService.java` | NEW | Invite lifecycle |
-| Service | `service/ConnectionServiceImpl.java` | NEW | Connection logic |
-| Service | `service/PermissionService.java` | NEW | RBAC logic |
-| Handler | `handler/ConnectionHandler.java` | NEW | gRPC handler |
-| DTO | `dto/request/*.java` | NEW | 8 request DTOs |
-| DTO | `dto/response/*.java` | NEW | 6 response DTOs |
-| Constant | `constant/InviteType.java` | NEW | Enum (2 values) |
-| Constant | `constant/InviteStatus.java` | NEW | Enum (4 values) |
-| Constant | `constant/ConnectionStatus.java` | NEW | Enum (2 values) |
-| Constant | `constant/RelationshipType.java` | NEW | Enum (14 values) |
-| Constant | `constant/PermissionType.java` | NEW | Enum (6 values) |
-| Config | `config/KafkaProducerConfig.java` | MODIFY | Add 3 topics |
-| Service | `service/ViewingPatientService.java` | NEW | Get/Set viewing logic |
-| Repository | `repository/ViewingPatientRepository.java` | NEW | is_viewing queries |
-| Event | `event/ConnectionEvent.java` | NEW | Kafka payload |
+|-------|------|------|-------------|
+| Entity | `entity/FamilyGroup.java` | NEW | Family group entity |
+| Entity | `entity/FamilyGroupMember.java` | NEW | Group membership entity |
+| Entity | `entity/UserEmergencyContact.java` | MODIFY | +permission_revoked, +family_group_id |
+| Entity | `entity/ConnectionInvite.java` | MODIFY | invite_type enum update |
+| Repository | `repository/FamilyGroupRepository.java` | NEW | Family group CRUD |
+| Repository | `repository/FamilyGroupMemberRepository.java` | NEW | Membership queries |
+| Service | `service/FamilyGroupService.java` | NEW | Group lifecycle management |
+| Service | `service/ConnectionService.java` | MODIFY | Admin-only invite, auto-connect, soft disconnect |
+| gRPC | `grpc/ConnectionServiceGrpcImpl.java` | MODIFY | New RPCs: FamilyGroup CRUD, permission revoke/restore |
+| Client | `client/PaymentServiceClient.java` | NEW | gRPC client to payment-service |
+| Config | `config/PaymentServiceConfig.java` | NEW | gRPC channel config |
 
 ### Database Changes
 
 | Table | Change | Details |
-|-------|:------:|---------|
-| connection_permission_types | CREATE | 8 columns, lookup table |
-| connection_invites | CREATE | 11 columns, 5 indexes |
-| user_emergency_contacts | ALTER | **+6 columns** (incl. is_viewing, inverse_relationship_code) |
-| connection_permissions | CREATE | 5 columns, 2 indexes (FK) |
-| relationships | CREATE | 7 columns, lookup table (v2.8) |
-| invite_notifications | CREATE | 9 columns, 3 indexes |
+|-------|--------|---------|
+| `family_groups` | CREATE | Admin, subscription, status |
+| `family_group_members` | CREATE | User, role, status, exclusive constraint |
+| `user_emergency_contacts` | ALTER | +permission_revoked, +family_group_id |
+| `connection_invites` | ALTER | invite_type CHECK constraint |
 
 ### Integration Points
 
 | Service | Protocol | Purpose |
 |---------|----------|---------|
-| schedule-service | Kafka | Notification triggers |
+| payment-service | gRPC | Slot check, GetSubscription, SyncMembers |
+| schedule-service | Kafka | Member broadcast events |
+| auth-service | gRPC (inbound) | Backfill receiver_id |
 
-### Estimated Effort: 42 hours
+### Key Business Logic
+- **Admin-only invite (BR-041):** Validate sender is Admin before creating invite
+- **Slot pre-check (BR-033):** Call payment-service before invite
+- **Auto-connect (BR-045):** On CG accept → create connections to ALL patients
+- **Soft disconnect (BR-040):** Set permission_revoked=true, keep connection active
+- **Exclusive group (BR-057):** Check user not in another group before invite
 
 ---
 
 ## Service: api-gateway-service
+
+### Impact Level: 🔴 HIGH
+
+### Code Changes Required
+
+| Layer | File | Type | Description |
+|-------|------|------|-------------|
+| Handler | `handler/FamilyGroupHandler.java` | NEW | Family group REST endpoints |
+| Handler | `handler/ConnectionHandler.java` | MODIFY | Updated invite/accept contracts |
+| DTO | `dto/request/CreateFamilyGroupRequest.java` | NEW | |
+| DTO | `dto/request/RemoveMemberRequest.java` | NEW | |
+| DTO | `dto/response/FamilyGroupResponse.java` | NEW | |
+| DTO | `dto/request/CreateInviteRequest.java` | MODIFY | Simplified (phone only) |
+| DTO | `dto/request/RevokePermissionRequest.java` | NEW | |
+| DTO | `dto/request/UpdateRelationshipRequest.java` | NEW | |
+| Client | `client/ConnectionServiceClient.java` | MODIFY | New gRPC methods |
+
+### New REST Endpoints
+
+| Method | Path | Description |
+|:------:|------|-------------|
+| GET | `/api/v1/family-groups` | Get user's family group info |
+| DELETE | `/api/v1/family-groups/members/:memberId` | Admin remove member |
+| PUT | `/api/v1/connections/:contactId/revoke` | Tắt quyền theo dõi |
+| PUT | `/api/v1/connections/:contactId/restore` | Mở lại quyền theo dõi |
+| PUT | `/api/v1/connections/:contactId/relationship` | Update MQH |
+| POST | `/api/v1/family-groups/leave` | Non-Admin rời nhóm |
+
+### Updated Endpoints
+
+| Method | Path | Change |
+|:------:|------|--------|
+| POST | `/api/v1/connections/invite` | Simplified: phone only, Admin-only |
+| POST | `/api/v1/connections/invites/:id/accept` | Auto-connect response |
+| ~~DELETE~~ | ~~`/api/v1/connections/:id`~~ | **DEPRECATED** → use revoke/remove |
+
+> ⚠️ ARCH-001: api-gateway-service is THIN — no business logic. All logic delegated to user-service via gRPC.
+
+---
+
+## Service: payment-service
 
 ### Impact Level: 🟡 MEDIUM
 
 ### Code Changes Required
 
 | Layer | File | Type | Description |
-|-------|------|:----:|-------------|
-| Handler | `handler/InviteHandler.java` | NEW | 4 REST endpoints |
-| Handler | `handler/ConnectionHandler.java` | NEW | 7 REST endpoints (incl. viewing) |
-| Client | `client/ConnectionServiceClient.java` | NEW | gRPC client |
-| DTO | `dto/request/CreateInviteRequest.java` | NEW | Create invite |
-| DTO | `dto/request/AcceptInviteRequest.java` | NEW | Accept invite |
-| DTO | `dto/request/UpdatePermissionsRequest.java` | NEW | Update perms |
-| DTO | `dto/response/InviteResponse.java` | NEW | Invite details |
-| DTO | `dto/response/ConnectionResponse.java` | NEW | Connection info |
-| DTO | `dto/response/PermissionsResponse.java` | NEW | Permission flags |
-| DTO | `dto/response/PermissionTypesResponse.java` | NEW | Permission types list |
-| DTO | `dto/response/RelationshipTypesResponse.java` | NEW | Relationship types list |
-| DTO | `dto/request/SetViewingPatientRequest.java` | NEW | Set viewing patient |
-| DTO | `dto/response/ViewingPatientResponse.java` | NEW | Viewing patient info |
-| Config | `config/RouteConfig.java` | MODIFY | 12 new routes |
-| Swagger | Handler annotations | MODIFY | API docs |
-
-### Gateway Compliance (ARCH-001)
-
-```
-✅ COMPLIANT - No business logic in gateway
-   - handler/    ✅ REST forwarding
-   - dto/        ✅ Request/Response
-   - client/     ✅ gRPC client
-   - config/     ✅ Routes
-   
-❌ NOT PRESENT (as expected):
-   - service/    ✅ Not added
-   - repository/ ✅ Not added
-   - entity/     ✅ Not added
-```
+|-------|------|------|-------------|
+| gRPC | `grpc/PaymentServiceGrpcImpl.java` | MODIFY | Ensure GetSubscription returns slot info |
+| Service | `service/SubscriptionService.java` | VERIFY | Slot count/availability queries |
 
 ### Integration Points
 
-| Service | Protocol | Purpose |
-|---------|----------|---------|
-| user-service | gRPC | All operations |
+| Service | Protocol | Direction | Purpose |
+|---------|----------|:---------:|---------|
+| user-service | gRPC | Inbound | GetSubscription, slot validation |
+| user-service | gRPC | Outbound | SyncMembers (optional) |
 
-### Estimated Effort: 16 hours
+### Key Requirements
+- `GetSubscription` RPC must return: package_name, total_patient_slots, total_caregiver_slots, used_slots, expiry_date
+- Slot race condition prevention (pessimistic locking or versioned updates)
+- Subscription expiry → block new invites (BR-037)
 
 ---
 
@@ -120,31 +140,55 @@
 ### Code Changes Required
 
 | Layer | File | Type | Description |
-|-------|------|:----:|-------------|
-| Task | `tasks/connection/invite_notification.py` | NEW | ZNS/SMS dispatch |
-| Task | `tasks/connection/connection_notification.py` | NEW | Push dispatch |
-| Consumer | `consumers/connection_consumer.py` | NEW | Kafka consumer |
-| Config | `config.py` | MODIFY | ZNS templates |
-| Constant | `constants/zns_templates.py` | NEW | Template IDs |
+|-------|------|------|-------------|
+| Task | `tasks/member_broadcast_task.py` | NEW | Push notification to group members |
+| Consumer | `consumers/connection_events.py` | MODIFY | Handle new Kafka events |
 
-### Integration Points
+### Kafka Events Consumed
 
-| Service | Protocol | Purpose |
-|---------|----------|---------|
-| Zalo ZNS | HTTP | Invitation messages |
-| SMS Gateway | HTTP | Fallback |
-| FCM | HTTP | Push notifications |
-| user-service | Kafka | Event source |
+| Topic | Event | Action |
+|-------|-------|--------|
+| `connection.member.accepted` | New member joined | Push to ALL existing members (BR-052) |
+| `connection.member.removed` | Member removed/left | Push to removed member |
+| `connection.invite.created` | New invite sent | Push + ZNS to invitee |
 
-### Estimated Effort: 8 hours
+### Key Requirements
+- Member broadcast: push to all group members except new member + Admin (BR-052)
+- Respect notification preferences
+- ZNS template management for `add_patient`, `add_caregiver`
 
 ---
 
-## Summary
+## Service: auth-service
 
-| Service | Impact | Files | Effort |
-|---------|:------:|:-----:|:------:|
-| user-service | 🔴 HIGH | ~28 | 42h |
-| api-gateway-service | 🟡 MEDIUM | ~14 | 18h |
-| schedule-service | 🟡 MEDIUM | ~5 | 8h |
-| **Total** | | **~47** | **68h** |
+### Impact Level: 🟢 LOW
+
+### Code Changes Required
+
+| Layer | File | Type | Description |
+|-------|------|------|-------------|
+| UseCase | `usecase/AuthUseCase.java` | VERIFY | backfillPendingInviteReceiverIds existing |
+
+### Key Requirements
+- Existing: After OTP verify → backfill `receiver_id` on pending invites matching phone
+- No new code needed, verify existing logic handles `add_patient`/`add_caregiver` types
+- Fire-and-forget with warning logging (existing pattern)
+
+---
+
+## Cross-Service Communication Map
+
+```
+┌──────────────┐  REST   ┌────────────────┐  gRPC  ┌───────────────┐
+│   Mobile App │ ──────→ │ api-gateway    │ ─────→ │ user-service  │
+└──────────────┘         └────────────────┘        └───────┬───────┘
+                                                           │ gRPC
+                                                    ┌──────▼───────┐
+                                                    │payment-service│
+                                                    └──────────────┘
+                                                           │ Kafka
+                         ┌────────────────┐        ┌──────▼───────┐
+                         │ auth-service   │ ─gRPC→ │schedule-service│
+                         │ (backfill)     │        │ (notifications)│
+                         └────────────────┘        └──────────────┘
+```

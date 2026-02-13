@@ -1,871 +1,325 @@
 # Implementation Tasks: KOLIA-1517 - Kết nối Người thân
 
-> **Feature:** Connection Flow (Patient ↔ Caregiver)  
-> **Version:** v2.17 - Schema v2.12 (notification_type, cancel flow, idempotency)  
-> **Total Tasks:** 45  
-> **Estimated Effort:** 92 hours
+> **Phase:** 2 - Architecture Planning  
+> **Date:** 2026-02-13  
+> **SRS Version:** v4.0  
+> **Revision:** v4.0 - 5-phase plan, ~80h, 5 services
 
 ---
 
-## Task Dependencies Graph
+## Overview
 
+| Phase | Focus | Effort | Dependencies |
+|:-----:|-------|:------:|:------------:|
+| 0 | Database Migration & Family Group | ~12h | None |
+| 1 | user-service Core Logic | ~18h | Phase 0 |
+| 2 | api-gateway-service Endpoints | ~20h | Phase 1 |
+| 3 | Cross-Service Integration | ~15h | Phase 1, 2 |
+| 4 | Testing & Verification | ~15h | Phase 1-3 |
+| **Total** | | **~80h** | |
+
+---
+
+## Phase 0: Database Migration & Family Group Entity (~12h)
+
+### TASK-001: Database Migration Script
+- **Service:** user-service
+- **Priority:** P0 | **Effort:** 4h
+- **Dependencies:** None
+- **Description:** Create migration for family_groups, family_group_members tables; ALTER user_emergency_contacts (+permission_revoked, +family_group_id); UPDATE invite_type CHECK constraint
+- **Acceptance Criteria:**
+  - `family_groups` table created with admin_user_id, subscription_id, name, status
+  - `family_group_members` table with UNIQUE(user_id) constraint (BR-057)
+  - `permission_revoked` BOOLEAN DEFAULT false on user_emergency_contacts
+  - `family_group_id` UUID FK on user_emergency_contacts
+  - `invite_type` CHECK updated to `add_patient`/`add_caregiver`
+  - Rollback script included
+
+### TASK-002: Family Group Entity & Repository
+- **Service:** user-service
+- **Priority:** P0 | **Effort:** 4h
+- **Dependencies:** TASK-001
+- **Description:** Create FamilyGroup and FamilyGroupMember Java entities + repositories
+- **Acceptance Criteria:**
+  - FamilyGroup entity maps to family_groups table
+  - FamilyGroupMember entity with user_id UNIQUE constraint
+  - Repository methods: findByAdminUserId, findByUserId, existsByUserId
+  - UserEmergencyContact entity updated with new fields
+
+### TASK-003: Family Group Service Layer
+- **Service:** user-service
+- **Priority:** P0 | **Effort:** 4h
+- **Dependencies:** TASK-002
+- **Description:** Create FamilyGroupService with group lifecycle management
+- **Acceptance Criteria:**
+  - createGroup (linked to subscription)
+  - addMember (with exclusive group validation, BR-057)
+  - removeMember (with slot release, BR-036)
+  - getGroupByUserId, getGroupByAdminId
+  - leaveGroup (for non-Admin, BR-061)
+
+---
+
+## Phase 1: user-service Core Logic (~18h)
+
+### TASK-004: Admin-Only Invite Validation
+- **Service:** user-service
+- **Priority:** P0 | **Effort:** 3h
+- **Dependencies:** TASK-003
+- **Description:** Modify ConnectionService to validate Admin role before creating invites
+- **Acceptance Criteria:**
+  - Only Admin (from family_group) can create invites (BR-041)
+  - Non-Admin attempt → error response
+  - Admin self-add → auto-accept (BR-049)
+  - Phone-only invite (no MQH, no permissions config) (BR-055)
+
+### TASK-005: Payment Service Client
+- **Service:** user-service
+- **Priority:** P0 | **Effort:** 3h
+- **Dependencies:** TASK-002
+- **Description:** Create PaymentServiceClient for gRPC calls to payment-service
+- **Acceptance Criteria:**
+  - GetSubscription RPC call returns slot info
+  - Slot pre-check before invite (BR-033)
+  - Slot formula validation: `slot_trống = tổng_slot - đã_gán - pending` (BR-059)
+  - Graceful fallback if payment-service unavailable
+
+### TASK-006: Auto-Connect Logic
+- **Service:** user-service
+- **Priority:** P0 | **Effort:** 4h
+- **Dependencies:** TASK-004, TASK-005
+- **Description:** When CG accepts invite, auto-create connections to ALL patients in group
+- **Acceptance Criteria:**
+  - CG accept → find all patients in same family_group
+  - Create connection to each patient with ALL permissions ON (BR-045)
+  - Transaction-based: rollback all if any fails
+  - Kafka event: `connection.member.accepted`
+
+### TASK-007: Soft Disconnect (Permission Revoke/Restore)
+- **Service:** user-service
+- **Priority:** P0 | **Effort:** 4h
+- **Dependencies:** TASK-002
+- **Description:** Implement tắt/mở quyền theo dõi (BR-040)
+- **Acceptance Criteria:**
+  - Revoke: set permission_revoked=true, ALL 5 permissions OFF (bypass BR-039)
+  - Restore: when ≥1 permission ON → permission_revoked=false
+  - Connection remains active (status unchanged)
+  - Silent operation — NO notification to CG (BR-056)
+
+### TASK-008: Leave Group & Admin Remove
+- **Service:** user-service
+- **Priority:** P0 | **Effort:** 4h
+- **Dependencies:** TASK-003, TASK-005
+- **Description:** Non-Admin leave group (BR-061) and Admin remove member (BR-058)
+- **Acceptance Criteria:**
+  - Leave: connection cancelled, slot released, user → free plan
+  - Remove: Admin can remove any member except self (BR-058)
+  - Kafka events for both: `connection.member.removed`
+  - Admin receives push notification on member leave
+
+---
+
+## Phase 2: api-gateway-service Endpoints (~20h)
+
+### TASK-009: Family Group REST Endpoints
+- **Service:** api-gateway-service
+- **Priority:** P0 | **Effort:** 6h
+- **Dependencies:** TASK-003
+- **Description:** Create FamilyGroupHandler with 3 endpoints
+- **Acceptance Criteria:**
+  - `GET /api/v1/family-groups` — returns group info + package details
+  - `DELETE /api/v1/family-groups/members/:memberId` — Admin remove
+  - `POST /api/v1/family-groups/leave` — Non-Admin leave group
+  - All endpoints route to user-service via gRPC
+
+### TASK-010: Connection Endpoints Update
+- **Service:** api-gateway-service
+- **Priority:** P0 | **Effort:** 6h
+- **Dependencies:** TASK-004, TASK-007
+- **Description:** Update ConnectionHandler for v4.0 flows
+- **Acceptance Criteria:**
+  - `POST /connections/invite` simplified (phone only, Admin auth check)
+  - `POST /connections/invites/:id/accept` returns auto-connect result
+  - `PUT /connections/:contactId/revoke` — tắt quyền theo dõi
+  - `PUT /connections/:contactId/restore` — mở lại quyền
+  - `PUT /connections/:contactId/relationship` — update MQH
+
+### TASK-011: Deprecated Endpoint Migration
+- **Service:** api-gateway-service
+- **Priority:** P1 | **Effort:** 2h
+- **Dependencies:** TASK-010
+- **Description:** Deprecate `DELETE /api/v1/connections/:id`
+- **Acceptance Criteria:**
+  - Endpoint returns 410 GONE or redirects to appropriate new endpoint
+  - Swagger/OpenAPI updated with deprecation notice
+  - Feature flag for gradual removal
+
+### TASK-012: DTO & Proto Updates
+- **Service:** api-gateway-service
+- **Priority:** P0 | **Effort:** 6h
+- **Dependencies:** TASK-009, TASK-010
+- **Description:** Create/modify DTOs and proto definitions
+- **Acceptance Criteria:**
+  - CreateInviteRequest simplified (phone only)
+  - FamilyGroupResponse includes group + package + slot info
+  - RemoveMemberRequest, RevokePermissionRequest, UpdateRelationshipRequest DTOs
+  - Proto files updated for all new gRPC methods
+
+---
+
+## Phase 3: Cross-Service Integration (~15h)
+
+### TASK-013: Schedule Service — Member Broadcast
+- **Service:** schedule-service
+- **Priority:** P0 | **Effort:** 5h
+- **Dependencies:** TASK-006
+- **Description:** Handle new Kafka events for member notifications
+- **Acceptance Criteria:**
+  - `connection.member.accepted` → push to ALL existing members (BR-052)
+  - `connection.member.removed` → push to removed member
+  - Exclude new member + Admin from broadcast
+  - Notification content: "👋 {Tên} đã vào nhóm"
+
+### TASK-014: Schedule Service — ZNS Templates
+- **Service:** schedule-service
+- **Priority:** P0 | **Effort:** 3h
+- **Dependencies:** TASK-004
+- **Description:** Update ZNS templates for v4.0 invite types
+- **Acceptance Criteria:**
+  - `add_patient` template: "{Tên Admin} mời bạn... vai trò Người bệnh"
+  - `add_caregiver` template: "{Tên Admin} mời bạn... vai trò Người thân"
+  - ZNS fail → SMS fallback (BR-004)
+
+### TASK-015: Auth Service — Backfill Verification
+- **Service:** auth-service
+- **Priority:** P1 | **Effort:** 2h
+- **Dependencies:** TASK-001
+- **Description:** Verify backfillPendingInviteReceiverIds handles new invite_type values
+- **Acceptance Criteria:**
+  - SQL query matches both `add_patient` and `add_caregiver` invite_type
+  - No regression on existing backfill behavior
+  - Warning logging for failures (existing pattern)
+
+### TASK-016: Payment Service — GetSubscription Verification
+- **Service:** payment-service
+- **Priority:** P0 | **Effort:** 5h
+- **Dependencies:** None
+- **Description:** Ensure GetSubscription RPC returns complete slot info
+- **Acceptance Criteria:**
+  - Response includes: package_name, total_patient_slots, total_caregiver_slots, used_slots, expiry_date
+  - Slot count accurate (includes pending invites)
+  - Pessimistic locking for slot race condition
+
+---
+
+## Phase 4: Testing & Verification (~15h)
+
+### TASK-017: Unit Tests
+- **Service:** user-service, api-gateway-service
+- **Priority:** P0 | **Effort:** 5h
+- **Dependencies:** Phase 1-2
+- **Acceptance Criteria:**
+  - Admin-only invite validation tests
+  - Auto-connect logic tests (multiple patients)
+  - Soft disconnect revoke/restore tests
+  - Exclusive group constraint tests
+  - Slot management tests
+
+### TASK-018: Integration Tests
+- **Service:** Cross-service
+- **Priority:** P0 | **Effort:** 5h
+- **Dependencies:** Phase 1-3
+- **Acceptance Criteria:**
+  - End-to-end invite flow (Admin → member accept → auto-connect)
+  - Payment integration (slot check → consume → release)
+  - Notification delivery (ZNS, Push, broadcast)
+  - Leave group with cascading effects
+
+### TASK-019: Regression Tests
+- **Service:** All
+- **Priority:** P0 | **Effort:** 3h
+- **Dependencies:** Phase 1-3
+- **Acceptance Criteria:**
+  - SOS contact (contact_type='emergency') unchanged
+  - Existing connections unaffected by migration
+  - Profile selector behavior correct
+  - Dashboard permission checks still work
+
+### TASK-020: Data Migration Testing
+- **Service:** Database
+- **Priority:** P0 | **Effort:** 2h
+- **Dependencies:** TASK-001
+- **Acceptance Criteria:**
+  - invite_type migration: old values → new values
+  - Rollback script works cleanly
+  - Existing data integrity preserved
+
+---
+
+## Execution Order & Dependencies
+
+```mermaid
+gantt
+    title Implementation Timeline (~80h)
+    dateFormat X
+    axisFormat %s
+
+    section Phase 0
+    TASK-001 DB Migration    :a1, 0, 4
+    TASK-002 Entity/Repo     :a2, after a1, 4
+    TASK-003 Group Service   :a3, after a2, 4
+
+    section Phase 1
+    TASK-004 Admin Invite    :b1, after a3, 3
+    TASK-005 Payment Client  :b2, after a2, 3
+    TASK-006 Auto-Connect    :b3, after b1, 4
+    TASK-007 Soft Disconnect :b4, after a2, 4
+    TASK-008 Leave/Remove    :b5, after a3, 4
+
+    section Phase 2
+    TASK-009 FG Endpoints    :c1, after a3, 6
+    TASK-010 Conn Update     :c2, after b1, 6
+    TASK-011 Deprecation     :c3, after c2, 2
+    TASK-012 DTO/Proto       :c4, after c1, 6
+
+    section Phase 3
+    TASK-013 Broadcast       :d1, after b3, 5
+    TASK-014 ZNS Templates   :d2, after b1, 3
+    TASK-015 Auth Verify     :d3, after a1, 2
+    TASK-016 Payment Verify  :d4, 0, 5
+
+    section Phase 4
+    TASK-017 Unit Tests      :e1, after c2, 5
+    TASK-018 Integration     :e2, after d1, 5
+    TASK-019 Regression      :e3, after d1, 3
+    TASK-020 Migration Test  :e4, after a1, 2
 ```
-DB-001 ──▶ ENTITY-001~004 ──▶ REPO-001~003 ──▶ SVC-001~003 ──┐
-                                                              │
-PROTO-001 ──▶ PROTO-002 ──▶ CLIENT-001 ─────────────────────┤
-                                                              ▼
-                                              HANDLER-001 ──▶ GW-HANDLER-001~002 ──▶ TEST-001~003
-                                                              │
-KAFKA-001 ──▶ SCHED-001~002 ◄─────────────────────────────────┘
-```
 
 ---
 
-## Phase 1: Database & Core Entities
+## Test Commands
 
-### DB-001: Database Migration Script
-| Field | Value |
-|-------|-------|
-| **Service** | database |
-| **Priority** | P0 - Critical |
-| **Estimated** | 2h |
-| **Dependencies** | None |
-
-**Description:**
-Tạo migration script cho 4 tables mới: `connection_invites`, `user_connections`, `connection_permissions`, `invite_notifications`.
-
-**Files:**
-- `api-gateway-service/database/migrations/v12_connection_flow.sql`
-
-**Acceptance Criteria:**
-- [ ] Migration chạy thành công không lỗi
-- [ ] Rollback script hoạt động
-- [ ] Indexes được tạo đúng
-
----
-
-### ENTITY-001: ConnectionInvite Entity
-| Field | Value |
-|-------|-------|
-| **Service** | user-service |
-| **Priority** | P0 |
-| **Estimated** | 1h |
-| **Dependencies** | DB-001 |
-
-**Description:**
-JPA Entity cho table `connection_invites` với các fields: sender_id, receiver_phone, receiver_id, receiver_name, invite_type, relationship, initial_permissions, status.
-
-**Files:**
-- `user-service/src/main/java/com/company/userservice/entity/ConnectionInvite.java`
-
-**Acceptance Criteria:**
-- [ ] Entity mapping đúng với DB schema
-- [ ] Enum types cho invite_type và relationship
-- [ ] JSONB mapping cho initial_permissions
-
----
-
-### ENTITY-002: UserConnection Entity
-| Field | Value |
-|-------|-------|
-| **Service** | user-service |
-| **Priority** | P0 |
-| **Estimated** | 1h |
-| **Dependencies** | DB-001 |
-
-**Description:**
-JPA Entity cho table `user_connections` với patient_id, caregiver_id, relationship, status, created_from_invite_id.
-
-**Files:**
-- `user-service/src/main/java/com/company/userservice/entity/UserConnection.java`
-
----
-
-### ENTITY-003: ConnectionPermission Entity
-| Field | Value |
-|-------|-------|
-| **Service** | user-service |
-| **Priority** | P0 |
-| **Estimated** | 1h |
-| **Dependencies** | DB-001, ENTITY-002 |
-
-**Description:**
-JPA Entity cho table `connection_permissions` với connection_id, permission_type, is_enabled.
-
-**Files:**
-- `user-service/src/main/java/com/company/userservice/entity/ConnectionPermission.java`
-
----
-
-### ENTITY-004: InviteNotification Entity
-| Field | Value |
-|-------|-------|
-| **Service** | user-service |
-| **Priority** | P1 |
-| **Estimated** | 1h |
-| **Dependencies** | DB-001, ENTITY-001 |
-
-**Description:**
-JPA Entity cho table `invite_notifications` để tracking ZNS/SMS delivery.
-
-**Files:**
-- `user-service/src/main/java/com/company/userservice/entity/InviteNotification.java`
-
----
-
-## Phase 1: Repositories
-
-### REPO-001: ConnectionInviteRepository
-| Field | Value |
-|-------|-------|
-| **Service** | user-service |
-| **Priority** | P0 |
-| **Estimated** | 2h |
-| **Dependencies** | ENTITY-001 |
-
-**Description:**
-Repository interface với các methods:
-- `findBySenderIdAndStatus(UUID, InviteStatus)`
-- `findByReceiverIdAndStatus(UUID, InviteStatus)`
-- `findByReceiverPhoneAndStatus(String, InviteStatus)`
-- `existsPendingInvite(UUID senderId, String receiverPhone)`
-
-**Files:**
-- `user-service/src/main/java/com/company/userservice/repository/ConnectionInviteRepository.java`
-
----
-
-### REPO-002: UserConnectionRepository
-| Field | Value |
-|-------|-------|
-| **Service** | user-service |
-| **Priority** | P0 |
-| **Estimated** | 2h |
-| **Dependencies** | ENTITY-002 |
-
-**Description:**
-Repository với methods:
-- `findByPatientIdAndStatus(UUID, ConnectionStatus)`
-- `findByCaregiverIdAndStatus(UUID, ConnectionStatus)`
-- `existsActiveConnection(UUID patientId, UUID caregiverId)`
-
-**Files:**
-- `user-service/src/main/java/com/company/userservice/repository/UserConnectionRepository.java`
-
----
-
-### REPO-003: ConnectionPermissionRepository
-| Field | Value |
-|-------|-------|
-| **Service** | user-service |
-| **Priority** | P0 |
-| **Estimated** | 1h |
-| **Dependencies** | ENTITY-003 |
-
-**Description:**
-Repository với methods:
-- `findByConnectionId(UUID)`
-- `findByConnectionIdAndPermissionType(UUID, PermissionType)`
-
-**Files:**
-- `user-service/src/main/java/com/company/userservice/repository/ConnectionPermissionRepository.java`
-
----
-
-## Phase 1: Proto & gRPC
-
-### PROTO-001: ConnectionService Proto Definition
-| Field | Value |
-|-------|-------|
-| **Service** | user-service |
-| **Priority** | P0 |
-| **Estimated** | 2h |
-| **Dependencies** | None |
-
-**Description:**
-Proto file định nghĩa:
-- Messages: CreateInviteRequest, AcceptInviteRequest, ListConnectionsRequest, UpdatePermissionsRequest, etc.
-- Service: ConnectionService với 12 RPC methods (incl. GetViewingPatient, SetViewingPatient)
-
-**Files:**
-- `user-service/src/main/proto/connection_service.proto`
-
-**API Contract:**
-```protobuf
-service ConnectionService {
-  rpc CreateInvite(CreateInviteRequest) returns (InviteResponse);
-  rpc GetInvite(GetInviteRequest) returns (InviteResponse);
-  rpc ListInvites(ListInvitesRequest) returns (ListInvitesResponse);
-  rpc AcceptInvite(AcceptInviteRequest) returns (ConnectionResponse);
-  rpc RejectInvite(RejectInviteRequest) returns (InviteResponse);
-  rpc ListConnections(ListConnectionsRequest) returns (ListConnectionsResponse);
-  rpc Disconnect(DisconnectRequest) returns (ConnectionResponse);
-  rpc GetPermissions(GetPermissionsRequest) returns (PermissionsResponse);
-  rpc UpdatePermissions(UpdatePermissionsRequest) returns (PermissionsResponse);
-  // Profile Selection (v2.7)
-  rpc GetViewingPatient(GetViewingPatientRequest) returns (ViewingPatientResponse);
-  rpc SetViewingPatient(SetViewingPatientRequest) returns (ViewingPatientResponse);
-  // Update Pending Invite Permissions (v2.16)
-  rpc UpdatePendingInvitePermissions(UpdatePendingInvitePermissionsRequest) returns (UpdatePendingInvitePermissionsResponse);
-}
-```
-
----
-
-### PROTO-002: Proto Compilation
-| Field | Value |
-|-------|-------|
-| **Service** | user-service, api-gateway |
-| **Priority** | P0 |
-| **Estimated** | 1h |
-| **Dependencies** | PROTO-001 |
-
-**Description:**
-Compile proto và copy generated files sang api-gateway-service.
-
-**Commands:**
 ```bash
-cd user-service && mvn clean generate-sources
-cp -r target/generated-sources/protobuf ../api-gateway-service/src/main/proto-generated/
+# User Service Unit Tests
+cd alio-services/user-service
+./gradlew test --tests "*FamilyGroup*" --tests "*Connection*"
+
+# API Gateway Integration Tests
+cd alio-services/api-gateway-service
+./gradlew test --tests "*FamilyGroup*" --tests "*Connection*"
+
+# Schedule Service Tests
+cd schedule-service
+pytest tests/test_member_broadcast.py tests/test_connection_events.py
+
+# Full Regression
+cd alio-services
+./gradlew test
 ```
 
 ---
 
-## Phase 1: Service Layer
+## References
 
-### SVC-001: InviteService
-| Field | Value |
-|-------|-------|
-| **Service** | user-service |
-| **Priority** | P0 |
-| **Estimated** | 4h |
-| **Dependencies** | REPO-001, ENTITY-001 |
-
-**Description:**
-Business logic cho invite lifecycle:
-- `createInvite()`: Validation (BR-006, BR-007), create record, publish Kafka event
-- `getInvite()`: Fetch by ID
-- `listInvites()`: List sent/received with filters
-- `rejectInvite()`: Update status to rejected
-- `cancelInvite()`: Cancel pending invite (sender only)
-- **`updatePendingInvitePermissions()`: Update permissions for pending invite (v2.16)**
-
-**Files:**
-- `user-service/src/main/java/com/company/userservice/service/InviteService.java`
-
-**Business Rules:**
-- BR-006: No self-invite
-- BR-007: No duplicate pending invite
-- **BR-031: Only sender can update pending invite permissions (v2.16)**
-- **BR-032: Only pending invites (status=0) can be updated (v2.16)**
-- **BR-033: Permissions saved to initial_permissions (v2.16)**
-- **BR-034: No notification to receiver on update (v2.16)**
-
----
-
-### SVC-002: ConnectionService
-| Field | Value |
-|-------|-------|
-| **Service** | user-service |
-| **Priority** | P0 |
-| **Estimated** | 4h |
-| **Dependencies** | REPO-002, SVC-001, SVC-003 |
-
-**Description:**
-Business logic cho connection:
-- `acceptInvite()`: Transaction - create connection + 6 permissions + update invite
-- `listConnections()`: Group by role (patients vs caregivers)
-- `disconnect()`: Update status, publish Kafka event
-
-**Files:**
-- `user-service/src/main/java/com/company/userservice/service/ConnectionServiceImpl.java`
-
----
-
-### SVC-003: PermissionService
-| Field | Value |
-|-------|-------|
-| **Service** | user-service |
-| **Priority** | P0 |
-| **Estimated** | 3h |
-| **Dependencies** | REPO-003, ENTITY-003 |
-
-**Description:**
-RBAC permission management:
-- `createDefaultPermissions()`: Create 6 permissions with default ON
-- `getPermissions()`: Get current permission flags
-- `updatePermissions()`: Toggle flags, publish Kafka event
-
-**Files:**
-- `user-service/src/main/java/com/company/userservice/service/PermissionService.java`
-
----
-
-### SVC-004: ViewingPatientService (NEW v2.7)
-| Field | Value |
-|-------|-------|
-| **Service** | user-service |
-| **Priority** | P0 |
-| **Estimated** | 3h |
-| **Dependencies** | REPO-002 |
-
-**Description:**
-Profile selection management (BR-026):
-- `getViewingPatient()`: Get currently selected patient from is_viewing=true
-- `setViewingPatient()`: Update is_viewing flags (transaction: clear old + set new)
-
-**Files:**
-- `user-service/src/main/java/com/company/userservice/service/ViewingPatientService.java`
-- `user-service/src/main/java/com/company/userservice/repository/ViewingPatientRepository.java`
-
-**Database:**
-- Read/Write `user_emergency_contacts.is_viewing`
-- Unique constraint: Only 1 row per user can have `is_viewing=true`
-
-**Business Rules:**
-- Validate connection_id belongs to user's monitoring[] list
-- Auto-clear previous selection on new selection
-
----
-
-### HANDLER-001: ConnectionHandler (gRPC)
-| Field | Value |
-|-------|-------|
-| **Service** | user-service |
-| **Priority** | P0 |
-| **Estimated** | 3h |
-| **Dependencies** | SVC-001, SVC-002, SVC-003 |
-
-**Description:**
-gRPC handler implementing ConnectionService proto interface.
-
-**Files:**
-- `user-service/src/main/java/com/company/userservice/handler/ConnectionHandler.java`
-
----
-
-## Phase 1: API Gateway
-
-### CLIENT-001: ConnectionServiceClient
-| Field | Value |
-|-------|-------|
-| **Service** | api-gateway-service |
-| **Priority** | P0 |
-| **Estimated** | 2h |
-| **Dependencies** | PROTO-002 |
-
-**Description:**
-gRPC client để call user-service ConnectionService.
-
-**Files:**
-- `api-gateway-service/src/main/java/com/company/apiservice/client/ConnectionServiceClient.java`
-
----
-
-### GW-HANDLER-001: InviteHandler (REST)
-| Field | Value |
-|-------|-------|
-| **Service** | api-gateway-service |
-| **Priority** | P0 |
-| **Estimated** | 3h |
-| **Dependencies** | CLIENT-001 |
-
-**Description:**
-REST endpoints:
-- POST `/api/v1/invites`
-- GET `/api/v1/invites`
-- POST `/api/v1/invites/{id}/accept`
-- POST `/api/v1/invites/{id}/reject`
-
-**Files:**
-- `api-gateway-service/src/main/java/com/company/apiservice/handler/InviteHandler.java`
-
----
-
-### GW-HANDLER-002: ConnectionHandler (REST)
-| Field | Value |
-|-------|-------|
-| **Service** | api-gateway-service |
-| **Priority** | P0 |
-| **Estimated** | 3h |
-| **Dependencies** | CLIENT-001 |
-
-**Description:**
-REST endpoints:
-- GET `/api/v1/connections`
-- DELETE `/api/v1/connections/{id}`
-- GET `/api/v1/connections/{id}/permissions`
-- PUT `/api/v1/connections/{id}/permissions`
-- GET `/api/v1/connection/permission-types`
-- GET `/api/v1/connections/viewing` (NEW v2.7)
-- PUT `/api/v1/connections/viewing` (NEW v2.7)
-- **PUT `/api/v1/connections/invites/{id}/permissions` (NEW v2.16)**
-
-**Files:**
-- `api-gateway-service/src/main/java/com/company/apiservice/handler/ConnectionHandler.java`
-
----
-
-## Phase 2: Async & Notifications
-
-### KAFKA-001: Kafka Producer Setup
-| Field | Value |
-|-------|-------|
-| **Service** | user-service |
-| **Priority** | P1 |
-| **Estimated** | 2h |
-| **Dependencies** | SVC-001, SVC-002, SVC-003 |
-
-**Description:**
-Configure Kafka producer cho 3 topics:
-- `connection.invite.created`
-- `connection.status.changed`
-- `connection.permission.changed`
-
-**Files:**
-- `user-service/src/main/java/com/company/userservice/config/KafkaProducerConfig.java`
-- `user-service/src/main/java/com/company/userservice/event/ConnectionEvent.java`
-
----
-
-### SCHED-001: Invite Notification Task
-| Field | Value |
-|-------|-------|
-| **Service** | schedule-service |
-| **Priority** | P1 |
-| **Estimated** | 4h |
-| **Dependencies** | KAFKA-001 |
-
-**Description:**
-Celery task xử lý:
-- Consume `connection.invite.created`
-- Send ZNS/Push notification
-- Fallback to SMS if ZNS fails (3x retry, 30s interval)
-
-**Files:**
-- `schedule-service/schedule_service/tasks/connection/invite_notification.py`
-
----
-
-### SCHED-002: Connection Notification Task
-| Field | Value |
-|-------|-------|
-| **Service** | schedule-service |
-| **Priority** | P1 |
-| **Estimated** | 3h |
-| **Dependencies** | KAFKA-001 |
-
-**Description:**
-Celery task xử lý:
-- Consume `connection.status.changed` và `connection.permission.changed`
-- Send Push notification to affected users
-
-**Files:**
-- `schedule-service/schedule_service/tasks/connection/connection_notification.py`
-
----
-
-## Phase 3: Testing
-
-### TEST-001: InviteService Unit Tests
-| Field | Value |
-|-------|-------|
-| **Service** | user-service |
-| **Priority** | P1 |
-| **Estimated** | 3h |
-| **Dependencies** | SVC-001 |
-
-**Description:**
-Unit tests cho InviteService với các test cases:
-- Happy path: create invite
-- Edge case: self-invite (BR-006)
-- Edge case: duplicate pending (BR-007)
-- Edge case: already connected
-
-**Files:**
-- `user-service/src/test/java/com/company/userservice/service/InviteServiceTest.java`
-
-**Run Command:**
-```bash
-cd user-service && mvn test -Dtest=InviteServiceTest
-```
-
----
-
-### TEST-002: ConnectionService Unit Tests
-| Field | Value |
-|-------|-------|
-| **Service** | user-service |
-| **Priority** | P1 |
-| **Estimated** | 3h |
-| **Dependencies** | SVC-002 |
-
-**Description:**
-Unit tests cho ConnectionService:
-- Happy path: accept invite → create connection
-- Happy path: disconnect
-- Verify 6 default permissions created
-
-**Files:**
-- `user-service/src/test/java/com/company/userservice/service/ConnectionServiceTest.java`
-
-**Run Command:**
-```bash
-cd user-service && mvn test -Dtest=ConnectionServiceTest
-```
-
----
-
-### TEST-002B: PermissionService Unit Tests
-| Field | Value |
-|-------|-------|
-| **Service** | user-service |
-| **Priority** | P1 |
-| **Estimated** | 3h |
-| **Dependencies** | SVC-003 |
-
-**Description:**
-Unit tests cho PermissionService với các test cases:
-- Happy path: toggle permission ON/OFF
-- Edge case: toggle emergency_alert OFF → verify warning required (BR-018)
-- Happy path: get all 6 permissions for connection
-- Kafka event published on permission change (BR-016)
-
-**Files:**
-- `user-service/src/test/java/com/company/userservice/service/PermissionServiceTest.java`
-
-**Run Command:**
-```bash
-cd user-service && mvn test -Dtest=PermissionServiceTest
-```
-
----
-
-### TEST-003: API Gateway Handler Tests
-| Field | Value |
-|-------|-------|
-| **Service** | api-gateway-service |
-| **Priority** | P1 |
-| **Estimated** | 3h |
-| **Dependencies** | GW-HANDLER-001, GW-HANDLER-002 |
-
-**Description:**
-Unit tests cho REST handlers với mocked gRPC client.
-
-**Files:**
-- `api-gateway-service/src/test/java/com/company/apiservice/handler/InviteHandlerTest.java`
-- `api-gateway-service/src/test/java/com/company/apiservice/handler/ConnectionHandlerTest.java`
-
-**Run Command:**
-```bash
-cd api-gateway-service && mvn test -Dtest=*HandlerTest
-```
-
----
-
-### TEST-004: Integration Tests
-| Field | Value |
-|-------|-------|
-| **Service** | all |
-| **Priority** | P2 |
-| **Estimated** | 4h |
-| **Dependencies** | All tasks |
-
-**Description:**
-End-to-end integration tests:
-1. Create invite → Accept → Verify connection exists
-2. Update permission → Verify Kafka event published
-3. Disconnect → Verify cascade updates
-
-**Run Command:**
-```bash
-mvn verify -Pintegration-test
-```
-
----
-
-## Summary by Service
-
-| Service | Tasks | Estimated Hours |
-|---------|-------|-----------------|
-| database | 1 | 2h |
-| user-service | 20 | 42h |
-| api-gateway-service | 7 | 16h |
-| schedule-service | 2 | 7h |
-| **mobile-app** | **4** | **7h** |
-| testing | 10 | 21h |
-| **TOTAL** | **45** | **95h** |
-
----
-
-## NEW TASKS (v2.15)
-
-### MOBILE-001: Default View Prompt Component
-| Field | Value |
-|-------|-------|
-| **Service** | mobile-app |
-| **Priority** | P0 |
-| **Estimated** | 2h |
-| **Dependencies** | None |
-
-**Description:**
-Create `DefaultViewPrompt` component with:
-- Icon (👋, 48px)
-- Title: "Chọn người thân để bắt đầu"
-- Subtitle: "Nhấn nút bên dưới..."
-- CTA Button: "📋 Xem danh sách người thân" → toggleBottomSheet()
-
-**Files:**
-- `app-mobile-ai/src/features/connect_relatives/components/DefaultViewPrompt.tsx`
-
-**Acceptance Criteria:**
-- [ ] Component matches Figma design
-- [ ] CTA button triggers toggleBottomSheet()
-- [ ] Renders when selectedPatient === null && monitoring.length > 0
-
----
-
-### MOBILE-002: Stop Follow Link Visibility
-| Field | Value |
-|-------|-------|
-| **Service** | mobile-app |
-| **Priority** | P0 |
-| **Estimated** | 1h |
-| **Dependencies** | MOBILE-001 |
-
-**Description:**
-Update "Ngừng theo dõi" link visibility per UX-DVS-004:
-- Show only when: `selectedPatient !== null && !emptyState`
-
-**Files:**
-- `app-mobile-ai/src/features/connect_relatives/components/StopFollowingLink.tsx`
-
-**Business Rules:**
-- UX-DVS-004: Link visibility condition
-- UX-DVS-005: Modal validation before show
-
----
-
-### MOBILE-003: Disconnect Side Effects
-| Field | Value |
-|-------|-------|
-| **Service** | mobile-app |
-| **Priority** | P0 |
-| **Estimated** | 2h |
-| **Dependencies** | SVC-002 |
-
-**Description:**
-Update disconnect flow to:
-1. Clear `localStorage.selectedPatient`
-2. Clear `localStorage.selectedConnection`
-3. Navigate to SCR-01 with Default View Prompt
-4. Show success toast
-
-**Files:**
-- `app-mobile-ai/src/features/connect_relatives/hooks/useViewingPatient.ts`
-- `app-mobile-ai/src/features/connect_relatives/screens/ConnectRelativesScreen.tsx`
-
----
-
-### MOBILE-004: State Flow Validation
-| Field | Value |
-|-------|-------|
-| **Service** | mobile-app |
-| **Priority** | P1 |
-| **Estimated** | 2h |
-| **Dependencies** | MOBILE-001, MOBILE-002, MOBILE-003 |
-
-**Description:**
-Validate localStorage.selectedPatient on page load:
-- If exists but connection no longer active → Clear + Show Default View
-- If connection disconnected by Patient → Toast + Clear + Navigate
-
-**Acceptance Criteria:**
-- [ ] Invalid connection ID handled gracefully
-- [ ] Toast notification for disconnection events
-
----
-
-### SVC-005: Mark Report as Read Service
-| Field | Value |
-|-------|-------|
-| **Service** | user-service |
-| **Priority** | P1 |
-| **Estimated** | 2h |
-| **Dependencies** | REPO-003 |
-
-**Description:**
-Implement mark report as read logic:
-- Insert into `caregiver_report_views` (ON CONFLICT DO NOTHING)
-- Return success with read timestamp
-
-**Files:**
-- `user-service/src/main/java/com/userservice/service/ReportReadService.java`
-- `user-service/src/main/java/com/userservice/repository/CaregiverReportViewRepository.java`
-
-**Database:**
-- Write to `caregiver_report_views(caregiver_id, report_id, viewed_at)`
-
----
-
-### GW-HANDLER-003: Mark Report Read Handler
-| Field | Value |
-|-------|-------|
-| **Service** | api-gateway-service |
-| **Priority** | P1 |
-| **Estimated** | 2h |
-| **Dependencies** | SVC-005, CLIENT-001 |
-
-**Description:**
-REST endpoint: `POST /api/v1/patients/{patientId}/periodic-reports/{reportId}/mark-read`
-
-**Files:**
-- `api-gateway-service/src/main/java/com/apiservice/handler/PatientReportHandler.java`
-
-**Authorization:**
-- SEC-DB-001: Check connection + permission #1
-
----
-
-### TEST-005: Default View State Tests
-| Field | Value |
-|-------|-------|
-| **Service** | mobile-app |
-| **Priority** | P2 |
-| **Estimated** | 2h |
-| **Dependencies** | MOBILE-001~004 |
-
-**Description:**
-Unit tests for Default View State flow:
-1. First visit (no localStorage) → Default View Prompt shown
-2. Select Patient → Dashboard loads, localStorage saved
-3. Stop following → Return to Default View Prompt
-4. Close Bottom Sheet without selecting → Remain on Default View
-
-**Files:**
-- `app-mobile-ai/src/features/connect_relatives/__tests__/DefaultViewState.test.tsx`
-
----
-
-### TEST-006: Mark Report Read Tests
-| Field | Value |
-|-------|-------|
-| **Service** | user-service |
-| **Priority** | P2 |
-| **Estimated** | 1h |
-| **Dependencies** | SVC-005 |
-
-**Description:**
-Unit tests for mark report as read:
-- Happy path: Mark report as read
-- Idempotency: Mark same report twice → No error
-- Authorization: 403 if no connection or permission OFF
-
-**Files:**
-- `user-service/src/test/java/com/userservice/service/ReportReadServiceTest.java`
-
----
-
-## NEW TASKS (v2.16)
-
-### SVC-006: UpdatePendingInvitePermissions Service
-| Field | Value |
-|-------|-------|
-| **Service** | user-service |
-| **Priority** | P0 |
-| **Estimated** | 2h |
-| **Dependencies** | REPO-001, ENTITY-001 |
-
-**Description:**
-Implement updatePendingInvitePermissions logic:
-- Validate sender is the invite owner (BR-031)
-- Validate invite status is pending (BR-032)
-- Update initial_permissions JSONB field (BR-033)
-- No Kafka event published (BR-034)
-
-**Files:**
-- `user-service/src/main/java/com/company/userservice/service/InviteService.java`
-- `user-service/src/main/java/com/company/userservice/service/impl/InviteServiceImpl.java`
-
-**Database:**
-- Update `connection_invites.initial_permissions` JSONB
-
-**Business Rules:**
-- BR-031: Only sender can update
-- BR-032: Only pending invites (status=0)
-- BR-033: Write to initial_permissions
-- BR-034: No notification
-
----
-
-### GW-HANDLER-004: UpdatePendingInvitePermissions Handler
-| Field | Value |
-|-------|-------|
-| **Service** | api-gateway-service |
-| **Priority** | P0 |
-| **Estimated** | 2h |
-| **Dependencies** | SVC-006, CLIENT-001 |
-
-**Description:**
-REST endpoint: `PUT /api/v1/connections/invites/{inviteId}/permissions`
-
-**Files:**
-- `api-gateway-service/src/main/java/com/company/apiservice/handler/InviteHandler.java`
-- `api-gateway-service/src/main/java/com/company/apiservice/dto/request/UpdatePendingInvitePermissionsRequest.java`
-- `api-gateway-service/src/main/java/com/company/apiservice/dto/response/UpdatePendingInvitePermissionsResponse.java`
-
-**API Contract:**
-```yaml
-PUT /api/v1/connections/invites/{inviteId}/permissions
-Request:
-  {
-    "permissions": {
-      "health_overview": true,
-      "emergency_alert": true,
-      "task_config": false,
-      "compliance_tracking": true,
-      "proxy_execution": false,
-      "encouragement": true
-    }
-  }
-Response: 200
-  {
-    "invite_id": "uuid",
-    "permissions": {...},
-    "updated_at": "ISO8601"
-  }
-Errors:
-  - 400: INVALID_PERMISSION_TYPE
-  - 403: NOT_AUTHORIZED (not sender)
-  - 404: INVITE_NOT_FOUND
-  - 409: INVITE_NOT_PENDING
-```
-
----
-
-### TEST-007: UpdatePendingInvitePermissions Tests
-| Field | Value |
-|-------|-------|
-| **Service** | user-service |
-| **Priority** | P0 |
-| **Estimated** | 2h |
-| **Dependencies** | SVC-006 |
-
-**Description:**
-Unit tests for updatePendingInvitePermissions:
-- TC-INV-030: Sender updates permissions successfully
-- TC-INV-031: Non-sender → 403 NOT_AUTHORIZED
-- TC-INV-032: Non-pending invite → 409 INVITE_NOT_PENDING
-- TC-INV-033: Invite not found → 404
-- TC-INV-034: Invalid permission code → 400
-- TC-INV-035: Permissions saved to initial_permissions
-- TC-INV-036: No Kafka event published
-- TC-INV-037: Partial update works
-
-**Files:**
-- `user-service/src/test/java/com/company/userservice/service/InviteServiceTest.java`
-
-**Run Command:**
-```bash
-cd user-service && mvn test -Dtest=InviteServiceTest#testUpdatePendingInvitePermissions*
-```
+- [FA Service Decomposition v4.0](file:///Users/nguyenvanhuy/Desktop/OSP/Kolia/dev/kolia/docs/nguoi_than/features/ket_noi_nguoi_than/02_planning/service-decomposition.md)
+- [SA Implementation Recommendations v4.0](file:///Users/nguyenvanhuy/Desktop/OSP/Kolia/dev/kolia/docs/nguoi_than/sa-analysis/ket_noi_nguoi_than/07_risks/implementation_recommendations.md)

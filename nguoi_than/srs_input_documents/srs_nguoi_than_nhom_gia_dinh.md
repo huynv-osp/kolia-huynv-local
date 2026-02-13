@@ -74,6 +74,10 @@ Tài liệu SRS này mô tả các yêu cầu chức năng và phi chức năng 
 
 ---
 
+# US-1: KẾT NỐI TÀI KHOẢN
+
+---
+
 # PHẦN A: ROLE NGƯỜI BỆNH (PATIENT)
 
 > **Mô tả:** Các chức năng dành cho người bệnh - người quản lý ai được theo dõi mình.
@@ -289,22 +293,9 @@ Then Profile Selector **ẨN** (không hiển thị)
   And Ref: BR-015, BR-043, BR-051
 ```
 
-#### A3.3b: Non-Admin (Member / Free) — Chưa được add vào nhóm
+#### A3.3b: Non-Admin (Free) — Paywall
 
-```gherkin
-Given User KHÔNG phải Admin (chưa kích hoạt gói hoặc chưa được add vào nhóm)
-  And User chưa có kết nối nào
-When User mở màn hình "Kết nối Người thân" (SCR-01)
-Then Profile Selector **ẨN** (không hiển thị)
-  And Hiển thị empty illustration:
-  | Icon: 🔗 (56px) |
-  | Title: "Chưa có kết nối nào" |
-  | Subtitle: "Khi được thêm vào nhóm gia đình, kết nối sẽ hiển thị ở đây" |
-  | Guidance: "Liên hệ quản trị viên nhóm gia đình để được thêm vào" |
-  | CTA: ❌ KHÔNG CÓ (non-Admin không thể tự mời) |
-  And Header **KHÔNG** có nút 👥 (vì không phải Admin)
-  And Ref: BR-015, BR-051
-```
+> **Không hiển thị màn này.** User ở gói miễn phí → **Paywall popup** (xem [Payment SRS](../payment/srs-quan-ly-goi-dich-vu.md)).
 
 ---
 
@@ -506,170 +497,9 @@ Then Điều hướng đến màn hình "Kết nối người thân"
 
 ---
 
-## B.3 Xem Chi tiết Patient (Dashboard)
+## B.3 Trạng thái màn hình & Empty States
 
-**User Story:** Là một **Caregiver**, tôi muốn **xem thông tin sức khỏe của Patient**, để **theo dõi tình trạng của họ**.
-
-> **Scope:** Dashboard hiển thị sau khi chọn Patient từ Profile Switcher  
-> **Dependency:** Các UI Blocks phụ thuộc vào Permissions được Patient cấp
-
-> **UI Layout:** Xem [Section 5.2 - Dashboard View](#52-screen-layout-scr-01-bottom-sheet-based)
-
-### Kịch bản B3.1: Xem Dashboard Patient (Happy Path)
-
-```gherkin
-Given Caregiver đang ở màn "Kết nối người thân"
-When Caregiver tap vào Patient X trong list "Tôi đang theo dõi"
-Then SCR-01 reload với Profile Switcher = Patient X
-  And Hiển thị các UI Blocks theo permissions đang ON
-  And Blocks của permissions OFF sẽ bị ẨN
-  And Ref: BR-017, BR-DB-011
-```
-
----
-
-### B.3.2 US 1.1: Xem tổng quan sức khỏe người bệnh
-
-> **Permission Required:** Quyền #1 - "Xem tổng quan sức khỏe" (Default: ON)  
-> **Status:** ✅ Ready for Dev  
-> **Wireframe:** [us_1_1_wireframe_health_overview.png](../../01_input/ket_noi_nguoi_than/reference/us_1_1_wireframe_health_overview.png)
-
-**User Story:** Là một **Caregiver**, tôi muốn **xem tổng quan sức khỏe của Patient**, để **nắm bắt tình trạng sức khỏe của họ một cách nhanh chóng**.
-
-#### Kịch bản B3.2.1: Xem biểu đồ xu hướng huyết áp
-
-```gherkin
-Given Caregiver đang ở SCR-01 Dashboard
-  And Caregiver đã chọn Patient từ Profile Switcher
-  And Patient có data huyết áp trong tháng hiện tại
-  And Permission #1 = ON
-When Màn hình load xong
-Then Hệ thống hiển thị block "Xu hướng huyết áp"
-  And Hiển thị Line Chart với 2 đường:
-    | Đường | Màu | Ý nghĩa |
-    | Tâm thu | Xanh lá | Systolic BP |
-    | Tâm trương | Xanh dương | Diastolic BP |
-  And Toggle filter theo logic auto-select (xem BR-DB-002)
-  And Chip filter mặc định = "Tất cả"
-  And Trục X = ngày trong tháng (dd/MM)
-  And Trục Y = mmHg (dynamic range theo data)
-  Ref: BR-DB-001, BR-DB-004
-```
-
-#### Kịch bản B3.2.2: Chọn xem chi tiết ngày cụ thể
-
-```gherkin
-Given Caregiver đang xem biểu đồ HA tháng
-  And Chip filter "Tất cả" đang được chọn
-When Caregiver tap chip "Ngày 15/1"
-Then Biểu đồ chuyển sang view CHI TIẾT NGÀY
-  And Trục X = Giờ trong ngày (HH:00)
-  And Hiển thị tất cả lần đo trong ngày 15/1
-  Ref: BR-DB-006, SRS Báo cáo BR-006
-```
-
-#### Kịch bản B3.2.3: Quay lại từ chi tiết ngày
-
-```gherkin
-Given Caregiver đang xem biểu đồ chi tiết ngày 15/1
-When Caregiver tap chip "Tất cả"
-Then Biểu đồ quay lại view TỔNG QUAN
-  And Trục X = ngày trong khoảng thời gian
-```
-
-#### Kịch bản B3.2.4: Đổi filter Tuần/Tháng
-
-```gherkin
-Given Caregiver đang xem biểu đồ HA với filter "Tháng"
-When Caregiver tap toggle "Tuần"
-Then Biểu đồ reload với data 7 ngày gần nhất
-  And Chip filter reset về "Tất cả"
-  Ref: BR-DB-002
-```
-
-#### Kịch bản B3.2.5: Auto-select tab khi Tuần empty
-
-```gherkin
-Given Caregiver vừa chọn Patient từ Profile Switcher
-  And Patient KHÔNG có data HA trong 7 ngày gần nhất (Tuần)
-  And Patient CÓ data HA trong tháng hiện tại
-When Dashboard load xong
-Then Toggle filter tự động chọn "Tháng" (fallback)
-  And Hiển thị data tháng thay vì empty state
-  Ref: BR-DB-002
-```
-
-#### Kịch bản B3.2.6: Tap điểm dữ liệu xem tooltip
-
-```gherkin
-Given Caregiver đang xem biểu đồ HA
-When Caregiver tap vào 1 điểm dữ liệu trên chart
-Then Hiển thị tooltip với:
-  | Field | Ví dụ |
-  | Ngày | 15/01/2026 |
-  | Tâm thu | 125 mmHg |
-  | Tâm trương | 78 mmHg |
-  Ref: BR-DB-005
-```
-
-#### Kịch bản B3.2.7: Xem danh sách báo cáo sức khỏe
-
-```gherkin
-Given Caregiver đang ở SCR-01 Dashboard
-  And Patient có ít nhất 1 báo cáo định kỳ
-When Caregiver tap button "Xem thêm" trong Block Báo cáo sức khỏe
-Then Navigate đến màn hình danh sách báo cáo (SCR-REPORT-LIST)
-  And Header title = "Báo cáo sức khỏe của {Mối quan hệ}" (VD: "Báo cáo sức khỏe của Mẹ"). Nếu MQH = "Khác" → "Báo cáo sức khỏe của {Tên}"
-  And Toggle filter: Ngày | Tuần | Tháng (default = Tuần)
-  And Báo cáo chưa đọc có chấm đỏ (●) trên icon và viền trái xanh
-  And Không hiển thị toast khi chuyển tab filter
-  Ref: BR-DB-007, BR-RPT-001, BR-RPT-002
-  Impact: CR_003 Scenario #1 (Notification gửi cho Caregiver khi có báo cáo mới)
-```
-
-#### Kịch bản B3.2.8: Xem chi tiết báo cáo
-
-```gherkin
-Given Caregiver đang ở màn hình danh sách báo cáo
-When Caregiver tap vào "Báo cáo Tuần 3 - Tháng 12"
-Then Navigate đến màn chi tiết báo cáo (reuse Patient UI)
-  And Hiển thị TẤT CẢ sections trong báo cáo
-  Ref: BR-DB-008, SRS Báo cáo BR-005
-```
-
-#### Kịch bản B3.2.9: Empty State - Không có data HA
-
-```gherkin
-Given Caregiver đang ở SCR-01 Dashboard
-  And Patient KHÔNG có data huyết áp trong CẢ Tuần VÀ Tháng
-When Màn hình load xong
-Then Block "Xu hướng huyết áp" hiển thị empty state
-  And Message: "[Mối quan hệ của Patient] chưa có lần đo nào trong khoảng thời gian này."
-  Ref: BR-DB-009
-```
-
-#### Kịch bản B3.2.10: Empty State - Không có báo cáo (User mới)
-
-> **Lưu ý:** Báo cáo định kỳ (ngày/tuần/tháng) **LUÔN được tạo theo lịch**, kể cả khi Patient không có dữ liệu hoạt động. Kịch bản này chỉ xảy ra với **user mới** chưa đủ thời gian để hệ thống tạo báo cáo đầu tiên.
-
-```gherkin
-Given Caregiver đang ở màn hình danh sách báo cáo
-  And Patient là user mới, chưa có báo cáo nào được tạo
-When Màn hình load xong
-Then Hiển thị empty state
-  And Message: "Chưa có báo cáo nào. Báo cáo sẽ được tạo tự động theo lịch định kỳ."
-  Ref: BR-DB-010
-```
-
-#### Kịch bản B3.2.11: Permission OFF - Block bị ẩn
-
-```gherkin
-Given Caregiver đang ở SCR-01 Dashboard
-  And Permission #1 "Xem tổng quan sức khỏe" = OFF
-When Màn hình load xong
-Then Block "Xu hướng huyết áp" KHÔNG hiển thị
-  Ref: BR-DB-011, SEC-DB-001
-```
+> **Mô tả:** Các trạng thái hiển thị của SCR-01 khi CG chưa chọn Patient, chưa có kết nối, hoặc chưa có Patient trong nhóm.
 
 
 #### Kịch bản B3.3b: Default View State - Khi chưa chọn Patient (Option E)
@@ -681,14 +511,15 @@ Given Caregiver đang ở SCR-01
   And selectedPatient = null
   And Caregiver đang theo dõi ít nhất 1 Patient
 When Màn hình load xong
-Then Hiển thị "Default View Prompt" gồm:
-  | Element | Chi tiết |
-  | Icon | 👋 (48px) |
-  | Title | "Chọn người thân để bắt đầu" |
-  | Subtitle | "Nhấn nút bên dưới để chọn người bạn muốn theo dõi" |
-  | CTA Button | "📋 Xem danh sách người thân" → toggleBottomSheet() |
+Then Profile Selector hiển thị "Chọn người thân ▼" (chưa chọn ai)
+  And Status text: "Đang theo dõi {n} người"
+  And Hiển thị prompt area gồm:
+    | Element | Chi tiết |
+    | Icon | 👋 (48px) |
+    | Title | "Chọn người thân ở phía trên để xem sức khỏe của họ" |
+  And KHÔNG có CTA button — user tap Profile Selector để mở Bottom Sheet
 
-When Caregiver nhấn CTA "Xem danh sách người thân"
+When Caregiver nhấn Profile Selector
 Then toggleBottomSheet() → Mở Bottom Sheet "Danh sách kết nối"
   And Caregiver có thể chọn Patient từ list "Tôi đang theo dõi"
   Ref: UX-DVS-001, UX-DVS-002
@@ -738,6 +569,22 @@ Then Profile Selector hiển thị State B (có người theo dõi mình)
   Ref: BR-015, BR-026
 ```
 
+#### Kịch bản B3.3f: CG đã thuộc nhóm nhưng chưa có Patient (v5.3)
+
+```gherkin
+Given Caregiver đã accept lời mời vào nhóm
+  And Nhóm chưa có Patient nào (active hoặc tất cả Patient chưa accept)
+When Caregiver mở màn hình "Kết nối người thân" (SCR-01)
+Then Profile Selector ẨN
+  And Hiển thị empty state:
+    | Icon | 👋 (48px) |
+    | Title | "Chưa có người bệnh nào trong nhóm" |
+    | Message | "Khi có người bệnh tham gia, bạn sẽ thấy thông tin sức khỏe của họ tại đây." |
+    | Guidance | 💡 "Liên hệ quản trị viên nhóm để thêm người bệnh" (muted) |
+  And KHÔNG có CTA button
+  Ref: BR-051
+```
+
 #### UX Rules (Default View State)
 
 | Rule-ID | Category | Mô tả | Priority |
@@ -748,6 +595,177 @@ Then Profile Selector hiển thị State B (có người theo dõi mình)
 | UX-DVS-004 | Stop Follow Link | **v4.0: ĐÃ ẨN.** Link "Ngừng theo dõi" ẨN trong mọi trường hợp. Caregiver không tự ngừng theo dõi được — chỉ Admin xoá thành viên | P0 |
 | UX-DVS-005 | Modal Validation | showStopFollowModal() kiểm tra selectedPatient trước khi hiện modal, toast nếu null | P1 |
 
+
+---
+
+# US-2: XEM TỔNG QUAN SỨC KHỎE NGƯỜI BỆNH
+
+---
+
+## D.1 Dashboard Patient
+
+**User Story:** Là một **Caregiver**, tôi muốn **xem thông tin sức khỏe của Patient**, để **theo dõi tình trạng của họ**.
+
+> **Scope:** Dashboard hiển thị sau khi chọn Patient từ Profile Switcher  
+> **Dependency:** Các UI Blocks phụ thuộc vào Permissions được Patient cấp
+
+> **UI Layout:** Xem [Section 5.2 - Dashboard View](#52-screen-layout-scr-01-bottom-sheet-based)
+
+### Kịch bản D1.1: Xem Dashboard Patient (Happy Path)
+
+```gherkin
+Given Caregiver đang ở màn "Kết nối người thân"
+When Caregiver tap vào Patient X trong list "Tôi đang theo dõi"
+Then SCR-01 reload với Profile Switcher = Patient X
+  And Hiển thị các UI Blocks theo permissions đang ON
+  And Blocks của permissions OFF sẽ bị ẨN
+  And Ref: BR-017, BR-DB-011
+```
+
+---
+
+### D.1.2 US 1.1: Xem tổng quan sức khỏe người bệnh
+
+> **Permission Required:** Quyền #1 - "Xem tổng quan sức khỏe" (Default: ON)  
+> **Status:** ✅ Ready for Dev  
+> **Wireframe:** [us_1_1_wireframe_health_overview.png](../../01_input/ket_noi_nguoi_than/reference/us_1_1_wireframe_health_overview.png)
+
+**User Story:** Là một **Caregiver**, tôi muốn **xem tổng quan sức khỏe của Patient**, để **nắm bắt tình trạng sức khỏe của họ một cách nhanh chóng**.
+
+#### Kịch bản D1.2.1: Xem biểu đồ xu hướng huyết áp
+
+```gherkin
+Given Caregiver đang ở SCR-01 Dashboard
+  And Caregiver đã chọn Patient từ Profile Switcher
+  And Patient có data huyết áp trong tháng hiện tại
+  And Permission #1 = ON
+When Màn hình load xong
+Then Hệ thống hiển thị block "Xu hướng huyết áp"
+  And Hiển thị Line Chart với 2 đường:
+    | Đường | Màu | Ý nghĩa |
+    | Tâm thu | Xanh lá | Systolic BP |
+    | Tâm trương | Xanh dương | Diastolic BP |
+  And Toggle filter theo logic auto-select (xem BR-DB-002)
+  And Chip filter mặc định = "Tất cả"
+  And Trục X = ngày trong tháng (dd/MM)
+  And Trục Y = mmHg (dynamic range theo data)
+  Ref: BR-DB-001, BR-DB-004
+```
+
+#### Kịch bản D1.2.2: Chọn xem chi tiết ngày cụ thể
+
+```gherkin
+Given Caregiver đang xem biểu đồ HA tháng
+  And Chip filter "Tất cả" đang được chọn
+When Caregiver tap chip "Ngày 15/1"
+Then Biểu đồ chuyển sang view CHI TIẾT NGÀY
+  And Trục X = Giờ trong ngày (HH:00)
+  And Hiển thị tất cả lần đo trong ngày 15/1
+  Ref: BR-DB-006, SRS Báo cáo BR-006
+```
+
+#### Kịch bản D1.2.3: Quay lại từ chi tiết ngày
+
+```gherkin
+Given Caregiver đang xem biểu đồ chi tiết ngày 15/1
+When Caregiver tap chip "Tất cả"
+Then Biểu đồ quay lại view TỔNG QUAN
+  And Trục X = ngày trong khoảng thời gian
+```
+
+#### Kịch bản D1.2.4: Đổi filter Tuần/Tháng
+
+```gherkin
+Given Caregiver đang xem biểu đồ HA với filter "Tháng"
+When Caregiver tap toggle "Tuần"
+Then Biểu đồ reload với data 7 ngày gần nhất
+  And Chip filter reset về "Tất cả"
+  Ref: BR-DB-002
+```
+
+#### Kịch bản D1.2.5: Auto-select tab khi Tuần empty
+
+```gherkin
+Given Caregiver vừa chọn Patient từ Profile Switcher
+  And Patient KHÔNG có data HA trong 7 ngày gần nhất (Tuần)
+  And Patient CÓ data HA trong tháng hiện tại
+When Dashboard load xong
+Then Toggle filter tự động chọn "Tháng" (fallback)
+  And Hiển thị data tháng thay vì empty state
+  Ref: BR-DB-002
+```
+
+#### Kịch bản D1.2.6: Tap điểm dữ liệu xem tooltip
+
+```gherkin
+Given Caregiver đang xem biểu đồ HA
+When Caregiver tap vào 1 điểm dữ liệu trên chart
+Then Hiển thị tooltip với:
+  | Field | Ví dụ |
+  | Ngày | 15/01/2026 |
+  | Tâm thu | 125 mmHg |
+  | Tâm trương | 78 mmHg |
+  Ref: BR-DB-005
+```
+
+#### Kịch bản D1.2.7: Xem danh sách báo cáo sức khỏe
+
+```gherkin
+Given Caregiver đang ở SCR-01 Dashboard
+  And Patient có ít nhất 1 báo cáo định kỳ
+When Caregiver tap button "Xem thêm" trong Block Báo cáo sức khỏe
+Then Navigate đến màn hình danh sách báo cáo (SCR-REPORT-LIST)
+  And Header title = "Báo cáo sức khỏe của {Mối quan hệ}" (VD: "Báo cáo sức khỏe của Mẹ"). Nếu MQH = "Khác" → "Báo cáo sức khỏe của {Tên}"
+  And Toggle filter: Ngày | Tuần | Tháng (default = Tuần)
+  And Báo cáo chưa đọc có chấm đỏ (●) trên icon và viền trái xanh
+  And Không hiển thị toast khi chuyển tab filter
+  Ref: BR-DB-007, BR-RPT-001, BR-RPT-002
+  Impact: CR_003 Scenario #1 (Notification gửi cho Caregiver khi có báo cáo mới)
+```
+
+#### Kịch bản D1.2.8: Xem chi tiết báo cáo
+
+```gherkin
+Given Caregiver đang ở màn hình danh sách báo cáo
+When Caregiver tap vào "Báo cáo Tuần 3 - Tháng 12"
+Then Navigate đến màn chi tiết báo cáo (reuse Patient UI)
+  And Hiển thị TẤT CẢ sections trong báo cáo
+  Ref: BR-DB-008, SRS Báo cáo BR-005
+```
+
+#### Kịch bản D1.2.9: Empty State - Không có data HA
+
+```gherkin
+Given Caregiver đang ở SCR-01 Dashboard
+  And Patient KHÔNG có data huyết áp trong CẢ Tuần VÀ Tháng
+When Màn hình load xong
+Then Block "Xu hướng huyết áp" hiển thị empty state
+  And Message: "[Mối quan hệ của Patient] chưa có lần đo nào trong khoảng thời gian này."
+  Ref: BR-DB-009
+```
+
+#### Kịch bản D1.2.10: Empty State - Không có báo cáo (User mới)
+
+> **Lưu ý:** Báo cáo định kỳ (ngày/tuần/tháng) **LUÔN được tạo theo lịch**, kể cả khi Patient không có dữ liệu hoạt động. Kịch bản này chỉ xảy ra với **user mới** chưa đủ thời gian để hệ thống tạo báo cáo đầu tiên.
+
+```gherkin
+Given Caregiver đang ở màn hình danh sách báo cáo
+  And Patient là user mới, chưa có báo cáo nào được tạo
+When Màn hình load xong
+Then Hiển thị empty state
+  And Message: "Chưa có báo cáo nào. Báo cáo sẽ được tạo tự động theo lịch định kỳ."
+  Ref: BR-DB-010
+```
+
+#### Kịch bản D1.2.11: Permission OFF - Block bị ẩn
+
+```gherkin
+Given Caregiver đang ở SCR-01 Dashboard
+  And Permission #1 "Xem tổng quan sức khỏe" = OFF
+When Màn hình load xong
+Then Block "Xu hướng huyết áp" KHÔNG hiển thị
+  Ref: BR-DB-011, SEC-DB-001
+```
 
 #### Business Rules (US 1.1)
 
@@ -804,7 +822,7 @@ Then Profile Selector hiển thị State B (có người theo dõi mình)
 
 ---
 
-### B.3.4 Placeholder Components (Pending User Stories)
+## D.2 Placeholder Components (Pending User Stories)
 
 > **Prototype Reference:** [prototype_us1.1_health_overview.html](prototype/prototype_us1.1_health_overview.html)
 
@@ -892,6 +910,35 @@ Then Invite record cập nhật status = "rejected"
   And Ref: BR-011
 ```
 
+### Kịch bản C2.3: Rời nhóm (Non-Admin) — v5.3
+
+> **Áp dụng:** Patient hoặc Caregiver (Non-Admin). Admin **KHÔNG** có chức năng này (BR-058).
+
+```gherkin
+Given User (Non-Admin) mở Bottom Sheet "Danh sách kết nối" (SCR-01)
+  And User thấy text link "Rời nhóm" ở cuối Bottom Sheet
+When User nhấn "Rời nhóm"
+Then Hiển thị popup POP-LEAVE:
+  | Title: "Rời nhóm?" |
+  | Content: "Bạn sẽ rời khỏi nhóm của {Tên Admin}. Các quyền lợi từ gói sẽ bị gỡ bỏ và bạn sẽ quay về bản miễn phí." |
+  | Buttons: [Rời nhóm] (destructive) · [Quay lại] (secondary) |
+When User nhấn "Rời nhóm"
+Then Connection bị huỷ, slot giải phóng (BR-036)
+  And User mất quyền truy cập nhóm
+  And User quay về bản miễn phí
+  And Admin nhận push notification: "{Tên} đã rời khỏi nhóm"
+  And Toast hiển thị: "Bạn đã rời khỏi nhóm"
+  And Navigate về SCR-01 → hiển thị Empty State Non-Admin (A3.3b)
+  And Ref: BR-061
+```
+
+```gherkin
+Given User đang xem popup POP-LEAVE
+When User nhấn "Quay lại"
+Then Popup đóng
+  And Không có thay đổi nào xảy ra
+```
+
 ---
 
 ## 3. Business Rules
@@ -947,7 +994,7 @@ Then Invite record cập nhật status = "rejected"
 | **BR-048** | Constraint | **Dual-Role Allowed (v4.1):** 1 người có thể NẰM Ở 2 ROLE (vừa là Người bệnh vừa là Người thân) trong cùng 1 nhóm. Tuy nhiên CÙNG 1 ROLE không thể thêm 2 lần (unique per role) | P0 |
 | **BR-049** | Authorization | **Admin Self-Add (v4.1):** Khi Admin thêm chính mình vào slot → auto-accept (không cần gửi/xác nhận lời mời). Khi thêm người khác → gửi lời mời, người đó phải xác nhận | P0 |
 | **BR-050** | Authorization | **MQH Optional (v5.2):** Khi CG accept lời mời → vào nhóm ngay, permissions ALL ON, MQH = null (fallback {Tên}). CG chọn MQH tại SCR-06 (Chi tiết người thân) bất cứ lúc nào. **Bỏ POP-MQH + persistent trigger** (v5.2) | P0 |
-| **BR-051** | Display | **Empty State theo Role (v4.1):** Khi chưa có kết nối: (1) Profile Selector **ẨN** hoàn toàn, (2) Admin → hiển thị CTA "Mời thành viên ngay" → mở BS-QLTV, (3) Non-Admin → hiển thị guidance "Liên hệ quản trị viên nhóm gia đình để được thêm vào", KHÔNG có CTA | P0 |
+| **BR-051** | Display | **Empty State theo Role (v4.1, updated v5.3):** Khi chưa có kết nối: (1) Profile Selector **ẨN** hoàn toàn, (2) Admin → hiển thị CTA "Mời thành viên ngay" → mở BS-QLTV, (3) Non-Admin chưa thuộc nhóm → hiển thị guidance "Liên hệ quản trị viên nhóm gia đình để được thêm vào", KHÔNG có CTA, (4) Non-Admin ĐÃ thuộc nhóm nhưng chưa có Patient → hiển thị "Chưa có người bệnh nào trong nhóm" + guidance "Liên hệ quản trị viên nhóm để thêm người bệnh" (B3.3f) | P0 |
 | **BR-052** | Notification | **New Member Push Noti (v5.2):** Khi người mới accept → push noti đến TẤT CẢ thành viên hiện tại (trừ người mới + Admin mời). Nội dung: "👋 {Tên} đã vào nhóm của {Danh xưng}". Tap → Navigate KCNT (SCR-01). Ref: GR-BIZ-01 cho {Danh xưng} | P0 |
 
 | **BR-054** | Data | **MQH Fallback + Substitution (v5.2):** (1) Nếu CG chưa chọn MQH → fallback dùng {Tên}. (2) **Khi đã chọn MQH** → thay {Tên} bằng {MQH} trong messages, toasts, notifications. (3) CG chọn/sửa MQH qua **SCR-06** (Chi tiết người thân) — dropdown với các option: Mẹ, Bố, Bà, Ông, Chú, Dì... | P0 |
@@ -956,6 +1003,7 @@ Then Invite record cập nhật status = "rejected"
 | **BR-057** | Constraint | **Exclusive Group (v5.1):** 1 user tại 1 thời điểm chỉ thuộc **1 nhóm gia đình**. Khi Admin gửi invite, server check người nhận chưa thuộc nhóm nào. Nếu đã thuộc nhóm khác → chặn invite, hiển thị "Người này đã tham gia nhóm gia đình khác. Vui lòng kiểm tra lại." [Đóng]. Cross-ref: A1.6 | P0 |
 | **BR-058** | Authorization | **Admin Cannot Self-Remove (v5.1):** Admin **KHÔNG thể xoá chính mình** khỏi nhóm. Nút 🗑️ tại BS-QLTV **ẨN** cho slot của Admin. Nếu muốn rời nhóm → cần chuyển quyền Admin hoặc xoá gói | P0 |
 | **BR-059** | Slot | **Slot Limit Formula (v5.1):** Số lời mời có thể gửi = `slot_trống = tổng_slot - đã_gán - pending`. Nút "+ Mời" **LUÔN hiển thị** tại BS-QLTV. Khi slot_trống = 0 và Admin nhấn "+ Mời" → hiển thị popup giới hạn (BR-047): 🔒 "Đã đạt giới hạn" + [Nhập mã kích hoạt] · [Đóng]. Cross-ref: Payment SRS BR-016, BR-017. Ref: Assumption #3 | P0 |
+| **BR-061** | Flow | **Leave Group (v5.3):** Non-Admin (Patient/CG) có thể tự rời nhóm. Entry: text link "Rời nhóm" ở cuối Bottom Sheet "Danh sách kết nối". Nhấn → popup POP-LEAVE xác nhận → huỷ connection, giải phóng slot (BR-036), user quay về bản miễn phí. Admin **KHÔNG có** chức năng này (BR-058). Admin nhận push noti khi thành viên rời nhóm. Cross-ref: C2.3 | P0 |
 
 
 ### 3.3 Cross-Feature Dependencies (Payment Integration)
@@ -1104,6 +1152,7 @@ Then Hệ thống tự động gửi SMS fallback
 | **[✏️] Icon** | Chi tiết người thân — Tap → SCR-06. Chỉ hiện ở Section 1 ("Tôi đang theo dõi") (v5.2). Ref: BR-042, BR-054 |
 | **[⚙️] Icon** | Cài đặt CG → SCR-04 (toggle + quyền truy cập). Chỉ hiện ở Section 2 ("Người đang theo dõi tôi") |
 | **Revoked badge** | "🚫 Bị tắt quyền theo dõi" — màu đỏ nhạt, vẫn có [⚙️] (v4.0) |
+| **Text link "Rời nhóm"** | Cuối Bottom Sheet, **chỉ hiển thị cho Non-Admin**. Text màu đỏ (destructive). Tap → popup POP-LEAVE. Admin **KHÔNG thấy** link này (BR-058, BR-061). (v5.3) |
 
 **Empty State: Admin (A3.3a):**
 ```
@@ -1126,22 +1175,43 @@ Then Hệ thống tự động gửi SMS fallback
 └─────────────────────────────────────┘
 ```
 
-**Empty State: Non-Admin (A3.3b):**
+
+> **A3.3b — Non-Admin chưa thuộc nhóm:** Không hiển thị màn này. User ở gói miễn phí → **Paywall popup** (xem [Payment SRS](../payment/srs-quan-ly-goi-dich-vu.md)).
+
+**Empty State: Non-Admin — Đã thuộc nhóm, chưa có Patient (B3.3f) — v5.3:**
 ```
 ┌─────────────────────────────────────┐
 │ Kết nối Người thân                  │ ← Header, KHÔNG có nút 👥
 ├─────────────────────────────────────┤
 │                                     │ ← Profile Selector ẨN
-│         🔗                          │ ← Icon 56px
-│   Chưa có kết nối nào               │
+│         👋                          │ ← Icon 48px
+│   Chưa có người bệnh nào            │
+│       trong nhóm                    │
 │                                     │
-│  Khi được thêm vào nhóm gia đình,  │
-│  kết nối sẽ hiển thị ở đây         │
-│                                     │
-│  💡 Liên hệ quản trị viên nhóm     │ ← Guidance text (muted)
-│     gia đình để được thêm vào       │
+│  Khi có người bệnh tham gia,       │
+│  bạn sẽ thấy thông tin sức khỏe    │
+│  của họ tại đây.                    │
 │                                     │
 │  (KHÔNG CÓ CTA)                    │
+├─────────────────────────────────────┤
+│  🏠    💊   🌳  👥  ⚙️            │
+└─────────────────────────────────────┘
+```
+
+**Default View State: CG có Patient nhưng chưa chọn (B3.3b):**
+```
+┌─────────────────────────────────────┐
+│ Kết nối Người thân                  │ ← Header
+├─────────────────────────────────────┤
+│ 👤 Chọn người thân ▼               │ ← Profile Selector (chưa chọn)
+│    Đang theo dõi {n} người         │    Tap vào đây để chọn
+├─────────────────────────────────────┤
+│                                     │
+│         👋 (48px)                   │
+│                                     │
+│   "Chọn người thân ở phía trên     │ ← Title
+│    để xem sức khỏe của họ"         │
+│                                     │
 ├─────────────────────────────────────┤
 │  🏠    💊   🌳  👥  ⚙️            │
 └─────────────────────────────────────┘
@@ -1186,9 +1256,42 @@ Then Hệ thống tự động gửi SMS fallback
 |---------|----- -|
 | **Header nền primary** | Nền xanh (--primary) để phân biệt với "Danh sách kết nối" (nền trắng) |
 | **Package info** | Tên gói + số ngày còn lại (sub-header) |
-| **🗑️ Nút Xoá** | Admin xoá thành viên khỏi nhóm. Hiển confirm dialog trước khi xoá. **ẨN cho chính Admin** (BR-058) |
+| **🗑️ Nút Xoá** | Admin xoá thành viên khỏi nhóm. Hiển thị **POP-REMOVE** trước khi xoá. **ẨN cho chính Admin** (BR-058) |
 | **⏳ Pending** | Thành viên đã mời nhưng chưa accept. Tap để xem chi tiết/huỷ lời mời |
 | **+ Mời** | Mở invite flow (SCR-02-BS chỉ SĐT, phân biệt variant theo loại slot). **LUÔN hiển thị** — nếu slot đầy, hiện popup thông báo (BR-047, BR-059). Ref: BR-055 |
+
+**Popup xác nhận xoá thành viên (POP-REMOVE):**
+
+> **Ref:** BR-036 (slot giải phóng), BR-045 (auto-connect reverse), BR-058 (Admin không tự xoá).
+
+| Field | Xoá **Người thân** (Caregiver) | Xoá **Người bệnh** (Patient) |
+|-------|--------------------------------|-------------------------------|
+| **Title** | Xoá thành viên | Xoá thành viên |
+| **Content** | Xoá **{Tên}** khỏi nhóm?<br>Sau khi xoá, {Tên} sẽ **không thể theo dõi** sức khỏe các thành viên trong nhóm. | Xoá **{Tên}** khỏi nhóm?<br>Sau khi xoá, các người thân sẽ **không thể theo dõi** sức khỏe của {Tên}. |
+| **Buttons** | [Xoá] (destructive) · [Quay lại] (secondary) | [Xoá] (destructive) · [Quay lại] (secondary) |
+
+### Kịch bản: Admin xoá thành viên khỏi nhóm
+
+```gherkin
+Given Admin đang mở BS-QLTV (Quản lý nhóm)
+  And Danh sách hiển thị thành viên {Tên} với nút 🗑️
+When Admin nhấn nút 🗑️ bên cạnh {Tên}
+Then Hiển thị popup POP-REMOVE với nội dung tương ứng role (Người bệnh/Người thân)
+When Admin nhấn "Xoá"
+Then Connection bị huỷ
+  And Slot được giải phóng (BR-036)
+  And {Tên} mất quyền truy cập nhóm
+  And {Tên} nhận push notification: "Bạn đã bị xoá khỏi nhóm của {Tên Admin}"
+  And Toast hiển thị: "Đã xoá {Tên} khỏi nhóm"
+  And BS-QLTV refresh danh sách
+```
+
+```gherkin
+Given Admin đang xem popup POP-REMOVE
+When Admin nhấn "Quay lại"
+Then Popup đóng
+  And Không có thay đổi nào xảy ra
+```
 
 
 
@@ -1212,8 +1315,12 @@ Then Hệ thống tự động gửi SMS fallback
 │  │ [▼ VD: Cha, Mẹ, ...]          │ │ ← Dropdown
 │  └────────────────────────────────┘ │
 │                                     │
-│  💡 Chọn mối quan hệ để hiển thị   │
-│     thay tên trong thông báo.       │ ← Message guidance
+│  💡 Mối quan hệ sẽ được dùng để     │
+│     xưng hô trong thông báo.        │ ← Message guidance
+│                                     │
+│  ┌────────────────────────────────┐ │
+│  │         [ Cập nhật ]           │ │ ← Primary button
+│  └────────────────────────────────┘ │
 └─────────────────────────────────────┘
 ```
 
@@ -1223,7 +1330,8 @@ Then Hệ thống tự động gửi SMS fallback
 | **Back button** | ← Quay lại Bottom Sheet |
 | **Patient info card** | Avatar + Tên + SĐT |
 | **Dropdown MQH** | Chọn mối quan hệ: Mẹ, Bố, Bà, Ông, Chú, Dì, Anh, Chị, Em... Placeholder: "VD: Cha, Mẹ,..." |
-| **Message guidance** | "💡 Chọn mối quan hệ để hiển thị thay tên trong thông báo." |
+| **Message guidance** | "💡 Mối quan hệ sẽ được dùng để xưng hô" |
+| **Button [Cập nhật]** | Primary button. **Disabled** khi chưa chọn/thay đổi giá trị dropdown. Khi nhấn → lưu MQH → toast "✅ Đã cập nhật mối quan hệ" → quay lại Bottom Sheet. Ref: BR-054 |
 
 ---
 
