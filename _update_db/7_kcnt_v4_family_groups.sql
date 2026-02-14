@@ -109,7 +109,17 @@ COMMENT ON COLUMN user_emergency_contacts.family_group_id IS 'v4.0: Link to fami
 ALTER TABLE connection_invites
 DROP CONSTRAINT IF EXISTS chk_invite_type;
 
--- Add new constraint (v4.0 only — legacy values migrated by script 8)
+-- Migrate legacy data BEFORE adding new constraint
+-- (same logic as script 8, but must run here to avoid constraint violation)
+UPDATE connection_invites
+SET invite_type = 'add_caregiver'
+WHERE invite_type = 'patient_to_caregiver';
+
+UPDATE connection_invites
+SET invite_type = 'add_patient'
+WHERE invite_type = 'caregiver_to_patient';
+
+-- Add new constraint (v4.0 only)
 ALTER TABLE connection_invites
 ADD CONSTRAINT chk_invite_type CHECK (invite_type IN (
     'add_patient',            -- v4.0: Admin mời bệnh nhân vào nhóm
