@@ -12,13 +12,20 @@
 -- FUNCTION: update_updated_at_column (if not exists)
 -- ============================================================================
 
-CREATE OR REPLACE FUNCTION update_updated_at_column()
-RETURNS TRIGGER AS $$
+DO $$
 BEGIN
-    NEW.updated_at = CURRENT_TIMESTAMP;
-    RETURN NEW;
-END;
-$$ language 'plpgsql';
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_proc WHERE proname = 'update_updated_at_column'
+    ) THEN
+        CREATE FUNCTION update_updated_at_column()
+        RETURNS TRIGGER AS $func$
+        BEGIN
+            NEW.updated_at = CURRENT_TIMESTAMP;
+            RETURN NEW;
+        END;
+        $func$ language 'plpgsql';
+    END IF;
+END $$;
 
 -- ============================================================================
 -- TABLE 1: user_emergency_contacts
