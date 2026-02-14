@@ -693,10 +693,12 @@ CREATE TABLE prescriptions (
     prescription_code VARCHAR(150),
     prescribed_description TEXT,
     status SMALLINT DEFAULT 0, -- 0: Chưa sử dụng, 1: Đang sử dụng, 2: Đã hoàn thành
+    created_id UUID REFERENCES users(user_id),  -- v6.0: Who created this record (patient or caregiver)
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 CREATE INDEX idx_prescriptions_user_id ON prescriptions (user_id);
+CREATE INDEX IF NOT EXISTS idx_prescriptions_created_id ON prescriptions(created_id) WHERE created_id IS NOT NULL;
 
 CREATE TABLE prescription_items (
     prescription_item_id BIGSERIAL PRIMARY KEY,
@@ -721,12 +723,14 @@ CREATE TABLE prescription_items (
     usage_time TEXT,
     recurrence_type VARCHAR(20) DEFAULT 'daily', -- one_time, daily, weekly, monthly, days_a_time
     status SMALLINT DEFAULT 0, -- 0: Chưa sử dụng, 1: Đang sử dụng, 2: Đã hoàn thành, 3: Đã xóa
+    created_id UUID REFERENCES users(user_id),  -- v6.0: Who created this record (patient or caregiver)
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT chk_remaining_quantity_range CHECK (remaining_quantity >= 0 AND remaining_quantity < 1000000)
 );
 CREATE INDEX idx_prescription_items_prescription_id ON prescription_items (prescription_id);
 CREATE INDEX idx_prescription_items_active ON prescription_items (prescription_id) WHERE status = 0;
+CREATE INDEX IF NOT EXISTS idx_prescription_items_created_id ON prescription_items(created_id) WHERE created_id IS NOT NULL;
 CREATE UNIQUE INDEX idx_unique_active_nickname
 ON prescription_items (prescription_id, nickname)
 WHERE status = 1 AND nickname IS NOT NULL AND nickname != '';
@@ -793,6 +797,7 @@ CREATE TABLE medication_schedules (
     missed_count INTEGER DEFAULT 0,
     feedback_collection_notified_at  TIMESTAMPTZ ,
     status SMALLINT DEFAULT 0, -- 0: Chưa thực hiện, 1: Đang thực hiện, 2: Đã hoàn thành
+    created_id UUID REFERENCES users(user_id),  -- v6.0: Who created this record (patient or caregiver)
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
 
@@ -801,6 +806,7 @@ CREATE TABLE medication_schedules (
 CREATE INDEX idx_med_schedules_due ON medication_schedules (status, scheduled_time) WHERE (status = 0);
 CREATE INDEX idx_med_schedules_upcoming_by_user ON medication_schedules (user_id, scheduled_time DESC) WHERE (status = 0);
 CREATE INDEX idx_med_schedules_related_id ON medication_schedules (related_id);
+CREATE INDEX IF NOT EXISTS idx_medication_schedules_created_id ON medication_schedules(created_id) WHERE created_id IS NOT NULL;
 
 -- Bảng 2: Lịch trình liên quan đến huyết áp (Blood Pressure)
 CREATE TABLE blood_pressure_schedules (
@@ -870,6 +876,8 @@ CREATE TABLE user_medication_feedback (
     -- ĐÃ SỬA ĐỔI Ở ĐÂY: INT -> NUMERIC(9, 2)
     quantity_taken NUMERIC(9, 2), -- Số lượng thực tế đã uống, chỉ bắt buộc khi status là 1 (Sai liều)
     
+    -- v6.0: Who created this record (patient or caregiver)
+    created_id UUID REFERENCES users(user_id),
     -- Timestamps quản lý vòng đời của bản ghi
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
@@ -886,6 +894,7 @@ CREATE INDEX idx_user_medication_feedback_user_created ON user_medication_feedba
 CREATE INDEX idx_user_medication_feedback_user_schedule ON user_medication_feedback(user_id, schedule_time);
 CREATE INDEX idx_user_medication_feedback_optimal ON user_medication_feedback(user_id, status, prescription_item_id, created_at DESC);
 CREATE INDEX idx_user_medication_feedback_ownership ON user_medication_feedback(feedback_id, user_id);
+CREATE INDEX IF NOT EXISTS idx_user_medication_feedback_created_id ON user_medication_feedback(created_id) WHERE created_id IS NOT NULL;
 
 
 ALTER TABLE user_medication_feedback
@@ -928,6 +937,12 @@ CREATE TRIGGER trg_schedule_jobs_updated_at
 BEFORE UPDATE ON schedule_jobs
 FOR EACH ROW
 EXECUTE FUNCTION set_updated_at();
+
+-- Seed data: Scheduled jobs (from 1_update_schedule_jobs.sql)
+INSERT INTO schedule_jobs (key, name, task, schedule, queue, enabled, app, description) VALUES
+('poll_sos_expired_countdowns', 'Poll SOS Expired Countdowns', 'app.tasks.sos_tasks.poll_sos_expired_countdowns', '{"type":"interval","every":10}', 'default', TRUE, 'schedule-service', 'Check and complete SOS events with expired countdowns'),
+('caregiver_alerts_batch_21h', 'Caregiver Alerts Batch 21h', 'app.tasks.caregiver_alert_tasks.send_daily_caregiver_alerts', '{"type":"crontab","hour":"21","minute":"0"}', 'default', TRUE, 'schedule-service', 'Send daily caregiver alert summaries at 21:00')
+ON CONFLICT (key) DO NOTHING;
 
 -- =============================================================================
 -- BẢNG PHẢN HỒI KẾT QUẢ TÁI KHÁM (PHIÊN BẢN CẬP NHẬT CHO PHÉP NULL)
@@ -2881,6 +2896,68 @@ COMMENT ON TABLE relationship_inverse_mapping IS 'v2.22: Gender-based inverse re
 COMMENT ON COLUMN relationship_inverse_mapping.target_gender IS '0: Nam, 1: Nữ - giới tính của bên còn lại';
 COMMENT ON COLUMN relationship_inverse_mapping.inverse_code IS 'Mối quan hệ inverse được suy ra';
 
+-- =============================================================================
+-- v4.0: FAMILY GROUPS (từ 7_kcnt_v4_family_groups.sql)
+-- =============================================================================
+
+-- TABLE: family_groups
+-- Purpose: Nhóm gia đình linked to payment subscription
+-- Owner: user-service
+CREATE TABLE IF NOT EXISTS family_groups (
+    group_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    admin_user_id UUID NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+    subscription_id UUID,                    -- Link to payment subscription (nullable nếu free tier)
+    name VARCHAR(100),
+    status VARCHAR(20) NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'inactive', 'expired')),
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_fg_admin_id ON family_groups(admin_user_id);
+CREATE INDEX IF NOT EXISTS idx_fg_subscription_id ON family_groups(subscription_id);
+CREATE INDEX IF NOT EXISTS idx_fg_status ON family_groups(status) WHERE status = 'active';
+
+DROP TRIGGER IF EXISTS trigger_fg_updated_at ON family_groups;
+CREATE TRIGGER trigger_fg_updated_at
+    BEFORE UPDATE ON family_groups
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+COMMENT ON TABLE family_groups IS 'v4.0: Nhóm gia đình linked to payment subscription';
+COMMENT ON COLUMN family_groups.admin_user_id IS 'Admin = người kích hoạt gói (Payment SRS §2.8)';
+COMMENT ON COLUMN family_groups.subscription_id IS 'Link to payment subscription (nullable nếu free tier)';
+
+-- TABLE: family_group_members
+-- Purpose: Thành viên nhóm gia đình
+-- BR-057: 1 user = 1 nhóm duy nhất (exclusive group constraint)
+-- BR-048: 1 user có thể vừa Patient vừa CG (2 role entries)
+-- Owner: user-service
+CREATE TABLE IF NOT EXISTS family_group_members (
+    member_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    group_id UUID NOT NULL REFERENCES family_groups(group_id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+    role VARCHAR(20) NOT NULL CHECK (role IN ('patient', 'caregiver')),
+    status VARCHAR(20) NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'inactive', 'removed')),
+    joined_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(group_id, user_id, role)
+);
+
+-- BR-057: Exclusive Group — 1 user chỉ thuộc 1 nhóm per role
+CREATE UNIQUE INDEX IF NOT EXISTS idx_user_single_group
+    ON family_group_members(user_id, role) WHERE status = 'active';
+
+CREATE INDEX IF NOT EXISTS idx_fgm_group_id ON family_group_members(group_id);
+CREATE INDEX IF NOT EXISTS idx_fgm_user_id ON family_group_members(user_id);
+
+DROP TRIGGER IF EXISTS trigger_fgm_updated_at ON family_group_members;
+CREATE TRIGGER trigger_fgm_updated_at
+    BEFORE UPDATE ON family_group_members
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+COMMENT ON TABLE family_group_members IS 'v4.0: Family group members with exclusive constraint (BR-057)';
+COMMENT ON COLUMN family_group_members.role IS 'patient or caregiver — 1 user can have both roles (BR-048)';
+
 -- TABLE: connection_invites
 -- Purpose: Track invite lifecycle (pending/accepted/rejected/cancelled)
 -- Owner: user-service
@@ -2893,12 +2970,11 @@ CREATE TABLE IF NOT EXISTS connection_invites (
     invite_type VARCHAR(30) NOT NULL,      -- 'add_patient' | 'add_caregiver'
     relationship_code VARCHAR(30) REFERENCES relationships(relationship_code),
     inverse_relationship_code VARCHAR(30) REFERENCES relationships(relationship_code),  -- v2.13: Receiver mô tả Sender
-    initial_permissions JSONB,              -- Generated by service layer from connection_permission_types
+    family_group_id UUID REFERENCES family_groups(group_id) ON DELETE SET NULL,  -- v5.0: family group UUID
     status SMALLINT DEFAULT 0,              -- 0=pending, 1=accepted, 2=rejected, 3=cancelled
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     
-    CONSTRAINT chk_no_self_invite CHECK (sender_id != receiver_id),
     CONSTRAINT chk_invite_type CHECK (invite_type IN ('add_patient', 'add_caregiver')),
     CONSTRAINT chk_invite_status CHECK (status IN (0, 1, 2, 3))
 );
@@ -2907,6 +2983,7 @@ CREATE INDEX IF NOT EXISTS idx_invites_sender ON connection_invites (sender_id);
 CREATE INDEX IF NOT EXISTS idx_invites_receiver ON connection_invites (receiver_id) WHERE receiver_id IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_invites_phone ON connection_invites (receiver_phone);
 CREATE INDEX IF NOT EXISTS idx_invites_pending ON connection_invites (status) WHERE status = 0;
+CREATE INDEX IF NOT EXISTS idx_invites_family_group ON connection_invites (family_group_id) WHERE family_group_id IS NOT NULL;
 -- Create new constraint với invite_type
 CREATE UNIQUE INDEX idx_unique_pending_invite 
     ON connection_invites (sender_id, receiver_phone, invite_type) 
@@ -2948,6 +3025,8 @@ CREATE TABLE IF NOT EXISTS user_emergency_contacts (
     invite_id UUID,  -- FK added after connection_invites table created
     is_viewing BOOLEAN DEFAULT FALSE,  -- v2.7: Currently viewing this patient (BR-026)
     inverse_relationship_code VARCHAR(30) REFERENCES relationships(relationship_code),  -- v2.13: Caregiver mô tả Patient
+    permission_revoked BOOLEAN DEFAULT FALSE,  -- v4.0: Soft disconnect (BR-040, BR-056)
+    family_group_id UUID REFERENCES family_groups(group_id),  -- v4.0: Link to family group
     -- Timestamps
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
@@ -2968,6 +3047,10 @@ CREATE INDEX IF NOT EXISTS idx_contacts_type ON user_emergency_contacts (user_id
 CREATE UNIQUE INDEX IF NOT EXISTS idx_unique_caregiver_connection
     ON user_emergency_contacts (user_id, linked_user_id) 
     WHERE linked_user_id IS NOT NULL AND contact_type IN ('caregiver', 'both');
+CREATE INDEX IF NOT EXISTS idx_uec_family_group_id
+    ON user_emergency_contacts(family_group_id) WHERE family_group_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_uec_permission_revoked
+    ON user_emergency_contacts(permission_revoked) WHERE permission_revoked = TRUE;
 
 DROP TRIGGER IF EXISTS trigger_emergency_contacts_updated_at ON user_emergency_contacts;
 CREATE TRIGGER trigger_emergency_contacts_updated_at

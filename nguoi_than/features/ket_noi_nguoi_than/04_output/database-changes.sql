@@ -47,7 +47,6 @@ CREATE TABLE IF NOT EXISTS connection_invites (
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
 
-    CONSTRAINT chk_no_self_invite CHECK (sender_id != receiver_id),
     CONSTRAINT chk_invite_type CHECK (invite_type IN (
         'add_caregiver', 'add_patient',  -- legacy
         'add_patient', 'add_caregiver'                    -- v4.0

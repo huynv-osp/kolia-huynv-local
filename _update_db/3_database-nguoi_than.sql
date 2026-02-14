@@ -128,7 +128,6 @@ CREATE TABLE IF NOT EXISTS connection_invites (
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     
-    CONSTRAINT chk_no_self_invite CHECK (sender_id != receiver_id),
     CONSTRAINT chk_invite_type CHECK (invite_type IN ('add_patient', 'add_caregiver')),
     CONSTRAINT chk_invite_status CHECK (status IN (0, 1, 2, 3))  -- 0=pending, 1=accepted, 2=rejected, 3=cancelled
 );
