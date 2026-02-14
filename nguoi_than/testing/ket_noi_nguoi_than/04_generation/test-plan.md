@@ -248,7 +248,7 @@ invites:
     id: "invite-001"
     sender_id: "patient-001"
     receiver_phone: "0912345678"
-    invite_type: "patient_to_caregiver"
+    invite_type: "add_caregiver"
     status: 0  # pending
     
 permissions:

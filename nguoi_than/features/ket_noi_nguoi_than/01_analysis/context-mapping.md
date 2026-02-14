@@ -73,7 +73,7 @@
 | `family_groups` linked to `subscription_id` | Payment SRS sync, slot management |
 | `family_group_members` with UNIQUE(user_id) | Enforce exclusive group constraint (BR-057) |
 | `permission_revoked` BOOLEAN on UEC | Soft disconnect — keep connection, toggle access |
-| `invite_type` enum update | `add_patient`/`add_caregiver` replaces `patient_to_caregiver`/`caregiver_to_patient` |
+| `invite_type` enum update | `add_patient`/`add_caregiver` replaces `add_caregiver`/`add_patient` |
 
 ---
 

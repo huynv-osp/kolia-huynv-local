@@ -278,13 +278,13 @@ ON CONFLICT (relationship_code) DO NOTHING;
 
 invites:
   # Pending invite from Patient to Caregiver
-  pending_patient_to_caregiver:
+  pending_add_caregiver:
     invite_id: "aaaa1111-1111-1111-1111-111111111111"
     sender_id: "11111111-1111-1111-1111-111111111111"  # patient_main
     receiver_phone: "0912345678"
     receiver_id: "22222222-2222-2222-2222-222222222222"  # caregiver_son
     receiver_name: "Nguyễn Văn ConTrai"
-    invite_type: "patient_to_caregiver"
+    invite_type: "add_caregiver"
     relationship_code: "con_trai"
     initial_permissions:
       health_overview: true
@@ -297,13 +297,13 @@ invites:
     created_at: "2026-01-28T09:00:00Z"
     
   # Pending invite from Caregiver to Patient
-  pending_caregiver_to_patient:
+  pending_add_patient:
     invite_id: "aaaa2222-2222-2222-2222-222222222222"
     sender_id: "33333333-3333-3333-3333-333333333333"  # caregiver_daughter
     receiver_phone: "0901234567"
     receiver_id: "11111111-1111-1111-1111-111111111111"  # patient_main
     receiver_name: "Nguyễn Thị Patient"
-    invite_type: "caregiver_to_patient"
+    invite_type: "add_patient"
     relationship_code: "me"
     initial_permissions: null  # No preset - Patient will configure
     status: 0  # PENDING
@@ -316,7 +316,7 @@ invites:
     receiver_phone: "0987654321"
     receiver_id: null  # User doesn't exist yet
     receiver_name: "Người Mới"
-    invite_type: "patient_to_caregiver"
+    invite_type: "add_caregiver"
     relationship_code: "em_trai"
     status: 0
     
@@ -325,7 +325,7 @@ invites:
     invite_id: "aaaa4444-4444-4444-4444-444444444444"
     sender_id: "11111111-1111-1111-1111-111111111111"
     receiver_id: "22222222-2222-2222-2222-222222222222"
-    invite_type: "patient_to_caregiver"
+    invite_type: "add_caregiver"
     status: 1  # ACCEPTED
     accepted_at: "2026-01-27T10:00:00Z"
     
@@ -334,7 +334,7 @@ invites:
     invite_id: "aaaa5555-5555-5555-5555-555555555555"
     sender_id: "11111111-1111-1111-1111-111111111111"
     receiver_id: "33333333-3333-3333-3333-333333333333"
-    invite_type: "patient_to_caregiver"
+    invite_type: "add_caregiver"
     status: 2  # REJECTED
     rejected_at: "2026-01-26T15:00:00Z"
 ```
@@ -729,7 +729,7 @@ notifications:
   "receiver_phone": "0912345678",
   "receiver_name": "Nguyễn Văn ConTrai",
   "relationship": "con_trai",
-  "invite_type": "patient_to_caregiver",
+  "invite_type": "add_caregiver",
   "permissions": {
     "health_overview": true,
     "emergency_alert": true,

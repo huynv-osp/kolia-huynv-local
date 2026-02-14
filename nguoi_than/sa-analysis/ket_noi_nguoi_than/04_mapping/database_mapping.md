@@ -97,8 +97,8 @@ DROP CONSTRAINT IF EXISTS chk_invite_type;
 
 ALTER TABLE connection_invites 
 ADD CONSTRAINT chk_invite_type CHECK (invite_type IN (
-    'patient_to_caregiver',   -- legacy
-    'caregiver_to_patient',   -- legacy
+    'add_caregiver',   -- legacy
+    'add_patient',   -- legacy
     'add_patient',            -- v4.0: Admin adds Patient
     'add_caregiver'           -- v4.0: Admin adds Caregiver
 ));

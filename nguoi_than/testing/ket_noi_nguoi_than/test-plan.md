@@ -168,13 +168,13 @@
 
 | Direction | relationship_code | inverse_relationship_code |
 |-----------|-------------------|---------------------------|
-| patient_to_caregiver | "daughter" | "mother" |
-| caregiver_to_patient | "son" | "father" |
+| add_caregiver | "daughter" | "mother" |
+| add_patient | "son" | "father" |
 
 ```java
 @Test
-@DisplayName("Should correctly map inverse relationship on accept (patient_to_caregiver)")
-void acceptInvite_patientToCaregiver_mapsInverseCorrectly() {
+@DisplayName("Should correctly map inverse relationship on accept (add_caregiver)")
+void acceptInvite_addCaregiver_mapsInverseCorrectly() {
     // Given
     // Patient (Bà Lan - Mẹ) invites Caregiver (Cô Huy)
     // relationship_code = "daughter" (Patient says: "Con gái tôi")
@@ -182,7 +182,7 @@ void acceptInvite_patientToCaregiver_mapsInverseCorrectly() {
     
     ConnectionInvite invite = createInvite(
         PATIENT_UUID, CAREGIVER_UUID,
-        "patient_to_caregiver", "daughter"
+        "add_caregiver", "daughter"
     );
     invite.setInverseRelationshipCode("mother");
     
@@ -260,8 +260,8 @@ void getConnection_asCaregiver_showsCaregiverPerspective() {
 
 | ID | Sender | Receiver | Direction | Status |
 |:--:|:------:|:--------:|:---------:|:------:|
-| INV-001 | USER-PT-001 | USER-CG-001 | patient_to_caregiver | PENDING |
-| INV-002 | USER-CG-002 | USER-PT-001 | caregiver_to_patient | ACCEPTED |
+| INV-001 | USER-PT-001 | USER-CG-001 | add_caregiver | PENDING |
+| INV-002 | USER-CG-002 | USER-PT-001 | add_patient | ACCEPTED |
 
 ### 10.3 Relationship Fixtures
 

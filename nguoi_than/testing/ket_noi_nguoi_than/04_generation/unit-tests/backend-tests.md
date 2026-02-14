@@ -870,7 +870,7 @@ class InviteHandlerTest {
             .receiverPhone("0912345678")
             .receiverName("Nguyễn Văn A")
             .relationship("con_trai")
-            .inviteType("patient_to_caregiver")
+            .inviteType("add_caregiver")
             .permissions(defaultPermissions())
             .build();
             
@@ -1012,7 +1012,7 @@ class TestInviteNotification:
             'template': 'CONNECTION_INVITE_NEW',
             'params': {
                 'sender_name': 'Nguyễn Văn A',
-                'invite_type': 'patient_to_caregiver'
+                'invite_type': 'add_caregiver'
             }
         }
         

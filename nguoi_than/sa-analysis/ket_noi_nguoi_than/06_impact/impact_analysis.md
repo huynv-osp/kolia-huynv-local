@@ -26,8 +26,8 @@
 
 | Old Value | New Value | Action |
 |-----------|-----------|--------|
-| `patient_to_caregiver` | `add_caregiver` | UPDATE existing records |
-| `caregiver_to_patient` | `add_patient` | UPDATE existing records |
+| `add_caregiver` | `add_caregiver` | UPDATE existing records |
+| `add_patient` | `add_patient` | UPDATE existing records |
 
 **Migration Strategy:** SQL migration script `8_kcnt_invite_type_migration.sql`
 - UPDATE existing pending invites

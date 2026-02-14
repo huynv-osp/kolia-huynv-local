@@ -14,12 +14,12 @@
 ```java
 @Test
 @DisplayName("Patient should create invite to Caregiver successfully")
-void createInvite_patientToCaregiver_success() {
+void createInvite_addCaregiver_success() {
     // Given
     CreateInviteRequest request = CreateInviteRequest.builder()
         .phone("0912345678")
         .relationshipCode("daughter")
-        .inviteType("patient_to_caregiver")
+        .inviteType("add_caregiver")
         .permissions(defaultPermissions())
         .build();
     
@@ -78,7 +78,7 @@ void createInvite_setsInverseRelationshipCode() {
     CreateInviteRequest request = CreateInviteRequest.builder()
         .phone("0912345678")
         .relationshipCode("daughter")
-        .inviteType("patient_to_caregiver")
+        .inviteType("add_caregiver")
         .build();
     
     when(relationshipMappingService.getInverse("daughter", "FEMALE"))
@@ -134,16 +134,16 @@ void acceptInvite_createsConnection() {
 }
 ```
 
-#### UT-INV-007: Accept applies inverse mapping for patient_to_caregiver
+#### UT-INV-007: Accept applies inverse mapping for add_caregiver
 ```java
 @Test
-@DisplayName("Should apply correct relationship mapping for patient_to_caregiver (BR-035)")
-void acceptInvite_patientToCaregiver_correctMapping() {
+@DisplayName("Should apply correct relationship mapping for add_caregiver (BR-035)")
+void acceptInvite_addCaregiver_correctMapping() {
     // Given
     // Patient invites Caregiver
     // relationship_code = "daughter" (Patient says "Con gái tôi")
     // inverse = "mother" (Caregiver says "Mẹ tôi")
-    ConnectionInvite invite = createInvite("patient_to_caregiver", "daughter", "mother");
+    ConnectionInvite invite = createInvite("add_caregiver", "daughter", "mother");
     
     // When
     inviteService.acceptInvite(invite.getInviteId());
@@ -153,22 +153,22 @@ void acceptInvite_patientToCaregiver_correctMapping() {
     verify(contactRepository).save(captor.capture());
     
     UserEmergencyContact contact = captor.getValue();
-    // NO SWAP for patient_to_caregiver
+    // NO SWAP for add_caregiver
     assertThat(contact.getRelationshipCode()).isEqualTo("daughter");
     assertThat(contact.getInverseRelationshipCode()).isEqualTo("mother");
 }
 ```
 
-#### UT-INV-008: Accept applies SWAP for caregiver_to_patient
+#### UT-INV-008: Accept applies SWAP for add_patient
 ```java
 @Test
-@DisplayName("Should SWAP relationship codes for caregiver_to_patient (BR-035)")
-void acceptInvite_caregiverToPatient_swapsRelationship() {
+@DisplayName("Should SWAP relationship codes for add_patient (BR-035)")
+void acceptInvite_addPatient_swapsRelationship() {
     // Given
     // Caregiver invites Patient
     // relationship_code = "mother" (Caregiver says "Mẹ tôi")
     // inverse = "daughter" (Patient says "Con gái tôi")
-    ConnectionInvite invite = createInvite("caregiver_to_patient", "mother", "daughter");
+    ConnectionInvite invite = createInvite("add_patient", "mother", "daughter");
     
     // When
     inviteService.acceptInvite(invite.getInviteId());
@@ -178,7 +178,7 @@ void acceptInvite_caregiverToPatient_swapsRelationship() {
     verify(contactRepository).save(captor.capture());
     
     UserEmergencyContact contact = captor.getValue();
-    // SWAP for caregiver_to_patient
+    // SWAP for add_patient
     assertThat(contact.getRelationshipCode()).isEqualTo("daughter");  // swapped
     assertThat(contact.getInverseRelationshipCode()).isEqualTo("mother");  // swapped
 }

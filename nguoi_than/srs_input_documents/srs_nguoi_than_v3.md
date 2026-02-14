@@ -88,7 +88,7 @@ Then Hệ thống chuyển đến màn hình "Cấu hình quyền" (SCR-02B)
   And Hiển thị 6 permissions (mặc định tất cả ON)
 When Patient điều chỉnh permissions theo ý muốn và nhấn "Gửi lời mời"
   And Server kiểm tra SĐT và phát hiện ĐÃ CÓ tài khoản
-Then Hệ thống tạo invite record với status = "pending", type = "patient_to_caregiver"
+Then Hệ thống tạo invite record với status = "pending", type = "add_caregiver"
   And Lưu permissions đã config vào invite record
   And Hệ thống gửi ZNS + Push Notification đến Caregiver
   And Patient thấy message "Đã gửi lời mời thành công"
@@ -350,7 +350,7 @@ Given Caregiver đang ở màn hình "Kết nối người thân"
   And Caregiver nhập SĐT của Patient
 When Caregiver nhấn "Gửi lời mời"
   And Server kiểm tra SĐT và phát hiện ĐÃ CÓ tài khoản
-Then Hệ thống tạo invite record với status = "pending", type = "caregiver_to_patient"
+Then Hệ thống tạo invite record với status = "pending", type = "add_patient"
   And Hệ thống gửi ZNS + Push Notification đến Patient
   And Caregiver thấy message "Đã gửi lời mời. Đợi người thân chấp nhận."
   And Ref: BR-001, BR-002
@@ -904,8 +904,8 @@ Then Connection status = "disconnected"
 
 | invite_type | Display Message | Giải thích |
 |------------|-----------------|------------|
-| `patient_to_caregiver` | "{Tên} mời [danh xưng] **theo dõi** sức khỏe của họ" | Patient mời Caregiver theo dõi |
-| `caregiver_to_patient` | "{Tên} muốn **được theo dõi** sức khỏe của [danh xưng]" | Caregiver xin quyền theo dõi Patient |
+| `add_caregiver` | "{Tên} mời [danh xưng] **theo dõi** sức khỏe của họ" | Patient mời Caregiver theo dõi |
+| `add_patient` | "{Tên} muốn **được theo dõi** sức khỏe của [danh xưng]" | Caregiver xin quyền theo dõi Patient |
 
 **Toast Messages (sau actions):**
 

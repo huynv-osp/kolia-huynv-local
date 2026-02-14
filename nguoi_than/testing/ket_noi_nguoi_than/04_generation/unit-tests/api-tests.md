@@ -73,7 +73,7 @@ class InviteApiIntegrationTest {
             .receiverPhone("0912345678")
             .receiverName("Nguyễn Văn Caregiver")
             .relationship("con_trai")
-            .inviteType("patient_to_caregiver")
+            .inviteType("add_caregiver")
             .permissions(Map.of(
                 "health_overview", true,
                 "emergency_alert", true,
@@ -115,7 +115,7 @@ class InviteApiIntegrationTest {
             .receiverPhone("0901234567")  // Same as patient's phone
             .receiverName("Self")
             .relationship("khac")
-            .inviteType("patient_to_caregiver")
+            .inviteType("add_caregiver")
             .build();
             
         when(grpcClient.createInvite(any())).thenThrow(
@@ -143,7 +143,7 @@ class InviteApiIntegrationTest {
         String token = generatePatientToken();
         CreateInviteRequestDTO request = CreateInviteRequestDTO.builder()
             .receiverPhone("0912345678")
-            .inviteType("patient_to_caregiver")
+            .inviteType("add_caregiver")
             .build();
             
         when(grpcClient.createInvite(any())).thenThrow(

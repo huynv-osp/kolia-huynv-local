@@ -261,7 +261,7 @@
   "invite_id": "uuid",
   "sender": { "id": "uuid", "name": "...", "phone": "..." },
   "receiver": { "id": "uuid", "name": "...", "phone": "..." },
-  "invite_type": "patient_to_caregiver",
+  "invite_type": "add_caregiver",
   "relationship_code": "con_trai",
   "relationship_name": "Con trai",
   "inverse_relationship_code": "me",
@@ -294,7 +294,7 @@
       "invite_id": "uuid",
       "receiver": { "phone": "0912***678", "name": "Nguyễn Văn A" },
       "relationship": "con_trai",
-      "invite_type": "patient_to_caregiver",
+      "invite_type": "add_caregiver",
       "status": "pending",
       "created_at": "2026-01-28T10:00:00Z"
     }
@@ -304,7 +304,7 @@
       "invite_id": "uuid",
       "sender": { "id": "uuid", "name": "Nguyễn Văn B", "avatar": "..." },
       "relationship": "me",
-      "invite_type": "caregiver_to_patient",
+      "invite_type": "add_patient",
       "status": "pending",
       "created_at": "2026-01-28T09:00:00Z"
     }
@@ -866,7 +866,7 @@ message RelationshipTypesResponse {
     "template": "CONNECTION_INVITE_NEW",
     "params": {
       "sender_name": "Nguyễn Văn A",
-      "invite_type": "patient_to_caregiver",
+      "invite_type": "add_caregiver",
       "deep_link": "kolia://invite?id={invite_id}"
     },
     "channels": ["ZNS", "PUSH"],

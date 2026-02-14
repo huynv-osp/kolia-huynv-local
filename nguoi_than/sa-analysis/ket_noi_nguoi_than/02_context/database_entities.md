@@ -207,6 +207,6 @@
 |--------|---------|
 | +2 NEW tables | `family_groups`, `family_group_members` |
 | +2 ALTER columns | `permission_revoked`, `family_group_id` on `user_emergency_contacts` |
-| invite_type enum | `patient_to_caregiver`/`caregiver_to_patient` → `add_patient`/`add_caregiver` |
+| invite_type enum | `add_caregiver`/`add_patient` → `add_patient`/`add_caregiver` |
 | Permissions | 6 → 5 types (removed `proxy_execution` merged into `compliance_tracking`) |
 | Exclusive Group | UNIQUE constraint on `user_id` WHERE status='active' (BR-057) |

@@ -49,7 +49,7 @@ CREATE TABLE IF NOT EXISTS connection_invites (
 
     CONSTRAINT chk_no_self_invite CHECK (sender_id != receiver_id),
     CONSTRAINT chk_invite_type CHECK (invite_type IN (
-        'patient_to_caregiver', 'caregiver_to_patient',  -- legacy
+        'add_caregiver', 'add_patient',  -- legacy
         'add_patient', 'add_caregiver'                    -- v4.0
     )),
     CONSTRAINT chk_invite_status CHECK (status IN (0, 1, 2, 3))
@@ -172,7 +172,7 @@ ADD COLUMN IF NOT EXISTS family_group_id UUID REFERENCES family_groups(group_id)
 -- B4. UPDATE invite_type CHECK constraint
 ALTER TABLE connection_invites DROP CONSTRAINT IF EXISTS chk_invite_type;
 ALTER TABLE connection_invites ADD CONSTRAINT chk_invite_type CHECK (invite_type IN (
-    'patient_to_caregiver', 'caregiver_to_patient',
+    'add_caregiver', 'add_patient',
     'add_patient', 'add_caregiver'
 ));
 
@@ -185,7 +185,7 @@ ALTER TABLE user_emergency_contacts DROP COLUMN IF EXISTS permission_revoked;
 ALTER TABLE user_emergency_contacts DROP COLUMN IF EXISTS family_group_id;
 ALTER TABLE connection_invites DROP CONSTRAINT IF EXISTS chk_invite_type;
 ALTER TABLE connection_invites ADD CONSTRAINT chk_invite_type
-    CHECK (invite_type IN ('patient_to_caregiver', 'caregiver_to_patient'));
+    CHECK (invite_type IN ('add_caregiver', 'add_patient'));
 DROP TABLE IF EXISTS family_group_members;
 DROP TABLE IF EXISTS family_groups;
 */

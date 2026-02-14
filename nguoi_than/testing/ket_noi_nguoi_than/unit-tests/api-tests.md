@@ -13,11 +13,11 @@
 #### API-INV-001: Patient invites Caregiver
 ```java
 @Test
-void createInvite_patientToCaregiver_returns201() {
+void createInvite_addCaregiver_returns201() {
     CreateInviteRequest request = CreateInviteRequest.builder()
         .phone("0912345678")
         .relationshipCode("daughter")
-        .inviteType("patient_to_caregiver")
+        .inviteType("add_caregiver")
         .build();
     
     webTestClient.post()
@@ -37,11 +37,11 @@ void createInvite_patientToCaregiver_returns201() {
 #### API-INV-002: Caregiver invites Patient
 ```java
 @Test
-void createInvite_caregiverToPatient_returns201() {
+void createInvite_addPatient_returns201() {
     CreateInviteRequest request = CreateInviteRequest.builder()
         .phone("0901234567")
         .relationshipCode("mother")
-        .inviteType("caregiver_to_patient")
+        .inviteType("add_patient")
         .build();
     
     webTestClient.post()

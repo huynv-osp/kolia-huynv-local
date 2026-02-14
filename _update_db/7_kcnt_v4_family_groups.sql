@@ -109,16 +109,14 @@ COMMENT ON COLUMN user_emergency_contacts.family_group_id IS 'v4.0: Link to fami
 ALTER TABLE connection_invites
 DROP CONSTRAINT IF EXISTS chk_invite_type;
 
--- Add new constraint (backward compatible)
+-- Add new constraint (v4.0 only — legacy values migrated by script 8)
 ALTER TABLE connection_invites
 ADD CONSTRAINT chk_invite_type CHECK (invite_type IN (
-    'patient_to_caregiver',   -- legacy (v2.x)
-    'caregiver_to_patient',   -- legacy (v2.x)
-    'add_patient',            -- v4.0: Admin adds Patient to group
-    'add_caregiver'           -- v4.0: Admin adds Caregiver to group
+    'add_patient',            -- v4.0: Admin mời bệnh nhân vào nhóm
+    'add_caregiver'           -- v4.0: Admin mời người thân vào nhóm
 ));
 
-COMMENT ON COLUMN connection_invites.invite_type IS 'v4.0: add_patient/add_caregiver (Admin-only). Legacy: patient_to_caregiver/caregiver_to_patient';
+COMMENT ON COLUMN connection_invites.invite_type IS 'v4.0: add_patient (mời bệnh nhân) or add_caregiver (mời người thân)';
 
 
 -- ============================================================================
@@ -164,7 +162,7 @@ ALTER TABLE user_emergency_contacts DROP COLUMN IF EXISTS family_group_id;
 -- 2. Revert invite_type constraint to v2.22
 ALTER TABLE connection_invites DROP CONSTRAINT IF EXISTS chk_invite_type;
 ALTER TABLE connection_invites ADD CONSTRAINT chk_invite_type
-    CHECK (invite_type IN ('patient_to_caregiver', 'caregiver_to_patient'));
+    CHECK (invite_type IN ('add_patient', 'add_caregiver'));
 
 -- 3. Drop new tables (order matters due to FK)
 DROP TABLE IF EXISTS family_group_members;
