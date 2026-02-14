@@ -24,7 +24,7 @@ Tài liệu SRS này mô tả các yêu cầu chức năng và phi chức năng 
 - ✅ Gửi lời mời kết nối (**Chỉ Admin** mới có quyền mời thành viên)
 - ✅ Nhận/Chấp nhận/Từ chối lời mời
 - ✅ Quản lý danh sách người thân đã kết nối
-- ✅ Phân quyền chi tiết (6 categories)
+- ✅ Phân quyền chi tiết (5 categories)
 - ✅ Tắt quyền theo dõi (Patient tắt tất cả permissions của Caregiver)
 - ✅ Quản lý thành viên (Admin: thêm/xoá thành viên trong gói)
 - ✅ Xem chi tiết Patient (Caregiver view)
@@ -106,6 +106,9 @@ Then Hệ thống pre-check (theo thứ tự):
   | → CÓ: Tiếp tục flow |
   | → KHÔNG: Hiển thị "Gói hiện tại không còn chỗ cho {Role}." |
   |   [Xem gói nâng cấp] → PKG-01  |  [Hủy] |
+  | 2.5. Slot type = Người thân AND patient_active_count_excluding_target = 0? |
+  | → CÓ: Hiển thị warning (BR-062, A1.7). KHÔNG block |
+  | → KHÔNG: Tiếp tục flow |
   And Ref: Payment SRS §5.6 (Cross-Feature Dependencies), BR-037
 Then Hệ thống mở **Invite Bottom Sheet** (SCR-02-BS) với variant theo loại slot:
   | Slot Type | Title | Icon | Mô tả |
@@ -129,7 +132,7 @@ Then Hệ thống tạo invite record:
   | permissions = ALL ON (mặc định) |
   And Hệ thống gửi ZNS + Push Notification đến người được mời
   And Admin thấy message "Đã gửi lời mời thành công"
-  And Ref: BR-001, BR-002, BR-050 (updated v5.0), BR-055, BR-057
+  And Ref: BR-041, BR-027, BR-050 (updated v5.0), BR-055, BR-057
 ```
 
 ### Kịch bản A1.2: Gửi lời mời cho người CHƯA CÓ tài khoản Kolia
@@ -144,13 +147,13 @@ Then Hệ thống tạo invite record với status = "pending"
   And relationship = null (chưa gán)
   And Hệ thống gửi ZNS với Deep Link đến SĐT
   And Admin thấy message "Đã gửi lời mời. Người thân cần tải app để kết nối."
-  And Ref: BR-001, BR-003, BR-055
+  And Ref: BR-041, BR-027, BR-055
 ```
 
 ### Kịch bản A1.3: Admin thêm chính mình vào nhóm (Dual Role)
 
 > **v4.1:** Admin có thể thêm bản thân vào cả slot Người bệnh và Người thân (BR-048, BR-049).
-> **Lưu ý:** Chỉ Admin mới có quyền này. Member (Patient/Caregiver) nhập SĐT chính mình → bị chặn (BR-006).
+> **Lưu ý:** Chỉ Admin mới có quyền này. Member (Patient/Caregiver) nhập SĐT chính mình → bị chặn (BR-041).
 
 ```gherkin
 Given Admin đang ở BS-QLTV
@@ -161,28 +164,19 @@ Then Hệ thống kiểm tra theo loại slot:
   | → KHÔNG gửi lời mời, kết nối tạo ngay (BR-049) |
   | → Admin KHÔNG nhận thông báo lời mời (tự thêm mình) |
   | TRƯỜNG HỢP 2: Thêm vào slot Người thân (CG-slot) |
-  | → Check: Nhóm có ≥1 Người bệnh KHÁC Admin không? |
-  |   → CÓ: Auto-accept, Admin trở thành Người thân, tự động theo dõi tất cả Patient |
-  |   → KHÔNG: Hiển thị "Cần có ít nhất 1 Người bệnh khác trong nhóm trước khi thêm Người thân" |
-  |     [Mời Người bệnh trước] → SCR-02-BS (Patient invite)  |  [Đóng] |
-  And Ref: BR-006, BR-048, BR-049
+  | → Pre-check 1: BR-038 (Care + Admin = Patient duy nhất → BLOCK, popup "Không hợp lệ") |
+  | → Pre-check 2: BR-062 (nếu không có Patient khả dụng → warning A1.7) |
+  | → Nếu tiếp tục: Auto-accept, Admin trở thành Người thân, tự động theo dõi tất cả Patient |
+  And Ref: BR-038, BR-048, BR-049
 ```
 
-### Kịch bản A1.3b: Non-Admin nhập SĐT chính mình (Edge Case)
 
-```gherkin
-Given Member (không phải Admin) đang ở màn hình nhận lời mời
-When Member cố gắng gửi lời mời cho chính SĐT của mình
-Then Hệ thống hiển thị error: "Bạn không thể mời chính mình"
-  And Lời mời KHÔNG được gửi
-  And Ref: BR-006
-```
 
 ### Kịch bản A1.4: Gửi lời mời cho người đã kết nối (Edge Case)
 
 ```gherkin
-Given Patient đã kết nối với Caregiver có SĐT "0912345678"
-When Patient cố gắng gửi lời mời đến cùng SĐT
+Given Admin đã kết nối với user có SĐT "0912345678"
+When Admin cố gắng gửi lời mời đến cùng SĐT
 Then Hệ thống hiển thị error: "Bạn đã kết nối với người này"
   And Lời mời KHÔNG được gửi
   And Ref: BR-007
@@ -191,8 +185,8 @@ Then Hệ thống hiển thị error: "Bạn đã kết nối với người nà
 ### Kịch bản A1.5: Gửi lời mời cho người có pending invite (Edge Case)
 
 ```gherkin
-Given Patient đã gửi lời mời cho SĐT "0912345678" (status = pending)
-When Patient cố gắng gửi lại lời mời đến cùng SĐT
+Given Admin đã gửi lời mời cho SĐT "0912345678" (status = pending)
+When Admin cố gắng gửi lại lời mời đến cùng SĐT
 Then Hệ thống hiển thị: "Bạn đã gửi lời mời. Đang chờ phản hồi."
   And Lời mời mới KHÔNG được tạo
   And Ref: BR-007
@@ -210,6 +204,26 @@ Then Hiển thị lỗi: "Người này đã tham gia nhóm gia đình khác. Vu
   And KHÔNG tạo invite record, KHÔNG consume slot
   And Button: [Đóng] → quay về SCR-02-BS
   And Ref: BR-057
+```
+
+### Kịch bản A1.7: Mời Người thân khi nhóm chưa có Người bệnh khả dụng (Warning)
+
+> **v5.4:** Warning (không block) áp dụng cho MỌI cách thêm CG (mời người khác hoặc Admin tự thêm mình).
+
+```gherkin
+Given Admin đang thêm Người thân vào nhóm (bất kỳ cách nào)
+  And patient_active_count_excluding_target = 0
+    (Nhóm không có Patient active nào NGOÀI chính người được thêm)
+When Hệ thống phát hiện điều kiện trên
+Then Hiển thị warning popup (màu vàng):
+  | Title: "⚠️ Xác nhận" |
+  | Content: "Hiện nhóm chưa có người bệnh nào khả dụng để theo dõi. Người thân được mời sẽ chưa thể theo dõi sức khỏe ai cho đến khi có người bệnh tham gia." |
+  | Buttons: [Vẫn gửi lời mời] (primary) · [Quay lại] (secondary) |
+When Admin nhấn "Vẫn gửi lời mời"
+Then Tiếp tục flow tương ứng (A1.1/A1.2 hoặc A1.3 auto-accept)
+When Admin nhấn "Quay lại"
+Then Đóng popup, quay về BS-QLTV
+  And Ref: BR-062
 ```
 
 ---
@@ -262,7 +276,7 @@ Then Section "Người đang theo dõi tôi" hiển thị pending item với:
   | Button ❌ | Hủy lời mời (có confirm popup) |
   | Tap item | → Navigate đến SCR-04B (Chi tiết pending) có button "Hủy lời mời" |
   
-  And Ref: BR-028, BR-029
+  And Ref: BR-030, BR-029, BR-054
 
 When Patient nhấn ❌ (Hủy lời mời)
 Then Hiển thị popup xác nhận:
@@ -303,7 +317,7 @@ Then Profile Selector **ẨN** (không hiển thị)
 
 **User Story:** Là một **Patient**, tôi muốn **kiểm soát từng quyền của Caregiver**, để **bảo vệ quyền riêng tư**.
 
-### Bảng 6 Permissions
+### Bảng 5 Permissions
 
 | # | Quyền | Mô tả | UI Block | Default |
 |---|-------|-------|----------|:-------:|
@@ -334,7 +348,7 @@ When Patient nhấn "Xác nhận"
 Then Permission được cập nhật ngay lập tức
   And Caregiver X KHÔNG nhận thông báo (silent permission change, BR-056)
   And Block tương ứng bị ẨN trên màn hình Caregiver
-  And Ref: BR-016, BR-017, BR-024, BR-039
+  And Ref: BR-056, BR-017, BR-024, BR-039
 ```
 
 ### Kịch bản A4.2: Warning đặc biệt khi TẮT cảnh báo khẩn cấp
@@ -476,6 +490,7 @@ When Caregiver scroll section "Tôi đang theo dõi"
 Then Hiển thị list Patients đã kết nối
   And Mỗi item hiển thị: Avatar, {Mối quan hệ} ({Tên}), Last active (KHÔNG có nút action)
   And Nếu Mối quan hệ = "Khác" → chỉ hiển thị {Tên}
+  And **Dual-role:** Nếu user vừa là Patient vừa là CG (Family) → KHÔNG hiển thị chính mình trong list này (BR-048)
   And Tap vào item → Quay về màn hình chính SCR-01 và hiển thị các khối thông tin sức khỏe của Patient bên dưới Block Người theo dõi
   And Các UI Blocks chi tiết sẽ được bổ sung ở user stories tiếp theo
 ```
@@ -516,7 +531,7 @@ Then Profile Selector hiển thị "Chọn người thân ▼" (chưa chọn ai)
   And Hiển thị prompt area gồm:
     | Element | Chi tiết |
     | Icon | 👋 (48px) |
-    | Title | "Chọn người thân ở phía trên để xem sức khỏe của họ" |
+    | Title | "Chọn người thân ở phía trên để xem thông tin của họ" |
   And KHÔNG có CTA button — user tap Profile Selector để mở Bottom Sheet
 
 When Caregiver nhấn Profile Selector
@@ -887,11 +902,11 @@ Then Hiển thị popup xác nhận:
   | Buttons: [Xác nhận] [Quay lại] |
 When User nhấn "Xác nhận"
 Then Connection được tạo với status = "active"
-  And 6 default permissions = ALL ON
+  And 5 default permissions = ALL ON
   And Admin nhận notification: "{Tên} đã chấp nhận lời mời"
   And Lời mời biến mất khỏi Block "Lời mời mới"
   And Người được thêm vào Profile Switcher dropdown
-  And Ref: BR-008, BR-009, BR-010
+  And Ref: BR-008, BR-010
 ```
 
 ### Kịch bản C2.2: Từ chối lời mời vào nhóm
@@ -945,43 +960,31 @@ Then Popup đóng
 
 | BR-ID | Category | Mô tả Rule | Priority |
 |-------|----------|------------|:--------:|
-| **BR-001** | Authorization | **Chỉ Admin (Quản trị viên)** mới có quyền gửi lời mời thành viên. Member (Patient/Caregiver) không có quyền mời (BR-041) | P0 |
-| **BR-002** | Notification | Gửi ZNS + Push cho user ĐÃ CÓ tài khoản | P0 |
-| **BR-003** | Notification | Gửi ZNS với Deep Link cho user MỚI | P0 |
 | **BR-004** | Fallback | ZNS fail → SMS fallback, retry 3x (30s interval mỗi lần) | P0 |
-| **BR-006** | Constraint | **Không thể mời chính mình (Member).** Non-Admin nhập SĐT chính mình → block. **Admin exception:** Admin có thể thêm bản thân vào slot (auto-accept, BR-049). Khi thêm mình làm CG → phải có ≥1 Patient khác trong nhóm (BR-048) | P0 |
 | **BR-007** | Constraint | Không thể mời người đã kết nối hoặc có pending invite | P0 |
-| **BR-008** | State | Accept → Create connection + Apply 6 permissions | P0 |
-| **BR-009** | Authorization | 6 permissions default = ALL ON | P0 |
+| **BR-008** | State | **Accept → Create connection + Apply 5 permissions (default ALL ON).** Cross-ref: BR-045, BR-050 | P0 |
 | **BR-010** | Notification | Notify người gửi khi recipient accept/reject | P1 |
 | **BR-011** | State | Reject → Update status, allow re-invite | P1 |
 | **BR-012** | State | Pending invite → LUÔN hiển thị Action item trong Bản tin Hành động | P1 |
 | **BR-013** | State | Multiple invites → FIFO order | P1 |
 | **BR-014** | Display | List: Avatar, Tên. **KHÔNG có** Last active (không khả dụng). Nếu bị tắt quyền → hiển thị badge "🚫 Bị tắt quyền theo dõi" | P1 |
 | **BR-015** | Display | Empty state với CTA phù hợp từng role (Admin vs Member có CTA khác nhau) | P2 |
-| **BR-016** | State | Permission change → **KHÔNG** gửi notification cho Caregiver (silent change, xem BR-056). Block UI tương ứng bị ẨN ngay lập tức trên màn hình Caregiver | P1 |
 | **BR-017** | Display | Permission OFF → Hide UI block on Caregiver view | P0 |
 | **BR-018** | Authorization | Warning popup **ĐỎ** khi TẮT "Cảnh báo khẩn cấp" | P0 |
-| **BR-019** | State | Patient tắt quyền theo dõi → **KHÔNG** gửi notification cho Caregiver (silent revoke, xem BR-056). Connection vẫn giữ (active), có thể mở lại. Cross-account effects: xem A5.1 | P0 |
-| **BR-020** | State | Caregiver exit → Notify Patient | P1 |
-| **BR-021** | Limit | Giới hạn gửi lời mời theo slot gói hiện tại (cross-ref Payment SRS). Nhận lời mời không giới hạn | P0 |
-| **BR-022** | State | Account deleted → Cascade delete + Notify | P0 |
 | **BR-023** | Navigation | Badge tap → Navigate to "Kết nối NT" screen, show pending section | P1 |
 | **BR-024** | Authorization | **Confirmation popup chỉ khi TẮT permission.** BẬT permission áp dụng ngay, không cần popup | P0 |
 | **BR-025** | Display | **Message phải phân biệt rõ invite type** (xem 3.2) | P0 |
-| **BR-026** | UX | **Profile Selection Logic:** Auto-select rules, 4 states (A/B/C/E), Default View Prompt behavior (xem 5.2.1) | P0 |
+| **BR-026** | UX | **Profile Selection Logic (v3.5):** KHÔNG auto-select. Lần đầu load hiển thị Default View Prompt "Chọn người thân ở phía trên để xem thông tin của họ". 4 states (A/B/C/E). Xem 5.2.1, UX-DVS-001 | P0 |
 | **BR-027** | Flow | **Invite flow (v5.0):** Admin nhấn "+ Mời" tại BS-QLTV → SCR-02-BS (chỉ SĐT, 2 variant). User ĐÃ CÓ TK → ZNS + Push. User CHƯA CÓ TK → ZNS với Deep Link | P0 |
-| **BR-028** | Data | **Relationship type phải được lưu khi tạo connection và hiển thị trong UI** | P0 |
 | **BR-029** | Display | **Card Display Rule:** (1) Section "Tôi đang theo dõi" hiển thị **{Mối quan hệ} ({Tên})**, nếu MQH = "Khác" → chỉ hiển thị **{Tên}**. (2) Section "Người đang theo dõi tôi" hiển thị **{Tên}** (không hiển thị mối quan hệ) | P0 |
 | **BR-030** | Data | **Relationship Direction (ONE-WAY):** Thu thập mối quan hệ theo hướng **"Bạn là gì đối với người này?"** → Lưu relationship của người gửi đối với người nhận. Ví dụ: Patient mời Caregiver, chọn "Mẹ" → relationship = "me" (Patient là Mẹ của Caregiver) | P0 |
 | **BR-031** | Notification | **ZNS cho add_caregiver:** Nội dung ZNS dùng tên Admin ({Tên Admin} từ profile onboarding) để xưng danh người mời. Ref: §7.1 | P0 |
 | **BR-032** | Data | **No Name Collection:** Không thu thập tên khi gửi lời mời vì tên đã được thu thập từ profile onboarding của người nhận | P0 |
-| **BR-033** | Slot | **Slot Pre-check:** Hệ thống phải kiểm tra slot availability TRƯỚC khi cho gửi invite. Gửi invite = consume 1 slot (pending) | P0 |
 | **BR-034** | Slot | **Auto-assign Sender Role:** Khi CG gửi invite "theo dõi người khác" mà chưa có CG-slot → auto-gán CG-slot cho sender | P0 |
 | **BR-035** | Slot | **Connection = Premium:** Accept invite ở KCNT = member có Premium access (slot consumed từ gói người gửi) | P0 |
 | **BR-036** | Slot | **Hủy kết nối = Giải phóng slot:** Hủy connection hoặc hủy invite pending → slot trở về trống | P0 |
 | **BR-037** | Constraint | **Expired = Block invite:** Khi gói hết hạn, KHÔNG cho phép gửi lời mời (cả Patient lẫn Caregiver). Hiển thị prompt gia hạn → PKG-01 | P0 |
-| **BR-038** | Constraint | **EC-43 CG self-monitoring:** CG không thể theo dõi chính mình. Nếu gói chỉ có 1 P-slot và Owner là Patient duy nhất → block invite CG→Patient cho đến khi có ≥1 Patient khác. Cross-ref: Payment SRS §2.19 (EC-43, EC-45) | P0 |
+| **BR-038** | Constraint | **CG self-monitoring (v5.4):** CG không thể theo dõi chính mình. **Phân biệt theo gói:** (1) **Kolia Care (1P+1CG):** CHẶN thêm CG nếu CG = Patient duy nhất → popup ⚠️ Title: "Không hợp lệ" · Content: "Người bệnh và người thân ở cấp độ đồng hành Kolia Care phải là 2 tài khoản khác nhau. Vui lòng kiểm tra lại!" · [Đóng]. (2) **Kolia Family (N slots):** KHÔNG chặn — warning BR-062 (Case 2) vì có thể thêm Patient khác sau. Cross-ref: Payment SRS §2.19 (EC-43, EC-45) | P0 |
 | **BR-039** | Validation | **Minimum Permission:** Ít nhất 1 permission phải ON. Khi chỉ còn 1 quyền ON và Patient tap toggle đó → hiển thị toast "⚠️ Cần có ít nhất 1 quyền được bật" và toggle không chuyển sang OFF. **Exception:** Action "Tắt quyền theo dõi" (A.5) bypass rule này | P0 |
 | **BR-040** | Authorization | **Tắt quyền theo dõi:** Patient có thể tắt TẤT CẢ permissions của Caregiver. Connection vẫn giữ (status = active, permission_revoked = true). Có thể mở lại bất cứ lúc nào qua SCR-05. Khi mở lại ≥ 1 permission → permission_revoked = false | P0 |
 | **BR-041** | Authorization | **Ma trận quyền theo Role:** (1) **Quản trị viên (Admin):** Có quyền mời + xoá thành viên trong nhóm. Admin tự thêm mình → auto-accept, không nhận lời mời (BR-049). (2) **Patient / Caregiver (Member):** Chỉ có quyền xác nhận/từ chối lời mời nhận được, **KHÔNG có quyền mời** người khác. Cross-ref: [Payment SRS](../payment/srs-quan-ly-goi-dich-vu.md) §2.8 | P0 |
@@ -991,19 +994,19 @@ Then Popup đóng
 | **BR-045** | Authorization | **Auto-connect (v4.1):** Khi Admin thêm CG vào nhóm và CG accept → CG tự động follow TẤT CẢ Patient trong nhóm, permissions ALL ON. Không cần Patient accept từng người | P0 |
 | **BR-046** | Authorization | **Patient Dual-Control (v4.1):** Patient có 2 tầng control: (1) Tầng 1 — cho phép/chặn từng CG follow mình ("Tắt quyền theo dõi" A.5, SCR-04), (2) Tầng 2 — config chi tiết permissions cho CG được phép (SCR-05) | P0 |
 | **BR-047** | Constraint | **Slot Check per Package (v5.1):** Khi Admin nhấn "+ Mời" mà slot đã đầy → hiển thị popup giới hạn: 🔒 Icon khoá · **Title:** "Đã đạt giới hạn" · **Content:** "Bạn đã sử dụng tối đa **{N} thành viên** trong gói {tên gói}. Nâng cấp để sử dụng không giới hạn." · **Buttons:** [Nhập mã kích hoạt] (primary) · [Đóng] (secondary). Cross-ref: Payment SRS, BR-059 | P0 |
-| **BR-048** | Constraint | **Dual-Role Allowed (v4.1):** 1 người có thể NẰM Ở 2 ROLE (vừa là Người bệnh vừa là Người thân) trong cùng 1 nhóm. Tuy nhiên CÙNG 1 ROLE không thể thêm 2 lần (unique per role) | P0 |
+| **BR-048** | Constraint | **Dual-Role Allowed (v4.1, updated v5.4):** 1 người có thể NẰM Ở 2 ROLE (vừa là Người bệnh vừa là Người thân) trong cùng 1 nhóm (Family only). Tuy nhiên CÙNG 1 ROLE không thể thêm 2 lần (unique per role). **Display:** Nếu user có dual-role → KHÔNG hiển thị chính mình trong danh sách "Tôi đang theo dõi" + Profile Switcher (CG không thể theo dõi chính mình). **v5.4:** Dùng chung BR-062 (warning) cho trường hợp thêm CG | P0 |
 | **BR-049** | Authorization | **Admin Self-Add (v4.1):** Khi Admin thêm chính mình vào slot → auto-accept (không cần gửi/xác nhận lời mời). Khi thêm người khác → gửi lời mời, người đó phải xác nhận | P0 |
 | **BR-050** | Authorization | **MQH Optional (v5.2):** Khi CG accept lời mời → vào nhóm ngay, permissions ALL ON, MQH = null (fallback {Tên}). CG chọn MQH tại SCR-06 (Chi tiết người thân) bất cứ lúc nào. **Bỏ POP-MQH + persistent trigger** (v5.2) | P0 |
 | **BR-051** | Display | **Empty State theo Role (v4.1, updated v5.3):** Khi chưa có kết nối: (1) Profile Selector **ẨN** hoàn toàn, (2) Admin → hiển thị CTA "Mời thành viên ngay" → mở BS-QLTV, (3) Non-Admin chưa thuộc nhóm → hiển thị guidance "Liên hệ quản trị viên nhóm gia đình để được thêm vào", KHÔNG có CTA, (4) Non-Admin ĐÃ thuộc nhóm nhưng chưa có Patient → hiển thị "Chưa có người bệnh nào trong nhóm" + guidance "Liên hệ quản trị viên nhóm để thêm người bệnh" (B3.3f) | P0 |
 | **BR-052** | Notification | **New Member Push Noti (v5.2):** Khi người mới accept → push noti đến TẤT CẢ thành viên hiện tại (trừ người mới + Admin mời). Nội dung: "👋 {Tên} đã vào nhóm của {Danh xưng}". Tap → Navigate KCNT (SCR-01). Ref: GR-BIZ-01 cho {Danh xưng} | P0 |
-
 | **BR-054** | Data | **MQH Fallback + Substitution (v5.2):** (1) Nếu CG chưa chọn MQH → fallback dùng {Tên}. (2) **Khi đã chọn MQH** → thay {Tên} bằng {MQH} trong messages, toasts, notifications. (3) CG chọn/sửa MQH qua **SCR-06** (Chi tiết người thân) — dropdown với các option: Mẹ, Bố, Bà, Ông, Chú, Dì... | P0 |
 | **BR-055** | Flow | **Simplified Invite Form (v5.0):** Admin mời thành viên chỉ cần nhập SĐT. Bỏ trường MQH và bước config quyền khỏi form invite. Form phân biệt 2 variant: Mời Người bệnh (🩺) vs Mời Người thân (👥). MQH do CG chọn tại SCR-06 sau khi kết nối. Permissions ALL ON mặc định | P0 |
 | **BR-056** | Authorization | **Permission-OFF Cross-Account Effects:** Khi Patient A tắt quyền theo dõi Caregiver B: (1) **Phía A:** nick B có badge "🚫 Bị tắt quyền", button "Quyền truy cập" bị ẨN tại SCR-04 (2) **Phía B:** Patient A biến mất khỏi danh sách "Tôi đang theo dõi" + Profile Switcher, KHÔNG truy cập được Dashboard A (3) **Notification:** KHÔNG gửi thông báo cho người bị on/off quyền (silent revoke/restore). Áp dụng cho cả tắt (A5.1) và mở lại (A5.1b) | P0 |
 | **BR-057** | Constraint | **Exclusive Group (v5.1):** 1 user tại 1 thời điểm chỉ thuộc **1 nhóm gia đình**. Khi Admin gửi invite, server check người nhận chưa thuộc nhóm nào. Nếu đã thuộc nhóm khác → chặn invite, hiển thị "Người này đã tham gia nhóm gia đình khác. Vui lòng kiểm tra lại." [Đóng]. Cross-ref: A1.6 | P0 |
 | **BR-058** | Authorization | **Admin Cannot Self-Remove (v5.1):** Admin **KHÔNG thể xoá chính mình** khỏi nhóm. Nút 🗑️ tại BS-QLTV **ẨN** cho slot của Admin. Nếu muốn rời nhóm → cần chuyển quyền Admin hoặc xoá gói | P0 |
-| **BR-059** | Slot | **Slot Limit Formula (v5.1):** Số lời mời có thể gửi = `slot_trống = tổng_slot - đã_gán - pending`. Nút "+ Mời" **LUÔN hiển thị** tại BS-QLTV. Khi slot_trống = 0 và Admin nhấn "+ Mời" → hiển thị popup giới hạn (BR-047): 🔒 "Đã đạt giới hạn" + [Nhập mã kích hoạt] · [Đóng]. Cross-ref: Payment SRS BR-016, BR-017. Ref: Assumption #3 | P0 |
+| **BR-059** | Slot | **Slot Limit Formula (v5.1, updated v5.4):** Nút "+ Mời" **LUÔN hiển thị** tại BS-QLTV. Khi slot_trống = 0 → popup giới hạn (BR-047). **Logic phân biệt theo gói:** (1) **Kolia Care:** `slot_trống` tính **riêng per role** (P-slot vs CG-slot). (2) **Kolia Family:** `slot_trống = N - đã_gán - pending` (pool chung, không phân biệt role, nhưng cần ≥1 Patient — xem BR-062). Gửi invite = consume 1 slot (pending). Nhận lời mời không giới hạn. Cross-ref: Payment SRS BR-016, BR-017. Ref: Assumption #3 | P0 |
 | **BR-061** | Flow | **Leave Group (v5.3):** Non-Admin (Patient/CG) có thể tự rời nhóm. Entry: text link "Rời nhóm" ở cuối Bottom Sheet "Danh sách kết nối". Nhấn → popup POP-LEAVE xác nhận → huỷ connection, giải phóng slot (BR-036), user quay về bản miễn phí. Admin **KHÔNG có** chức năng này (BR-058). Admin nhận push noti khi thành viên rời nhóm. Cross-ref: C2.3 | P0 |
+| **BR-062** | UX | **CG Invite Warning (v5.4):** Khi Admin thêm CG (mời hoặc self-add) mà `patient_active_count_excluding_target = 0` → warning popup màu vàng, KHÔNG block. Buttons: [Vẫn gửi lời mời] · [Quay lại]. 2 cases: (1) nhóm chưa có Patient, (2) **Family only:** Patient duy nhất = người đang được thêm làm CG (Care → chặn bởi BR-038, không đến được warning). Cross-ref: A1.7, A1.1 step 2.5, A1.3 TH2, B3.3f | P1 |
 
 
 ### 3.3 Cross-Feature Dependencies (Payment Integration)
@@ -1210,7 +1213,7 @@ Then Hệ thống tự động gửi SMS fallback
 │         👋 (48px)                   │
 │                                     │
 │   "Chọn người thân ở phía trên     │ ← Title
-│    để xem sức khỏe của họ"         │
+│    để xem thông tin của họ"         │
 │                                     │
 ├─────────────────────────────────────┤
 │  🏠    💊   🌳  👥  ⚙️            │
@@ -1547,7 +1550,6 @@ sequenceDiagram
 
 | Error Code | Context | Message |
 |------------|---------|---------|
-| ERR-001 | Invite self | "Bạn không thể mời chính mình" |
 | ERR-002 | Already connected | "Bạn đã kết nối với người này" |
 | ERR-003 | Send failed | "Không thể gửi lời mời. Vui lòng thử lại." |
 | ERR-004 | Network error | "Không có kết nối mạng" |
@@ -1596,6 +1598,7 @@ sequenceDiagram
 | v5.0 | 2026-02-12 | BA Team | **Simplified Invite + MQH Popups + New Member Noti (6 thay đổi):** (1) A1.1/A1.2: Form invite đơn giản — chỉ SĐT, bỏ MQH + config quyền (BR-055), (2) SCR-02-BS: 2 variant (🩺 Người bệnh / 👥 Người thân), (3) POP-MQH: CG chọn MQH khi accept (BR-050 v5.0), (4) POP-NEW-MEMBER: Thông báo thành viên mới + MQH nếu Patient (BR-052, BR-053), (5) POP-EDIT-MQH: Chỉnh MQH qua ✏️ trong Bottom Sheet (BR-054), (6) Bottom Sheet icons 📊/✏️/⚙️ per item (BR-042 v5.0). Rename BS-QLTV → "Quản lý nhóm" |
 | v5.1 | 2026-02-12 | BA Team | **Group Rules + MQH Persistent + Rename (6 thay đổi):** (1) BR-057: Exclusive Group — 1 user = 1 nhóm, chặn invite user đã thuộc nhóm khác (A1.6), (2) BR-058: Admin không thể xoá chính mình khỏi nhóm, (3) BR-059: Slot limit formula, (4) Rename toàn bộ "Bỏ quyền theo dõi" → "Tắt quyền theo dõi" (15+ locations), (5) POP-MQH persistent trigger: re-show mỗi lần CG vào KCNT nếu chưa chọn MQH, ưu tiên hiện sau cùng (BR-060), fallback {Tên}, (6) Bỏ ✏️ edit MQH khỏi Bottom Sheet, xoá POP-EDIT-MQH. Assumption #10 (Exclusive Group), #3 updated (slot formula) |
 | v5.2 | 2026-02-12 | BA Team | **MQH Refactoring — Popup → Detail Screen (5 thay đổi):** (1) **Bỏ POP-MQH + POP-NEW-MEMBER** — xoá toàn bộ popup chọn MQH và chào mừng thành viên mới (BR-050/053/060 deprecated), (2) **SCR-06 "Chi tiết người thân"** — CG chọn/sửa MQH qua dropdown tại màn chi tiết, entry: [✏️] trên Bottom Sheet (BR-054), (3) **Khôi phục ✏️** cho Section "Tôi đang theo dõi" → navigate SCR-06 (BR-042), (4) **MQH Substitution** — khi đã chọn MQH → thay {Tên} bằng {MQH} trong messages/toasts/noti (BR-054), (5) **Push noti updated** — "{Tên} đã vào nhóm của {Danh xưng}" (BR-052) |
+| v5.4 | 2026-02-14 | BA Team | **CG-Only Group Warning + BR Consolidation:** (A) Warning: BR-062 + A1.7: popup vàng khi thêm CG mà `patient_active_count_excluding_target = 0`, A1.3 TH2 → ref BR-062, A1.1 thêm step 2.5. (B) BR Consolidation: xoá 11 rules trùng (BR-001→041, BR-002/003→027, BR-006→049+048, BR-009→008, BR-016/019→056, BR-021/033→059, BR-028→030+054), cập nhật 7 refs. (C) BR-059: bổ sung logic phân biệt Care (per-role slot) vs Family (pool chung, ≥1 Patient). (D) Sửa 5→ đúng số permissions (BR-008, BR-009, Bảng), xoá BR-020/022, cập nhật BR-026 bỏ auto-select |
 
 ### A.2 Open Questions
 

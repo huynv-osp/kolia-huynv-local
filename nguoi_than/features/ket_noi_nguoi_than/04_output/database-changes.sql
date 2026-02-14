@@ -59,7 +59,7 @@ CREATE TABLE IF NOT EXISTS connection_invites (
 -- v2.x additions: linked_user_id, contact_type, relationship_code, invite_id, is_viewing, inverse_relationship_code
 -- v4.0 additions: permission_revoked, family_group_id (Section B)
 
--- A5. Connection Permission Types (v2.1 — 6 types)
+-- A5. Connection Permission Types (v2.1 — 5 types, SRS v4.0)
 CREATE TABLE IF NOT EXISTS connection_permission_types (
     permission_code VARCHAR(30) PRIMARY KEY,
     name_vi VARCHAR(100) NOT NULL,
@@ -75,9 +75,8 @@ INSERT INTO connection_permission_types (permission_code, name_vi, name_en, desc
 ('health_overview', 'Xem tổng quan sức khỏe', 'View Health Overview', 'Chỉ số HA, báo cáo', 'heart', 1),
 ('emergency_alert', 'Nhận cảnh báo khẩn cấp', 'Receive Emergency Alerts', 'Cảnh báo HA bất thường, SOS', 'bell', 2),
 ('task_config', 'Thiết lập nhiệm vụ tuân thủ', 'Configure Tasks', 'Tạo/sửa nhiệm vụ tuân thủ', 'settings', 3),
-('compliance_tracking', 'Theo dõi kết quả tuân thủ', 'Track Compliance', 'Xem lịch sử tuân thủ', 'check-circle', 4),
-('proxy_execution', 'Thực hiện nhiệm vụ thay', 'Proxy Execution', 'Đánh dấu hoàn thành', 'user-check', 5),
-('encouragement', 'Gửi lời động viên', 'Send Encouragement', 'Gửi tin nhắn', 'message-circle-heart', 6)
+('compliance_tracking', 'Theo dõi & thực hiện nhiệm vụ tuân thủ', 'Track & Execute Compliance', 'Xem kết quả & thực hiện thay nhiệm vụ', 'check-circle', 4),
+('encouragement', 'Gửi lời động viên', 'Send Encouragement', 'Gửi tin nhắn', 'message-circle-heart', 5)
 ON CONFLICT DO NOTHING;
 
 -- A6. Connection Permissions (v2.1)
