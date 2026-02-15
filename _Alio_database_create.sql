@@ -285,6 +285,7 @@ CREATE TABLE users (
     level SMALLINT DEFAULT 0, -- 0-5: Cấp độ người dùng
     description TEXT,
     avatar_id TEXT,
+    deleted_at TIMESTAMPTZ,  -- soft delete timestamp
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
