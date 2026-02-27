@@ -3543,32 +3543,42 @@ CREATE INDEX IF NOT EXISTS idx_alerts_push_pending
     ON caregiver_alerts (push_status) 
     WHERE push_status IN (0, 3);
 
--- Debounce: 5-minute buckets (prevent duplicate alerts within 5 minutes)
--- Note: SOS (priority=0) excluded from debounce (BR-ALT-005)
--- 
--- PostgreSQL requires IMMUTABLE functions for index expressions.
--- Instead of date_trunc (which is STABLE, not IMMUTABLE for TIMESTAMPTZ),
--- we use epoch-based calculation which is IMMUTABLE.
+-- REMOVED: DB-level debounce unique index (idx_alerts_debounce)
+-- Previously used 5-minute buckets to prevent duplicate alerts, but it blocked
+-- multiple WRONG_DOSE alerts for different medications in the same time window.
+-- Redis debounce (DEBOUNCE_TTL=0) + application-level logic handles dedup instead.
+--
+-- To clean up existing deployments, run:
+-- DROP INDEX IF EXISTS idx_alerts_debounce;
+-- DROP FUNCTION IF EXISTS alert_debounce_bucket(TIMESTAMPTZ);
 
--- Create immutable function for 5-minute bucket calculation
-CREATE OR REPLACE FUNCTION alert_debounce_bucket(ts TIMESTAMPTZ)
-RETURNS BIGINT AS $$
-    -- Convert to epoch and divide by 300 seconds (5 minutes)
-    -- This creates a bucket ID that represents 5-minute intervals
-    SELECT FLOOR(EXTRACT(EPOCH FROM ts) / 300)::BIGINT;
-$$ LANGUAGE SQL IMMUTABLE PARALLEL SAFE;
+-- -- Debounce: 5-minute buckets (prevent duplicate alerts within 5 minutes)
+-- -- Note: SOS (priority=0) excluded from debounce (BR-ALT-005)
+-- -- 
+-- -- PostgreSQL requires IMMUTABLE functions for index expressions.
+-- -- Instead of date_trunc (which is STABLE, not IMMUTABLE for TIMESTAMPTZ),
+-- -- we use epoch-based calculation which is IMMUTABLE.
 
-COMMENT ON FUNCTION alert_debounce_bucket IS 'Calculate 5-minute bucket ID for alert debounce (BR-ALT-005)';
+-- -- Create immutable function for 5-minute bucket calculation
+-- CREATE OR REPLACE FUNCTION alert_debounce_bucket(ts TIMESTAMPTZ)
+-- RETURNS BIGINT AS $$
+--     -- Convert to epoch and divide by 300 seconds (5 minutes)
+--     -- This creates a bucket ID that represents 5-minute intervals
+--     SELECT FLOOR(EXTRACT(EPOCH FROM ts) / 300)::BIGINT;
+-- $$ LANGUAGE SQL IMMUTABLE PARALLEL SAFE;
 
--- Create unique index using the immutable function
-CREATE UNIQUE INDEX IF NOT EXISTS idx_alerts_debounce 
-    ON caregiver_alerts (
-        caregiver_id, 
-        patient_id, 
-        alert_type_id, 
-        alert_debounce_bucket(created_at)
-    )
-    WHERE priority > 0;
+-- COMMENT ON FUNCTION alert_debounce_bucket IS 'Calculate 5-minute bucket ID for alert debounce (BR-ALT-005)';
+
+-- -- Create unique index using the immutable function
+-- CREATE UNIQUE INDEX IF NOT EXISTS idx_alerts_debounce 
+--     ON caregiver_alerts (
+--         caregiver_id, 
+--         patient_id, 
+--         alert_type_id, 
+--         alert_debounce_bucket(created_at)
+--     )
+--     WHERE priority > 0;
+
 
 COMMENT ON TABLE caregiver_alerts IS 'Health alerts for caregivers (US 1.2 - Nhận Cảnh Báo Bất Thường)';
 COMMENT ON COLUMN caregiver_alerts.priority IS '0=Critical/SOS, 1=High, 2=Medium, 3=Low';
